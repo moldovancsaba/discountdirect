@@ -1,6 +1,6 @@
 # DiscountDirect implementation plan
 
-Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
+Planning release: 0.2.0 — 2026-09-08. This audited release documents and hardens the implementation backlog; it does not claim the application, Atlas connection or production rollout has been implemented.
 
 ## Product definition
 
@@ -15,10 +15,22 @@ The initial user experience is Hungarian, with integer HUF prices and Europe/Bud
 - [Target repository](https://github.com/moldovancsaba/discountdirect): initially README-only with zero issues.
 - [Project #44](https://github.com/users/moldovancsaba/projects/44): two views; the board has eight status columns reproduced below. ClassScout content must not be copied into DiscountDirect.
 - [Sample issue #86](https://github.com/moldovancsaba/classscout/issues/86): Source plus 26 numbered sections, acceptance subsections, test requirements, dependencies, execution order and handover. All implementation issues follow this structure with DiscountDirect-specific contracts.
+- [DiscountDirect delivery board #61](https://github.com/users/moldovancsaba/projects/61): all 20 issues are tracked with Todo, Backlog or Roadmap status; dependency readiness remains authoritative.
 - [GDS live documentation](https://sovereignsquad.github.io/general-design-system/) and [installation guide](https://github.com/sovereignsquad/general-design-system/blob/main/INSTALLATION_GUIDE.md): current documented version 6.7.0; authenticated GitHub Packages consumption.
-- [Vercel project](https://vercel.com/narimato/discountdirect): project `prj_CR4pyuYeYlbO0WcvW5qBoD9zq36A`, team `team_uBQB8dqirkYrzoBxS0YQ9MMs`; existing READY production deployment, Node 24.x, framework not yet set. This metadata does not establish a functioning application or Atlas connectivity.
+- [Vercel project](https://vercel.com/narimato/discountdirect): project `prj_CR4pyuYeYlbO0WcvW5qBoD9zq36A`, team `team_uBQB8dqirkYrzoBxS0YQ9MMs`; existing READY production deployment, Node 24.x, framework not yet set, and observed deployment region `iad1`. The public root currently returns HTTP 404, so READY is only a build state and does not establish a functioning application or Atlas connectivity.
 - [Current Vercel WebSockets documentation](https://vercel.com/docs/functions/websockets): Socket.IO is supported with WebSocket-only transport; lifecycle and instance boundaries require explicit recovery.
-- [Atlas/Vercel integration documentation](https://www.mongodb.com/docs/atlas/reference/partner-integrations/vercel/): use the native integration for the requested project attachment.
+- [Atlas/Vercel integration documentation](https://www.mongodb.com/docs/atlas/reference/partner-integrations/vercel/): the native integration supplies `MONGODB_URI`, but also documents dynamic-IP access through `0.0.0.0/0` and an integration-created user with broad database write privileges. Those defaults require an explicit risk and least-privilege decision; they are not silently accepted.
+
+## Audit decisions for 0.2.0
+
+- **Delivery truth:** every implementation issue must pass required repository checks and an exact-commit Vercel Preview. Production promotion is intentional and gated; #19 owns the complete production promotion and rollback exercise. A READY deployment that serves 404 or the wrong commit does not pass.
+- **Environment and data location:** the observed Vercel deployment region is `iad1`, but no production region or international-transfer posture is approved yet. #1 and #2 must document the chosen Vercel and Atlas regions before real personal data is used.
+- **Atlas network and privileges:** #2 must choose between an owner-approved native dynamic-egress posture and an owner-approved paid/static-egress posture such as [Vercel Secure Compute](https://vercel.com/docs/secure-compute). The application credential must be scoped to the DiscountDirect database; broader bootstrap credentials must not become the long-lived app identity. No paid resource is provisioned silently.
+- **Identity bootstrap:** #4 must define seller, buyer and operator provisioning, one-time activation/recovery, session rotation and multi-instance abuse controls. Shared or default production credentials are prohibited.
+- **Privacy and marketing:** #7 must capture purpose, legal basis, notice version and channel-specific evidence, and define data-subject workflows. Real personal data or marketing remains blocked until the controller owner approves the documented legal and transfer posture.
+- **Realtime:** #10 remains a compatibility spike. It must prove Fluid Compute, WebSocket-only Socket.IO, finite-duration reconnect/replay and cross-instance coordination on the selected plans; durable HTTP state remains authoritative and the UI must disclose degraded realtime.
+- **Durability and inventory:** #2 owns migrations, index lifecycle and restore evidence. #12 must prevent oversell across concurrent campaigns against one authoritative in-app inventory balance, not only within one campaign.
+- **Standards:** UI acceptance targets [WCAG 2.2 AA](https://www.w3.org/TR/WCAG22/) with automated and manual evidence. GDS compliance must run as a required pull-request check.
 
 Source inspection is completed. Initial rendered seller screen was inspected; a browser interaction timeout prevented claiming a full interactive prototype test. Production implementation testing remains future work.
 
@@ -64,11 +76,11 @@ Dependencies in each issue control readiness, even if several items share a phas
 | Frontend and HTTP backend | Next.js App Router, React, strict TypeScript/TSX |
 | Runtime | Vercel Node.js; existing project currently configured for 24.x; verify selected package compatibility |
 | Database | MongoDB Atlas through the Vercel integration; Mongoose schemas and server-only access |
-| Realtime | Socket.IO server/client, WebSocket-only transport on Vercel |
+| Realtime | Socket.IO server/client, WebSocket-only transport on Vercel, gated by #10's documented go/no-go compatibility spike |
 | UI | GDS packages and governance; no independently used competing UI library |
 | Languages and configuration | TypeScript, TSX, JavaScript for tooling, JSON, Markdown and platform configuration; no unrelated backend language/framework |
-| Background work | Vercel Cron calling authenticated bounded workers; MongoDB leases, run ledger and outbox |
-| Versioning and delivery | Existing GitHub repository, checks, documented version and Vercel Production deployment per implementation task |
+| Background work | #13 owns authenticated Vercel Cron worker invocation; #14 reuses it for due schedules; MongoDB leases, run ledger and outbox provide recovery |
+| Versioning and delivery | Existing GitHub repository, required checks and exact-commit Vercel Preview per task; controlled Production promotion and rollback under #19 |
 
 GDS's React/vendor dependencies are intrinsic to the explicitly requested design system; they do not authorize feature code to import raw Mantine/Tabler or add another design system. Install aligned authenticated GDS versions; its guide currently verifies Next.js 15/React 19. Choose a patched supported Next.js line and test compatibility rather than treating that documented baseline as permission to install an outdated patch.
 
@@ -98,13 +110,23 @@ System: liveness/readiness, authenticated API contracts in the individual issues
 
 ## Configuration and integration gates
 
-Atlas: inspect existing integration before provisioning; attach to the exact project; separate preview and production database access; verify a synthetic deployed round trip; document region, network policy and backup/restore. Never broaden network access or purchase a cluster as an unstated setup shortcut.
+Atlas: inspect the existing integration before provisioning and attach only to the exact project. Separate preview and production credentials/databases. Record the selected Atlas and Vercel regions, transfer posture, connection/pool limits, migration/index process and backup/restore objectives.
+
+The native integration's documented `0.0.0.0/0` dynamic-IP path is not equivalent to unrestricted database access when authentication and least privilege are enforced, but it is still an explicit exposure decision. Select and document one of two paths: (A) owner-approved native dynamic egress with a DiscountDirect-database-scoped long-lived application user, rotation and monitoring; or (B) owner-approved static egress/Secure Compute with a restrictive allowlist. Inventory the integration-created broad user and rotate or retire broader bootstrap credentials when the selected integration path permits it. Never broaden access, provision paid infrastructure or accept residual risk silently.
 
 Expected variable names: MONGODB_URI, MONGODB_DB_NAME, APP_URL, session configuration/secret if required by the finalized session design, CRON_SECRET and GITHUB_TOKEN for authenticated GDS build installation. Record exact names in .env.example during implementation, no values. Integration-provided naming must be mapped explicitly rather than assumed.
 
-GDS: scoped registry in .npmrc using environment interpolation; package read access available at build time in Vercel Preview and Production. No token in source, logs or NEXT_PUBLIC variables. Verify package access across organizations rather than assuming GitHub Actions' default token can read private packages.
+GDS: scoped registry in .npmrc using environment interpolation; package read access available at build time in Vercel Preview and Production. No token in source, logs or NEXT_PUBLIC variables. Verify package access across organizations rather than assuming GitHub Actions' default token can read private packages. Commit `gds-adoption.json` and make the actual GDS compliance command a required pull-request check.
 
 Actual email is a decision gate. Until an approved mechanism exists, email/newsletter surfaces are previews and outbox channel state is unsupported; the application must not claim sent. Printed letters may be rendered for an authorized operator; physical posting is not automated or certified by rendering a letter.
+
+## Release and environment gates
+
+1. A pull request passes lint, typecheck, tests, production build, GDS compliance, semantic/i18n checks and approved security checks on one commit.
+2. The same commit is deployed to a Vercel Preview. Root and health/version endpoints return 200, report the expected commit/environment without leaking secrets, and critical scoped flows pass with isolated fixtures.
+3. Production-bound changes remain disabled or unpromoted until #2's data/network/region gate, #7's privacy/legal gate and applicable feature-specific gates are satisfied.
+4. #18 assembles release evidence, including tenancy, privacy, concurrency, recovery, WCAG 2.2 AA, migration/restore, realtime-duration and cost/limit checks.
+5. #19 promotes the reviewed artifact/configuration, runs bounded synthetic production smoke tests, verifies the public domain and exact commit, exercises rollback and records owner approval. No real buyer is contacted by a smoke test.
 
 ## Quality and operational definition of done
 
@@ -112,7 +134,7 @@ Every implementation issue has its own concrete acceptance criteria plus the sam
 
 Verify ownership attacks, duplicate operations, competing final-stock claims, expiry, scheduler duplicates/DST, outbox recovery, socket reconnect/cross-instance delivery, Atlas outages and current consent. Verify keyboard/screen-reader behavior, phone/tablet/desktop layouts, zoom, print and Hungarian formatting. Use nonproduction fixtures and production-safe synthetic accounts; do not message real buyers as a test.
 
-Before closing an implementation issue: document, commit/push, run required checks, deploy the reviewed commit to the existing Vercel Production project, verify critical paths, and attach deployment/rollback evidence. Release notes must cover New Features, Fixed Bugs, Known Issues and Future Roadmap.
+Before closing an implementation issue: document, commit/push, run required checks, deploy the reviewed commit to an exact-commit Vercel Preview and attach verification/recovery evidence. Production evidence is required when a change is intentionally release-enabled; #19 owns the complete production promotion and rollback. Release notes must cover New Features, Fixed Bugs, Known Issues and Future Roadmap.
 
 ## Backlog
 
@@ -131,7 +153,7 @@ Before closing an implementation issue: document, commit/push, run required chec
 | 110 | [#11 Offers: Personalized offer lifecycle and buyer decisions](https://github.com/moldovancsaba/discountdirect/issues/11) | Backlog (SOONER) | #7, #8, #9, #10 |
 | 120 | [#12 Campaigns: Flash offers with atomic stock and expiry](https://github.com/moldovancsaba/discountdirect/issues/12) | Backlog (SOONER) | #8, #11 |
 | 130 | [#13 Delivery: Durable outbox and honest channel delivery states](https://github.com/moldovancsaba/discountdirect/issues/13) | Backlog (SOONER) | #7, #9, #11 |
-| 140 | [#14 Automations: Recurring personalized offer lists and scheduler](https://github.com/moldovancsaba/discountdirect/issues/14) | Backlog (SOONER) | #8, #12, #13 |
+| 140 | [#14 Automations: Recurring personalized offer lists and scheduler](https://github.com/moldovancsaba/discountdirect/issues/14) | Backlog (SOONER) | #8, #11, #13 |
 | 150 | [#15 Buyer: Offer inbox email newsletter and printable letter views](https://github.com/moldovancsaba/discountdirect/issues/15) | Backlog (SOONER) | #3, #7, #11, #13, #14 |
 | 160 | [#16 Redemption: Single-use coupon and reservation confirmation](https://github.com/moldovancsaba/discountdirect/issues/16) | Backlog (SOONER) | #11, #12, #15 |
 | 170 | [#17 Operations: General Dashboard and production health visibility](https://github.com/moldovancsaba/discountdirect/issues/17) | Backlog (SOONER) | #2, #4, #10, #13, #14 |
@@ -150,13 +172,13 @@ The delivery board groups by Status. A second table view should expose title/sta
 ## Planning release notes
 
 ### New Features
-Documented product inventory, architecture, delivery sequencing and 20 linked implementation issues using the requested issue structure.
+Published the production-audited architecture, release gates, delivery sequencing, board and 20 linked implementation issues using the requested issue structure.
 
 ### Fixed Bugs
-No application code has been changed; prototype production gaps are specified for implementation.
+Corrected false-positive deployment criteria, Atlas network/privilege assumptions, identity bootstrap gaps, privacy evidence requirements, realtime recovery gates, scheduler ownership and cross-campaign inventory semantics. No application code has been changed.
 
 ### Known Issues
-Atlas integration and GDS build credentials are not yet verified. Vercel framework is not set. Application features are not implemented. Email/postal transport is not configured. Board creation is tracked separately until authenticated project editing is available.
+Atlas integration, region/network posture and GDS build credentials are not yet verified. Vercel framework is not set; the current public root returns 404 despite a READY deployment. Application features are not implemented. Privacy/legal approval and email/postal transport are not configured.
 
 ### Future Roadmap
 Execute #1–#19 in dependency order; resolve #20 before claiming external email support; scope future postal fulfillment, payments and commerce imports separately.
