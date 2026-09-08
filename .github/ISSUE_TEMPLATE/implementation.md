@@ -30,7 +30,7 @@ Describe the concrete capability and user-visible outcome. The current prototype
 List functional deliverables, technical constraints and user-facing behavior.
 
 ### Technical Goals
-Centralize typed contracts, enforce authorization, persist authoritative state in Atlas and expose explicit recoverable errors.
+Centralize typed contracts, enforce authorization, persist authoritative state in Atlas and expose explicit recoverable errors. Keep release gates, environment assumptions and recovery evidence explicit.
 
 ### UX Goals
 Make this capability reachable through the appropriate seller, buyer or administrator interface. Use clear Hungarian product language and GDS runtime states.
@@ -45,7 +45,7 @@ List explicit scope boundaries.
 Use [General Design System](https://sovereignsquad.github.io/general-design-system/) packages and governed patterns exclusively for UI. GDS 6.7.0 is the documented current line at planning time; verify authenticated package availability and compatibility before installation. One provider, one stylesheet and one token authority. No parallel UI library or copied prototype visual primitives.
 
 ### Additional Constraints
-Next.js frontend/backend; React and TypeScript/TSX; Node.js; MongoDB Atlas + Mongoose; Socket.IO; existing GitHub repository and [narimato/discountdirect on Vercel](https://vercel.com/narimato/discountdirect). GDS dependencies are allowed by the explicit UI requirement; do not independently use their vendor component APIs. No extra service, framework, local/demo persistence fallback, hardcoded credential or silent authorization bypass. Each implementation task must be tested, documented, committed, pushed and verified in Vercel Production before closure.
+Next.js frontend/backend; React and TypeScript/TSX; Node.js; MongoDB Atlas + Mongoose; Socket.IO; existing GitHub repository and [narimato/discountdirect on Vercel](https://vercel.com/narimato/discountdirect). GDS dependencies are allowed by the explicit UI requirement; do not independently use their vendor component APIs. No extra service, framework, local/demo persistence fallback, hardcoded credential or silent authorization bypass. Each implementation task must be tested, documented, committed, pushed and verified on an exact-commit Vercel Preview before closure. Production verification is required only when the change is intentionally release-enabled; #19 owns the complete production promotion and rollback.
 
 ## 8. Architecture
 
@@ -81,7 +81,7 @@ Required applicable states: loading, empty, partial, disabled, saving/processing
 
 ## 14. Accessibility Requirements
 
-Keyboard-complete workflows; labeled controls; semantic headings; visible focus; screen-reader announcements for async changes; GDS contrast; reduced motion; no color-only status. Preserve focus when updating chat and campaign results. Verify translated text and zoom.
+Target WCAG 2.2 AA. Provide keyboard-complete workflows, labeled controls, semantic headings, visible focus, screen-reader announcements for async changes, GDS contrast, reduced motion and no color-only status. Preserve focus when updating chat and campaign results. Combine automated checks with manual keyboard, focus, screen-reader, 200% zoom/reflow and translated-content verification; automation alone is not conformance evidence.
 
 ## 15. Edge Cases
 
@@ -93,7 +93,7 @@ Initial provisional budgets to verify with representative data: ordinary paginat
 
 ## 17. Security / Privacy Requirements
 
-Enforce seller membership or buyer participation on each request and socket event. Keep Atlas/build/session secrets server-only. Redact message contents, buyer details and credentials from logs. Enforce current channel preferences; restrict exports and operator actions. Record audit metadata without duplicating sensitive payloads.
+Enforce seller membership or buyer participation on each request and socket event. Keep Atlas/build/session secrets server-only. Redact message contents, buyer details and credentials from logs. Enforce current channel preferences; restrict exports and operator actions. Record audit metadata without duplicating sensitive payloads. Use synthetic data only in Production until #2's environment/network gate and #7's privacy/legal gate are approved.
 
 ## 18. Acceptance Criteria
 
@@ -117,7 +117,7 @@ Enforce seller membership or buyer participation on each request and socket even
 
 ### Documentation
 - [ ] Relevant architecture, API, user and operational guidance updated.
-- [ ] Production verification and rollback evidence attached before closure.
+- [ ] Exact-commit Preview verification and recovery evidence attached; Production evidence is attached when intentionally release-enabled.
 
 ## 19. Testing Requirements
 
@@ -157,7 +157,7 @@ After foundation setup: `npm ci` then `npm run dev`, using documented local deve
 Record new variable names in `.env.example`; store values only in approved local/Vercel/GitHub secret stores.
 
 ### How to Verify
-Run section 19 checks and the scenario-specific acceptance tests; attach commit and production deployment evidence.
+Run section 19 checks and the scenario-specific acceptance tests; attach the commit and exact-commit Preview evidence. Attach Production evidence only when the change is intentionally release-enabled.
 
 ### Known Limitations
 List explicit scope boundaries. Link any additional deferred behavior before closing.
@@ -167,4 +167,4 @@ Describe a concrete safe rollback/recovery procedure.
 
 ## 26. Delivery Expectations
 
-Do not close at code completion alone. Tests, GDS/accessibility checks, documentation, GitHub commit/push, verified deployment to the existing Vercel Production project and recovery evidence are required. Release notes include New Features, Fixed Bugs, Known Issues and Future Roadmap.
+Do not close at code completion alone. Tests, GDS/accessibility checks, documentation, GitHub commit/push, exact-commit Vercel Preview verification and recovery evidence are required. Production promotion is gated and owned by #19. Release notes include New Features, Fixed Bugs, Known Issues and Future Roadmap.
