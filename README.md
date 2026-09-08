@@ -1,20 +1,25 @@
 # DiscountDirect
 
-Personalized seller–buyer offers, messaging, flash campaigns and recurring offer lists.
+Personalized offers and seller–buyer relationships. Foundation release **0.2.0**.
 
+- [Application](https://discountdirect.vercel.app)
+- [General Dashboard](https://discountdirect.vercel.app/admin) — requires the operator key from `.env.local`
+- [Repository project board](https://github.com/moldovancsaba/discountdirect/projects)
 - [Implementation plan](IMPLEMENTATION_PLAN.md)
-- [Project board — From IDEA to LIVE](https://github.com/users/moldovancsaba/projects/61)
-- [Implementation issues](https://github.com/moldovancsaba/discountdirect/issues)
-- [Reference prototype](https://moldovancsaba.github.io/calvus/discountdirect/index.html)
-- [General Design System](https://sovereignsquad.github.io/general-design-system/)
-- [Vercel project](https://vercel.com/narimato/discountdirect)
+- [Release notes](RELEASE_NOTES.md)
+- [Architecture](docs/architecture.md) · [Setup and operations](docs/operations.md)
 
-Planned stack: Next.js, React, TypeScript, MongoDB Atlas with Mongoose, Socket.IO, GDS and Vercel.
+Built with Next.js, React, TypeScript and MongoDB Atlas/Mongoose; hosted on the existing Vercel project. Socket.IO and business features follow the issue plan. GDS is temporarily deferred by explicit user instruction; its adoption remains in issue #3.
 
-## Status
+## Run
 
-Planning baseline 0.2.0. The implementation plan, delivery board and 20 structured issues are published and production-audited. The current Vercel deployment is not a working application: the public root returns 404. Application code, Atlas connectivity and runtime verification remain implementation work; no production readiness is claimed.
+Node 24 and pnpm 10.30.3 are required. Preserve an existing `.env.local`; use `.env.example` only to create a missing configuration. Set `MONGODB_URI` and `OPERATIONS_TOKEN` without committing their values.
 
-## Delivery standard
+```sh
+pnpm install --frozen-lockfile
+pnpm check
+pnpm db:check
+pnpm dev
+```
 
-Each implementation issue requires tests, documentation, commit/push, exact-commit Vercel Preview verification and a recovery plan. Production promotion is gated and owned by release issue #19. Release notes cover new features, fixed bugs, known issues and future roadmap.
+No demo/customer data is created by this release. Customer accounts, messages, offers and campaigns are not yet available.

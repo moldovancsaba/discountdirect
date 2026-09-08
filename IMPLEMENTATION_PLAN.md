@@ -1,5 +1,7 @@
 # DiscountDirect implementation plan
 
+> Implementation update, 2026-09-08: foundation release 0.2.0 adds the runnable application, Atlas health checks and temporary protected operations access. The user explicitly deferred GDS after a GitHub Packages billing-limit error; #3 remains open. See RELEASE_NOTES.md and docs/operations.md. The remaining plan below retains its target-state requirements.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition
