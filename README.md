@@ -13,8 +13,8 @@ Planned stack: Next.js, React, TypeScript, MongoDB Atlas with Mongoose, Socket.I
 
 ## Status
 
-Planning baseline 0.1.0. The implementation plan and 20 structured issues are published. The application, Atlas connection and runtime verification remain implementation work; no production readiness is claimed.
+Planning baseline 0.2.0. The implementation plan, delivery board and 20 structured issues are published and production-audited. The current Vercel deployment is not a working application: the public root returns 404. Application code, Atlas connectivity and runtime verification remain implementation work; no production readiness is claimed.
 
 ## Delivery standard
 
-Each implementation issue requires tests, documentation, commit/push, verified Vercel Production deployment and a recovery plan. Release notes cover new features, fixed bugs, known issues and future roadmap.
+Each implementation issue requires tests, documentation, commit/push, exact-commit Vercel Preview verification and a recovery plan. Production promotion is gated and owned by release issue #19. Release notes cover new features, fixed bugs, known issues and future roadmap.
