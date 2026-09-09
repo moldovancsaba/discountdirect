@@ -1,68 +1,73 @@
+"use client";
+
 import Link from "next/link";
-export function Shell({
-  children,
-  active = "home",
-}: {
-  children: React.ReactNode;
-  active?: "home" | "admin" | "account" | "sign-in";
-}) {
+import {
+  DiscoveryShell,
+  GdsCluster,
+  GdsIcon,
+  SidebarNav,
+  SidebarNavItem,
+  SidebarNavSection,
+  ThemeToggle,
+} from "@sovereignsquad/gds-core/client";
+
+const navigation = [
+  { href: "/", label: "Áttekintés", icon: "Home", key: "home" },
+  { href: "/admin", label: "Rendszerállapot", icon: "Analytics", key: "admin" },
+  { href: "/account", label: "Saját munkatér", icon: "Profile", key: "account" },
+  { href: "/sign-in", label: "Bejelentkezés", icon: "Login", key: "sign-in" },
+] as const;
+
+export function Shell({ children, active = "home" }: { children: React.ReactNode; active?: "home" | "admin" | "account" | "sign-in" }) {
+  const nav = (
+    <SidebarNav ariaLabel="Fő navigáció">
+      <SidebarNavSection label="Munkaterület">
+        {navigation.map((item) => (
+          <SidebarNavItem
+            key={item.key}
+            component={Link}
+            href={item.href}
+            label={item.label}
+            icon={<GdsIcon name={item.icon} decorative />}
+            active={active === item.key}
+          />
+        ))}
+      </SidebarNavSection>
+      <SidebarNavSection label="Kiadás" pushToBottom>
+        <SidebarNavItem
+          component="a"
+          href="https://github.com/moldovancsaba/discountdirect/issues"
+          label="Fejlesztési terv"
+          description="0.7.0 · GDS"
+          icon={<GdsIcon name="Launch" decorative />}
+        />
+      </SidebarNavSection>
+    </SidebarNav>
+  );
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <Link href="/" className="brand" aria-label="DiscountDirect kezdőlap">
-          <span className="brand-mark">d.</span>
-          <span>
-            discount<span className="brand-light">direct</span>
-          </span>
-        </Link>
-        <div className="workspace">
-          <span className="workspace-icon">D</span>
-          <div>
-            DiscountDirect<small>Kapcsolatokból lehetőség</small>
-          </div>
-        </div>
-        <nav aria-label="Fő navigáció">
-          <span className="nav-label">MUNKATERÜLET</span>
-          <Link href="/" aria-current={active === "home" ? "page" : undefined}>
-            <span aria-hidden="true">◫</span> Áttekintés
+    <DiscoveryShell
+      header={
+        <GdsCluster>
+          <Link className="gds-brand" href="/" aria-label="DiscountDirect kezdőlap">
+            <span className="gds-brand-mark" aria-hidden="true">d.</span>
+            <span>discountdirect</span>
           </Link>
-          <Link
-            href="/admin"
-            aria-current={active === "admin" ? "page" : undefined}
-          >
-            <span aria-hidden="true">◎</span> Rendszerállapot
-          </Link>
-          <Link
-            href="/account"
-            aria-current={active === "account" ? "page" : undefined}
-          >
-            <span aria-hidden="true">◇</span> Saját munkatér
-          </Link>
-          <Link
-            href="/sign-in"
-            aria-current={active === "sign-in" ? "page" : undefined}
-          >
-            <span aria-hidden="true">→</span> Bejelentkezés
-          </Link>
-        </nav>
-        <div className="sidebar-footer">
-          <span className="release-dot" /> Főkönyv kiadás <span>0.6.0</span>
-        </div>
-      </aside>
-      <div className="workspace-main">
-        <header className="topbar">
-          <span>Az ügyfélkapcsolatok új fejezete</span>
-          <a href="https://github.com/moldovancsaba/discountdirect/issues">
-            Fejlesztési terv ↗
-          </a>
-        </header>
-        <main id="main" className="main-content">
-          {children}
-        </main>
-        <footer className="footer">
-          DiscountDirect <span>Kevesebb zaj. Több releváns ajánlat.</span>
-        </footer>
-      </div>
-    </div>
+          <GdsCluster>
+            <span className="gds-header-context">Kapcsolatokból lehetőség</span>
+            <ThemeToggle />
+          </GdsCluster>
+        </GdsCluster>
+      }
+      sidebar={nav}
+      footer={<span className="gds-release">Mint circuit · 0.7.0</span>}
+      mobileNavigationLabel="Navigáció megnyitása"
+      desktopNavigationLabel="Oldalsáv váltása"
+      sidebarStorageKey="discountdirect-sidebar"
+      desktopCollapsible
+      shellPadding="lg"
+    >
+      <main id="main" className="gds-page">{children}</main>
+    </DiscoveryShell>
   );
 }

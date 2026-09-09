@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "gdsVersion": "6.7.0",
+  "productArchetype": "hybrid",
+  "supportedEntryPoints": [
+    "@sovereignsquad/gds-theme/client",
+    "@sovereignsquad/gds-core/client"
+  ],
+  "requiredContracts": [
+    "GdsProvider",
+    "DiscoveryShell",
+    "SidebarNav",
+    "PageHeader",
+    "EditorialHero",
+    "FeatureBand",
+    "SectionPanel",
+    "AuthShell",
+    "ListingCard",
+    "MetricCard",
+    "BannerNotice",
+    "EmptyState",
+    "GdsErrorPageTemplate",
+    "SimpleDataTable",
+    "GdsIcon",
+    "ThemeToggle"
+  ],
+  "localAdapters": [],
+  "approvedExceptions": [],
+  "migrationStatus": "governed",
+  "owner": "discountdirect",
+  "lastReviewedAt": "2026-09-09",
+  "compliance": {
+    "protectedSurfacePaths": ["src"],
+    "strictMode": true,
+    "approvedShellPrimitives": ["DiscoveryShell", "AuthShell"],
+    "approvedDetailPrimitives": ["SectionPanel"],
+    "approvedListingPrimitives": ["ListingCard"],
+    "approvedActionPrimitives": ["Button"],
+    "approvedThemeLanes": ["resolveGdsThemePreset"],
+    "themeOwnershipPaths": ["src/app/providers.tsx"],
+    "bannedImports": ["@tabler/icons-react"]
+  }
+}

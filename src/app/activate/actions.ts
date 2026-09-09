@@ -3,17 +3,15 @@
 import { redirect } from "next/navigation";
 import { activateWithToken, AuthError } from "@/auth/service";
 
-export async function activate(form: FormData) {
-  const token = form.get("token");
+export async function activate(token: string, form: FormData) {
   const password = form.get("password");
   const confirmation = form.get("confirmation");
   if (
-    typeof token !== "string" ||
     typeof password !== "string" ||
     password !== confirmation
   ) {
     redirect(
-      `/activate?token=${encodeURIComponent(typeof token === "string" ? token : "")}&error=password`,
+      `/activate?token=${encodeURIComponent(token)}&error=password`,
     );
   }
   try {

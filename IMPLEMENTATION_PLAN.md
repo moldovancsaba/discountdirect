@@ -10,6 +10,8 @@
 
 > Implementation update, 2026-09-09: purchase-ledger release 0.6.0 adds seller-scoped customer identities, immutable order lines, staged idempotent imports, bounded chronological history, buyer self-view, correction/refund handling and privacy status controls. GDS and the broader privacy workflow remain in their existing issues.
 
+> Implementation update, 2026-09-09: GDS release 0.7.0 adopts SovereignSquad GDS 6.7.0 across every implemented surface using the native Mint circuit preset, Hungarian locale, governed shell/components/icons/tables, token-only layout CSS, strict adoption-manifest compliance and GDS ESLint enforcement. The official temporary release bundle is pinned while GitHub Packages tarball delivery remains billing-blocked.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition

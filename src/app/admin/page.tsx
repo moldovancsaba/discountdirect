@@ -1,122 +1,42 @@
 import type { Metadata } from "next";
+import { AuthShell, BannerNotice, Button as GdsButton, GdsGrid, GdsIcon, MetricCard, PageHeader, PasswordInput, SectionPanel, StatusBadge } from "@discountdirect/gds-client";
 import { Shell } from "@/components/shell";
 import { isOperator } from "@/lib/operations";
 import { validSecret } from "@/lib/operator-session";
 import { databaseHealth } from "@/lib/database";
 import { signIn, signOut } from "./actions";
-export const metadata: Metadata = {
-  title: "Rendszerállapot",
-  robots: { index: false, follow: false },
-};
+
+export const metadata: Metadata = { title: "Rendszerállapot", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
-export default async function Admin({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
+export default async function Admin({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const authorized = await isOperator();
   const configured = validSecret(process.env.OPERATIONS_TOKEN);
   const { error } = await searchParams;
-  if (!authorized)
-    return (
-      <Shell active="admin">
-        <p className="eyebrow">ÜZEMELTETÉS</p>
-        <h1>Rendszerállapot</h1>
-        <p className="lead">Védett áttekintés az alkalmazás működéséről.</p>
-        <section className="login-panel">
-          <span className="lock-symbol" aria-hidden="true">
-            ◎
-          </span>
-          <h2>Üzemeltetői hozzáférés</h2>
-          <p>
-            A rendszeradatok megtekintéséhez add meg az üzemeltetői hozzáférési
-            kulcsot.
-          </p>
-          {configured ? (
-            <form action={signIn}>
-              <label htmlFor="token">Hozzáférési kulcs</label>
-              <input
-                id="token"
-                name="token"
-                type="password"
-                autoComplete="current-password"
-                required
-                maxLength={1024}
-                aria-describedby={error ? "login-error" : undefined}
-              />
-              {error && (
-                <p role="alert" id="login-error" className="error-message">
-                  A hozzáférési kulcs nem megfelelő.
-                </p>
-              )}
-              <button className="button" type="submit">
-                Biztonságos belépés <span aria-hidden="true">→</span>
-              </button>
-              <small>A munkamenet egy óra után lejár.</small>
-            </form>
-          ) : (
-            <p className="notice">
-              Az üzemeltetői hozzáférés beállítása folyamatban van.
-            </p>
-          )}
-        </section>
-      </Shell>
-    );
+  if (!authorized) return <Shell active="admin">
+    <AuthShell title="Üzemeltetői hozzáférés" description="Védett áttekintés az alkalmazás működéséről." intent="sign-in" brand={<GdsIcon name="Lock" size="lg" decorative />} error={error ? "A hozzáférési kulcs nem megfelelő." : undefined} helper="A munkamenet egy óra után lejár.">
+      {configured ? <form action={signIn}>
+        <PasswordInput name="token" label="Hozzáférési kulcs" autoComplete="current-password" required maxLength={1024} />
+        <GdsButton type="submit" fullWidth leftSection={<GdsIcon name="Login" decorative />}>Biztonságos belépés</GdsButton>
+      </form> : <BannerNotice title="Beállítás folyamatban" severity="warning" message="Az üzemeltetői hozzáférés még nincs beállítva." />}
+    </AuthShell>
+  </Shell>;
+
   const database = await databaseHealth();
-  return (
-    <Shell active="admin">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">ÜZEMELTETÉS</p>
-          <h1>Rendszerállapot</h1>
-        </div>
-        <form action={signOut}>
-          <button type="submit" className="button button-secondary">
-            Kilépés
-          </button>
-        </form>
-      </div>
-      <p className="lead">
-        Élő ellenőrzés ·{" "}
-        {new Intl.DateTimeFormat("hu-HU", {
-          dateStyle: "medium",
-          timeStyle: "medium",
-          timeZone: "Europe/Budapest",
-        }).format(new Date())}
-      </p>
-      <div className="feature-grid metrics">
-        <article className="feature-card">
-          <p>MongoDB Atlas</p>
-          <h2 className={database.connected ? "positive" : "negative"}>
-            {database.connected ? "Kapcsolódva" : "Nincs kapcsolat"}
-          </h2>
-          <small>Az adatbázis válasza alapján</small>
-        </article>
-        <article className="feature-card">
-          <p>Adatbázis válaszideje</p>
-          <h2>
-            {database.latencyMs === null
-              ? "Nem elérhető"
-              : `${database.latencyMs} ms`}
-          </h2>
-          <small>Kapcsolódás és állapotellenőrzés</small>
-        </article>
-        <article className="feature-card">
-          <p>Aktív felhasználók</p>
-          <h2>Még nincs mérés</h2>
-          <small>A jelenlétkövetés a valós idejű funkciókkal érkezik.</small>
-        </article>
-      </div>
-      <section className="feature-card release-details">
-        <h2>Kiadás: 0.6.0</h2>
-        <p>
-          Az alkalmazás és a védett állapotellenőrzés elérhető. A kereskedelmi
-          funkciók fejlesztés alatt állnak.
-        </p>
-        <a className="button" href="/admin">
-          Állapot frissítése ↻
-        </a>
-      </section>
-    </Shell>
-  );
+  const checkedAt = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "medium", timeZone: "Europe/Budapest" }).format(new Date());
+  return <Shell active="admin">
+    <PageHeader
+      title="Rendszerállapot"
+      description={`Élő ellenőrzés · ${checkedAt}`}
+      eyebrow="Üzemeltetés"
+      actions={<form action={signOut}><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Logout" decorative />}>Kilépés</GdsButton></form>}
+    />
+    <GdsGrid columns={{ base: 1, md: 3 }}>
+      <MetricCard label="MongoDB Atlas" value={database.connected ? "Kapcsolódva" : "Nincs kapcsolat"} trend={{ label: database.connected ? "Üzemkész" : "Hiba", tone: database.connected ? "positive" : "negative" }} description="Az adatbázis válasza alapján" icon={<GdsIcon name="Connectivity" decorative />} />
+      <MetricCard label="Adatbázis válaszideje" value={database.latencyMs === null ? "Nem elérhető" : `${database.latencyMs} ms`} description="Kapcsolódás és állapotellenőrzés" icon={<GdsIcon name="Time" decorative />} />
+      <MetricCard label="Aktív felhasználók" value="Még nincs mérés" description="A jelenlétkövetés a valós idejű funkciókkal érkezik." icon={<GdsIcon name="Users" decorative />} />
+    </GdsGrid>
+    <SectionPanel title="Kiadás: 0.7.0" description="GDS 6.7.0, Mint circuit téma és tokenizált alkalmazásfelületek." action={<GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Refresh" decorative />}>Állapot frissítése</GdsButton>}>
+      <StatusBadge status="success" withIcon>Production</StatusBadge>
+    </SectionPanel>
+  </Shell>;
 }

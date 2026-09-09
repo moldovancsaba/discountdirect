@@ -1,5 +1,31 @@
 # Release notes
 
+## 0.7.0 — 2026-09-09
+
+### New features
+
+- SovereignSquad GDS 6.7.0 runtime, governance and accessibility packages from the official release bundle.
+- One root `GdsProvider` using the native `resolveGdsThemePreset("mint")` Mint circuit theme and Hungarian locale.
+- Governed discovery shell, navigation, page headers, authentication shells, panels, cards, notices, status indicators, icons, controls, tables and error states on every implemented route.
+- Light/dark theme control in the application shell.
+- Strict `gds-adoption.json` compliance and GDS ESLint rules in the local and CI quality gates.
+
+### Fixed bugs
+
+- Removed the temporary hardcoded visual palette, spacing, typography, radii and motion values.
+- Removed direct Mantine and Tabler imports from application code.
+- Replaced native table markup and hidden form controls with GDS tables and server-bound action values.
+
+### Known issues
+
+- GitHub Packages tarball delivery still reports the SovereignSquad organization billing-limit response. The official GDS 6.7.0 release bundle is the project’s documented supported fallback and remains pinned until registry delivery is restored.
+- Full privacy export, retention and erasure execution remains in issue #7.
+- Customer history remains bounded to the latest 100 rows while cursor pagination is open.
+
+### Future roadmap
+
+Complete buyer preferences and privacy operations in #7, then deterministic recommendations in #8 and the Socket.IO conversation flow in #9–#10.
+
 ## 0.6.0 — 2026-09-09
 
 ### New features

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { BannerNotice, Button as GdsButton, EmptyState, GdsGrid, GdsIcon, ListingCard, PageHeader, SectionPanel, Select as GdsSelect, SimpleDataTable, StatusBadge, Textarea as GdsTextarea, TextInput } from "@discountdirect/gds-client";
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { customerHistory, listCustomers, purchaseImportBatch } from "@/purchases/service";
@@ -25,20 +25,43 @@ export default async function CustomersPage({ params, searchParams }: { params: 
   let batch: Awaited<ReturnType<typeof purchaseImportBatch>> | null = null;
   if (query.batch) { try { batch = await purchaseImportBatch(user.id, sellerSlug, query.batch); } catch { batch = null; } }
   return <Shell active="account">
-    <div className="section-heading"><div><p className="eyebrow">VÁSÁRLÓI FŐKÖNYV</p><h1>{result.seller.name}</h1></div><Link className="button button-secondary" href={`/seller/${sellerSlug}`}>Termékkatalógus</Link></div>
-    <p className="lead">Eladóhoz kötött vásárlók és időrendi rendelési tételek. A visszatérített és helyesbített tételek nem számítanak bele a költésbe.</p>
-    {query.saved && messages[query.saved] ? <div className="notice positive" role="status">{messages[query.saved]}</div> : null}
-    {query.error ? <div className="notice negative" role="alert">{errors[query.error] ?? "A művelet nem hajtható végre."}</div> : null}
-    <section className="catalog-section" aria-labelledby="customers"><div className="section-heading"><h2 id="customers">Vásárlók</h2><span className="pill">{result.customers.length} kapcsolat</span></div>
-      {!result.customers.length ? <div className="empty-state"><h3>Még nincs vásárlási adat</h3><p>Készíts import előnézetet az alábbi űrlappal.</p></div> : null}
-      <div className="product-list">{result.customers.map((customer) => <article className="product-row" key={customer.id}><div><span className="step-number">{customer.externalBuyerId}</span><h3>{customer.displayName}</h3><p>{customer.emailNormalized ?? "Nincs e-mail"} · {customer.purchaseCount} tétel · {money.format(customer.totalHuf)}</p><small>{privacyLabel[customer.privacyStatus]}</small></div><Link className="button button-secondary" href={`/seller/${sellerSlug}/customers?customer=${customer.id}`}>Előzmények</Link></article>)}</div>
-    </section>
-    {selected ? <section className="catalog-section" aria-labelledby="history"><div className="section-heading"><div><h2 id="history">{selected.customer.displayName} előzményei</h2><p className="muted">Legfeljebb a 100 legújabb tétel, legújabbal kezdve.</p></div><form action={customerPrivacyAction.bind(null, sellerSlug, selected.customer._id.toString())}><label>Adatkezelési állapot<select name="status" defaultValue={selected.customer.privacyStatus}><option value="active">Aktív</option><option value="restricted">Korlátozott</option><option value="erasure_requested">Törlésre jelölve</option></select></label><button className="button button-secondary" type="submit">Állapot mentése</button></form></div>
-      <div className="product-list">{selected.purchases.map((purchase) => <article className={`product-row ${purchase.status === "purchased" ? "" : "is-archived"}`} key={purchase.id}><div><span className="step-number">{purchase.orderId} / {purchase.lineId}</span><h3>{purchase.productName}</h3><p>{purchase.quantity} db · {money.format(purchase.totalHuf)} · {date.format(new Date(purchase.purchasedAt))}</p><small>{statusLabel[purchase.status]} · {purchase.productSku} · v{purchase.version}{purchase.correctionReason ? ` · ${purchase.correctionReason}` : ""}</small></div>{purchase.status === "purchased" ? <details><summary className="button button-secondary">Helyesbítés</summary><form className="catalog-form compact" action={purchaseStatusAction.bind(null, sellerSlug, selected.customer._id.toString(), purchase.id)}><input type="hidden" name="version" value={purchase.version} /><label>Állapot<select name="status"><option value="refunded">Visszatérítve</option><option value="corrected">Helyesbítve</option></select></label><label>Indok<input name="reason" required maxLength={300} /></label><button className="button" type="submit">Mentés</button></form></details> : null}</article>)}</div>
-    </section> : null}
-    <section className="catalog-section" aria-labelledby="purchase-import"><h2 id="purchase-import">Vásárlási JSON-import</h2><p className="lead">Legfeljebb 200 sor. Az előnézet ellenőrzi az ismétlődő rendelési tételeket és a mezőket; az ismeretlen cikkszám megmarad pillanatképként.</p>
-      <form action={previewPurchasesAction.bind(null, sellerSlug)}><label>Forrás neve<input name="sourceName" required maxLength={120} placeholder="Webshop export" /></label><label htmlFor="purchase-json">Vásárlási tételek</label><textarea id="purchase-json" name="json" rows={11} required placeholder={'[{"externalBuyerId":"C-1","buyerEmail":"vasarlo@example.com","buyerName":"Minta Vásárló","orderId":"O-1","lineId":"1","productSku":"SKU-1","productName":"Termék","purchasedAt":"2026-09-01T10:00:00Z","quantity":1,"totalHuf":12990}]'} /><button className="button" type="submit">Előnézet készítése</button></form>
-      {batch ? <div className="import-preview"><div className="section-heading"><div><h3>Import előnézet</h3><p className="muted">{batch.sourceName} · {batch.status}</p></div>{batch.status === "preview" && !batch.rows.some((row: { action: string }) => row.action === "error") ? <form action={applyPurchasesAction.bind(null, sellerSlug)}><input type="hidden" name="batchId" value={batch._id.toString()} /><button className="button" type="submit">Ellenőrzött import alkalmazása</button></form> : null}</div><div className="table-wrap"><table><thead><tr><th>Sor</th><th>Azonosító</th><th>Eredmény</th><th>Részlet</th></tr></thead><tbody>{batch.rows.map((row: { row: number; key: string; action: string; errorCodes: string[] }) => <tr key={row.row}><td>{row.row}</td><td>{row.key || "—"}</td><td>{row.action}</td><td>{row.errorCodes.join(", ") || "Rendben"}</td></tr>)}</tbody></table></div></div> : null}
-    </section>
+    <PageHeader title={result.seller.name} description="Eladóhoz kötött vásárlók és időrendi rendelési tételek. A visszatérített és helyesbített tételek nem számítanak bele a költésbe." eyebrow="Vásárlói főkönyv" actions={<div className="button-row"><GdsButton component="a" href={`/seller/${sellerSlug}`} variant="default" leftSection={<GdsIcon name="Package" decorative />}>Termékkatalógus</GdsButton><StatusBadge status="info">{result.customers.length} kapcsolat</StatusBadge></div>} />
+    {query.saved && messages[query.saved] ? <BannerNotice variant="compact" severity="success" message={messages[query.saved]} /> : null}
+    {query.error ? <BannerNotice variant="compact" severity="error" message={errors[query.error] ?? "A művelet nem hajtható végre."} /> : null}
+    <SectionPanel id="customers" title="Vásárlók" description="Minden profil csak ehhez az eladóhoz tartozik." divided={false}>
+      {!result.customers.length ? <EmptyState title="Még nincs vásárlási adat" description="Készíts import előnézetet az alábbi űrlappal." /> : null}
+      <GdsGrid columns={{ base: 1, md: 2 }}>
+        {result.customers.map((customer) => <ListingCard
+          key={customer.id}
+          title={customer.displayName}
+          description={customer.emailNormalized ?? "Nincs e-mail"}
+          price={money.format(customer.totalHuf)}
+          mediaSeed={customer.id}
+          mediaOverlay={privacyLabel[customer.privacyStatus]}
+          metadata={[{ id: "external", label: "Külső azonosító", value: customer.externalBuyerId }, { id: "count", label: "Tételek", value: customer.purchaseCount }]}
+          primaryAction={<GdsButton component="a" href={`/seller/${sellerSlug}/customers?customer=${customer.id}`} variant="default" leftSection={<GdsIcon name="History" decorative />}>Előzmények</GdsButton>}
+        />)}
+      </GdsGrid>
+    </SectionPanel>
+    {selected ? <SectionPanel id="history" title={`${selected.customer.displayName} előzményei`} description="Legfeljebb a 100 legújabb tétel, legújabbal kezdve." action={<form action={customerPrivacyAction.bind(null, sellerSlug, selected.customer._id.toString())}><GdsSelect name="status" label="Adatkezelési állapot" defaultValue={selected.customer.privacyStatus} data={[{ value: "active", label: "Aktív" }, { value: "restricted", label: "Korlátozott" }, { value: "erasure_requested", label: "Törlésre jelölve" }]} /><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Save" decorative />}>Állapot mentése</GdsButton></form>}>
+      <GdsGrid columns={{ base: 1, md: 2 }}>
+        {selected.purchases.map((purchase) => <ListingCard
+          key={purchase.id}
+          title={purchase.productName}
+          description={`${purchase.quantity} db · ${date.format(new Date(purchase.purchasedAt))}`}
+          price={money.format(purchase.totalHuf)}
+          mediaSeed={purchase.id}
+          mediaOverlay={statusLabel[purchase.status]}
+          metadata={[{ id: "order", label: "Rendelés", value: `${purchase.orderId} / ${purchase.lineId}` }, { id: "sku", label: "Cikkszám", value: purchase.productSku }, { id: "version", label: "Verzió", value: `v${purchase.version}` }]}
+          revealContent={purchase.status === "purchased" ? <form action={purchaseStatusAction.bind(null, sellerSlug, selected.customer._id.toString(), purchase.id, purchase.version)}><GdsSelect name="status" label="Helyesbítés típusa" defaultValue="refunded" data={[{ value: "refunded", label: "Visszatérítve" }, { value: "corrected", label: "Helyesbítve" }]} /><TextInput name="reason" label="Indok" required maxLength={300} /><GdsButton type="submit" leftSection={<GdsIcon name="Save" decorative />}>Mentés</GdsButton></form> : <BannerNotice variant="compact" severity="info" message={purchase.correctionReason ?? "A tétel már lezárt állapotú."} />}
+        />)}
+      </GdsGrid>
+    </SectionPanel> : null}
+    <SectionPanel id="purchase-import" title="Vásárlási JSON-import" description="Legfeljebb 200 sor. Az előnézet ellenőrzi az ismétlődő rendelési tételeket és a mezőket; az ismeretlen cikkszám megmarad pillanatképként.">
+      <form action={previewPurchasesAction.bind(null, sellerSlug)}><TextInput name="sourceName" label="Forrás neve" required maxLength={120} placeholder="Webshop export" /><GdsTextarea name="json" label="Vásárlási tételek" minRows={11} required placeholder={'[{"externalBuyerId":"C-1","buyerEmail":"vasarlo@example.com","buyerName":"Minta Vásárló","orderId":"O-1","lineId":"1","productSku":"SKU-1","productName":"Termék","purchasedAt":"2026-09-01T10:00:00Z","quantity":1,"totalHuf":12990}]'} /><GdsButton type="submit" leftSection={<GdsIcon name="Preview" decorative />}>Előnézet készítése</GdsButton></form>
+      {batch ? <SectionPanel title="Import előnézet" description={`${batch.sourceName} · ${batch.status}`} action={batch.status === "preview" && !batch.rows.some((row: { action: string }) => row.action === "error") ? <form action={applyPurchasesAction.bind(null, sellerSlug, batch._id.toString())}><GdsButton type="submit" leftSection={<GdsIcon name="Import" decorative />}>Ellenőrzött import alkalmazása</GdsButton></form> : undefined}>
+        <div className="table-wrap"><SimpleDataTable rows={batch.rows.map((row: { row: number; key: string; action: string; errorCodes: string[] }) => ({ row: row.row, key: row.key || "—", action: row.action, detail: row.errorCodes.join(", ") || "Rendben" }))} columns={[{ key: "row", header: "Sor" }, { key: "key", header: "Azonosító" }, { key: "action", header: "Eredmény" }, { key: "detail", header: "Részlet" }]} /></div>
+      </SectionPanel> : null}
+    </SectionPanel>
   </Shell>;
 }

@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
   poweredByHeader: false,
+  transpilePackages: [
+    "@sovereignsquad/gds-theme",
+    "@sovereignsquad/gds-core",
+    "@sovereignsquad/gds-admin",
+  ],
   async headers() {
     return [
       {

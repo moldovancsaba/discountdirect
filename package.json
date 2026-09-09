@@ -1,6 +1,6 @@
 {
   "name": "discountdirect",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,25 +14,41 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "db:check": "node --env-file=.env.local scripts/check-db.mjs",
     "lint": "eslint .",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "gds:manifest": "node node_modules/@sovereignsquad/gds-compliance/bin/gds-compliance.js validate-manifest --manifest ./gds-adoption.json",
+    "gds:check": "node node_modules/@sovereignsquad/gds-compliance/bin/gds-compliance.js check --manifest ./gds-adoption.json",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm gds:manifest && pnpm gds:check && pnpm build",
     "test:smoke": "node --env-file=.env.local scripts/smoke.mjs",
     "test:auth-integration": "node --experimental-strip-types --env-file=.env.local scripts/verify-auth.ts",
     "db:indexes": "node --experimental-strip-types --env-file=.env.local scripts/create-auth-indexes.ts",
     "auth:provision": "node --experimental-strip-types --env-file=.env.local scripts/provision-user.ts"
   },
   "dependencies": {
+    "@mantine/core": "7.17.8",
+    "@mantine/dates": "7.17.8",
+    "@mantine/hooks": "7.17.8",
+    "@mantine/modals": "7.17.8",
+    "@mantine/notifications": "7.17.8",
+    "@sovereignsquad/gds-admin": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-admin-6.7.0.tgz",
+    "@sovereignsquad/gds-core": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-core-6.7.0.tgz",
+    "@sovereignsquad/gds-theme": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-theme-6.7.0.tgz",
+    "@tabler/icons-react": "3.46.0",
+    "dayjs": "1.11.18",
     "mongoose": "9.9.5",
-    "next": "16.3.4",
+    "next": "15.5.21",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "0.0.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "3.3.1",
+    "@sovereignsquad/gds-a11y": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-a11y-6.7.0.tgz",
+    "@sovereignsquad/gds-compliance": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-compliance-6.7.0.tgz",
+    "@sovereignsquad/gds-eslint-config": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-eslint-config-6.7.0.tgz",
     "@types/node": "24.12.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "15.5.21",
     "typescript": "6.0.3"
   },
   "packageManager": "pnpm@10.30.3"

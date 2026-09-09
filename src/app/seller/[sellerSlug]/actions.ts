@@ -29,19 +29,19 @@ export async function createProductAction(sellerSlug: string, form: FormData) {
   redirect(`/seller/${sellerSlug}${error ? `?error=${encodeURIComponent(error)}` : "?saved=created"}`);
 }
 
-export async function saveProductAction(sellerSlug: string, productId: string, form: FormData) {
+export async function saveProductAction(sellerSlug: string, productId: string, version: number, active: boolean, form: FormData) {
   const user = await identity();
   let error = "";
-  try { await updateProduct(user.id, sellerSlug, productId, productFrom(form), Number(form.get("version"))); } catch (cause) { error = cause instanceof Error ? cause.message : "INVALID"; }
+  try { await updateProduct(user.id, sellerSlug, productId, productFrom(form, active), version); } catch (cause) { error = cause instanceof Error ? cause.message : "INVALID"; }
   redirect(`/seller/${sellerSlug}${error ? `?error=${encodeURIComponent(error)}` : "?saved=updated"}`);
 }
 
-export async function archiveProductAction(sellerSlug: string, productId: string, form: FormData) {
+export async function archiveProductAction(sellerSlug: string, productId: string, version: number, form: FormData) {
   const user = await identity();
   let error = "";
   try {
     if (form.get("confirm") !== "yes") throw new Error("INVALID");
-    await updateProduct(user.id, sellerSlug, productId, productFrom(form, false), Number(form.get("version")));
+    await updateProduct(user.id, sellerSlug, productId, productFrom(form, false), version);
   } catch (cause) { error = cause instanceof Error ? cause.message : "INVALID"; }
   redirect(`/seller/${sellerSlug}${error ? `?error=${encodeURIComponent(error)}` : "?saved=archived"}`);
 }
@@ -59,9 +59,8 @@ export async function previewImportAction(sellerSlug: string, form: FormData) {
   redirect(destination);
 }
 
-export async function applyImportAction(sellerSlug: string, form: FormData) {
+export async function applyImportAction(sellerSlug: string, batchId: string) {
   const user = await identity();
-  const batchId = String(form.get("batchId") ?? "");
   let error = "";
   try { await applyImport(user.id, sellerSlug, batchId); } catch (cause) { error = cause instanceof Error ? cause.message : "INVALID"; }
   redirect(`/seller/${sellerSlug}${error ? `?batch=${encodeURIComponent(batchId)}&error=${encodeURIComponent(error)}` : "?saved=imported"}`);

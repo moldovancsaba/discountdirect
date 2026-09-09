@@ -1,6 +1,6 @@
 # DiscountDirect
 
-Personalized offers and seller–buyer relationships. Purchase-ledger release **0.6.0**.
+Personalized offers and seller–buyer relationships. Mint circuit GDS release **0.7.0**.
 
 - [Application](https://discountdirect.vercel.app)
 - [General Dashboard](https://discountdirect.vercel.app/admin) — requires the operator key from `.env.local`
@@ -11,7 +11,7 @@ Personalized offers and seller–buyer relationships. Purchase-ledger release **
 - [Authentication and provisioning](docs/authentication.md)
 - [Purchase ledger](docs/purchases.md)
 
-Built with Next.js, React, TypeScript and MongoDB Atlas/Mongoose; hosted on the existing Vercel project. Socket.IO and business features follow the issue plan. GDS is temporarily deferred by explicit user instruction; its adoption remains in issue #3.
+Built with Next.js, React, TypeScript, MongoDB Atlas/Mongoose and SovereignSquad GDS 6.7.0; hosted on the existing Vercel project. The application uses the GDS `mint` preset (Mint circuit), Hungarian locale, one root provider, governed components and token-only local layout CSS. Socket.IO and later business features follow the issue plan.
 
 ## Run
 
@@ -23,5 +23,7 @@ pnpm check
 pnpm db:check
 pnpm dev
 ```
+
+`pnpm check` includes the GDS ESLint rules, strict adoption-manifest validation, consumer compliance scan, TypeScript, domain tests and the production build. GDS packages are pinned to the official 6.7.0 release bundle so local, GitHub Actions and Vercel installs are reproducible.
 
 No demo/customer data is created by this release. Authorized sellers can manage products, import purchase lines, review seller-scoped customer histories, record corrections and refunds, and control a customer record's privacy status. Buyers can see only purchases linked to their own active seller relationship and normalized account email. Messages, offers and campaigns are not yet available.

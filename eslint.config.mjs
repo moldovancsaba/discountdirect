@@ -1,8 +1,11 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import { FlatCompat } from "@eslint/eslintrc";
+import { createGdsConfig } from "@sovereignsquad/gds-eslint-config";
+
+const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
+
 export default defineConfig([
-  ...nextVitals,
-  ...nextTs,
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...createGdsConfig(),
   globalIgnores([".next/**", ".vercel/**", "next-env.d.ts"]),
 ]);

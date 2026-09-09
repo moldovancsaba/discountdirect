@@ -1,16 +1,6 @@
-import Link from "next/link";
+import { Button as GdsButton, GdsErrorPageTemplate } from "@discountdirect/gds-client";
 import { Shell } from "@/components/shell";
+
 export default function NotFound() {
-  return (
-    <Shell>
-      <p className="eyebrow">404</p>
-      <h1>Ez az oldal nem található.</h1>
-      <p className="lead">
-        A keresett oldal nem létezik, vagy másik címre költözött.
-      </p>
-      <Link className="button" href="/">
-        Vissza az áttekintéshez
-      </Link>
-    </Shell>
-  );
+  return <Shell><GdsErrorPageTemplate state="not-found" code="404" title="Ez az oldal nem található." description="A keresett oldal nem létezik, vagy másik címre költözött." recovery={<GdsButton component="a" href="/">Vissza az áttekintéshez</GdsButton>} /></Shell>;
 }

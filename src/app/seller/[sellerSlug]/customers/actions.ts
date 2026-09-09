@@ -26,9 +26,8 @@ export async function previewPurchasesAction(sellerSlug: string, form: FormData)
   redirect(destination);
 }
 
-export async function applyPurchasesAction(sellerSlug: string, form: FormData) {
+export async function applyPurchasesAction(sellerSlug: string, batchId: string) {
   const user = await identity();
-  const batchId = String(form.get("batchId") ?? "");
   let error = "";
   try {
     await applyPurchaseImport(user.id, sellerSlug, batchId);
@@ -38,11 +37,11 @@ export async function applyPurchasesAction(sellerSlug: string, form: FormData) {
   redirect(`/seller/${sellerSlug}/customers${error ? `?batch=${encodeURIComponent(batchId)}&error=${encodeURIComponent(error)}` : "?saved=imported"}`);
 }
 
-export async function purchaseStatusAction(sellerSlug: string, customerId: string, purchaseId: string, form: FormData) {
+export async function purchaseStatusAction(sellerSlug: string, customerId: string, purchaseId: string, version: number, form: FormData) {
   const user = await identity();
   let error = "";
   try {
-    await updatePurchaseStatus(user.id, sellerSlug, purchaseId, Number(form.get("version")), form.get("status"), form.get("reason"));
+    await updatePurchaseStatus(user.id, sellerSlug, purchaseId, version, form.get("status"), form.get("reason"));
   } catch (cause) {
     error = cause instanceof Error ? cause.message : "INVALID";
   }

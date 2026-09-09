@@ -1,6 +1,6 @@
-# Foundation architecture — 0.4.0
+# Application architecture — 0.7.0
 
-Next.js 16.3.4 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
+Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. This matches the GDS 6.7.0 Next.js reference consumer while retaining current security patches. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
 
 ## Implemented routes
 
@@ -35,7 +35,9 @@ The account UI supports sign-in, activation, scoped workspace selection and logo
 
 ## Interface decision
 
-The user explicitly deferred GDS on 2026-09-08 after GitHub Packages denied package downloads with an organization billing-limit error. This release uses native HTML, local CSS and system fonts, with no replacement component library or external font service. Restore GDS through #3; no GDS compliance claim is made.
+Release 0.7.0 uses SovereignSquad GDS 6.7.0 as the single interface authority. `GdsProvider` resolves the native `mint` preset once at the application root, provides Hungarian messages, and owns light/dark scheme state. The shipped GDS stylesheet is imported once. A client-boundary module re-exports the unchanged GDS client primitives because the published server bundle evaluates a client-only Mantine theme helper during Next.js page collection. Application routes otherwise remain server components for data access and authorization. The routes use governed shell, navigation, content, form, table, icon and state primitives; application code imports neither Mantine nor Tabler directly.
+
+Local CSS only composes layout around GDS variables for color, typography, spacing, radius, control sizing and motion. The strict adoption manifest has no adapters or exceptions, and `pnpm check` enforces GDS consumer compliance plus the GDS ESLint configuration. Because GitHub Packages tarball delivery still returns the organization billing-limit error, dependencies use the official 6.7.0 temporary release bundle described by the GDS release itself.
 
 ## Toolchain
 
