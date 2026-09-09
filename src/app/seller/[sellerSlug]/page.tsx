@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/auth/service";
 import { getImportBatch, listProducts } from "@/catalog/service";
@@ -22,7 +23,7 @@ export default async function SellerPage({ params, searchParams }: { params: Pro
   const archived = catalog.products.filter((product) => !product.active);
   return (
     <Shell active="account">
-      <div className="section-heading"><div><p className="eyebrow">ELADÓI MUNKATÉR</p><h1>{catalog.seller.name}</h1></div><span className="pill">{active.length} aktív termék</span></div>
+      <div className="section-heading"><div><p className="eyebrow">ELADÓI MUNKATÉR</p><h1>{catalog.seller.name}</h1></div><div className="button-row"><Link className="button button-secondary" href={`/seller/${sellerSlug}/customers`}>Vásárlói főkönyv</Link><span className="pill">{active.length} aktív termék</span></div></div>
       <p className="lead">A katalógus minden művelete ehhez az eladóhoz kötött. Az árak egész forintban, a készletek darabban szerepelnek.</p>
       {query.saved && messages[query.saved] ? <div className="notice positive" role="status">{messages[query.saved]}</div> : null}
       {query.error ? <div className="notice negative" role="alert">{errors[query.error] ?? "A művelet nem hajtható végre."}</div> : null}

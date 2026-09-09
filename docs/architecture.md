@@ -27,6 +27,8 @@ Release 0.4.0 adds the same DoneIsBetter OAuth/OIDC integration contract used by
 
 Release 0.5.0 adds seller-scoped `Product`, `ProductRevision` and `ImportBatch` collections. Product writes use optimistic versions and seller+SKU uniqueness. Import previews record their checksum and expected versions; apply uses an Atlas transaction so partial or stale batches cannot silently overwrite newer edits.
 
+Release 0.6.0 adds `Customer`, `Purchase` and `PurchaseImportBatch`. Customer identity and order-line uniqueness include the seller ID. Purchase imports are validated and previewed before an Atlas transaction applies them. Original purchase rows remain durable: refunds and corrections change status with an optimistic version and reason, while active-spend totals include only purchased rows. Buyer history requires an active relationship and matches the authenticated account's normalized email inside the same seller scope.
+
 `GET /api/me` resolves scopes on the server. Seller routes require an active membership for the exact seller slug. Buyer routes require an active relationship for the exact seller slug. Client-supplied roles and seller identifiers never grant access. Cookie-authenticated API mutations compare the request Origin with the effective Vercel host. Login attempts use an Atlas collection, so the five-attempt/15-minute limit applies across function instances.
 
 The account UI supports sign-in, activation, scoped workspace selection and logout. There is no public signup or working email recovery claim. Manual provisioning and recovery are documented in [authentication.md](authentication.md). Administrator MFA and migration away from the emergency operations key remain release gates in issue #4.
@@ -41,4 +43,4 @@ Use pnpm 10.30.3 and the committed lockfile. TypeScript 6.0 and ESLint 9 match t
 
 ## Remaining product work
 
-Public registration, administrator MFA, catalog/imports, purchase history, personalized offers, conversations, Socket.IO, presence tracking, campaigns, automations, delivery and redemption are not implemented. The existing issues #4–#20 specify those increments. No customer data has been seeded.
+Public registration, administrator MFA, personalized offers, conversations, Socket.IO, presence tracking, campaigns, automations, delivery and redemption are not implemented. The existing issues #4–#20 specify those increments. No customer data has been seeded.

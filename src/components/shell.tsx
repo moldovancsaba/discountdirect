@@ -46,7 +46,7 @@ export function Shell({
           </Link>
         </nav>
         <div className="sidebar-footer">
-          <span className="release-dot" /> Katalógus kiadás <span>0.5.0</span>
+          <span className="release-dot" /> Főkönyv kiadás <span>0.6.0</span>
         </div>
       </aside>
       <div className="workspace-main">

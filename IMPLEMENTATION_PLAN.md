@@ -8,6 +8,8 @@
 
 > Implementation update, 2026-09-09: catalog release 0.5.0 adds seller-scoped product create/edit/archive, durable revisions and a staged JSON import with row validation, checksum replay safety and optimistic stale-write rejection. GDS remains deferred by explicit user instruction.
 
+> Implementation update, 2026-09-09: purchase-ledger release 0.6.0 adds seller-scoped customer identities, immutable order lines, staged idempotent imports, bounded chronological history, buyer self-view, correction/refund handling and privacy status controls. GDS and the broader privacy workflow remain in their existing issues.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition

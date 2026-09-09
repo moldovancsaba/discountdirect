@@ -16,6 +16,7 @@ import {
   hashPassword,
 } from "../src/auth/crypto.ts";
 import { catalogModels, Product } from "../src/catalog/models.ts";
+import { Customer, Purchase, purchaseModels } from "../src/purchases/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -77,7 +78,7 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const dataModel of [...authModels, ...catalogModels])
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels])
     await dataModel.createIndexes();
 
   const password = "Verification password 2026";
@@ -264,6 +265,44 @@ try {
     ["CAB-001"],
   );
 
+  const purchaseImportPath = "/api/sellers/allowed-seller/purchases/import";
+  const purchaseRows = [
+    { externalBuyerId: "CUSTOMER-1", buyerEmail: user.emailNormalized, buyerName: "Verification Buyer", orderId: "ORDER-1", lineId: "1", productSku: "CAB-001", productName: "HDMI kábel", purchasedAt: "2026-08-02T10:00:00.000Z", quantity: 2, totalHuf: 9980 },
+    { externalBuyerId: "CUSTOMER-1", buyerEmail: user.emailNormalized, buyerName: "Verification Buyer", orderId: "ORDER-2", lineId: "1", productSku: "MISSING-001", productName: "Korábbi termék", purchasedAt: "2026-08-01T10:00:00.000Z", quantity: 1, totalHuf: 2990 },
+  ];
+  const purchasePreview = await post(purchaseImportPath, { schemaVersion: "1", sourceName: "Verification export", rows: purchaseRows }, cookie);
+  assert.equal(purchasePreview.status, 201);
+  const purchaseBatch = (await purchasePreview.json()).batch;
+  assert.deepEqual(purchaseBatch.rows.map((row: { action: string }) => row.action), ["create", "create"]);
+  assert.equal((await post(purchaseImportPath, { action: "apply", batchId: purchaseBatch._id }, cookie)).status, 200);
+  assert.equal((await post(purchaseImportPath, { action: "apply", batchId: purchaseBatch._id }, cookie)).status, 200);
+  assert.equal(await Purchase.countDocuments({ sellerId: allowedSeller._id }), 2);
+  assert.equal((await Purchase.findOne({ sellerId: allowedSeller._id, productSku: "MISSING-001" }).lean())?.productId, null);
+
+  const duplicatePreview = await post(purchaseImportPath, { schemaVersion: "1", sourceName: "Duplicate test", rows: [purchaseRows[0], purchaseRows[0]] }, cookie);
+  assert.equal(duplicatePreview.status, 201);
+  assert.equal((await duplicatePreview.json()).batch.rows[1].action, "error");
+  const customersResponse = await fetch(`${base}/api/sellers/allowed-seller/customers`, { headers: { cookie } });
+  assert.equal(customersResponse.status, 200);
+  const customers = (await customersResponse.json()).customers;
+  assert.equal(customers.length, 1);
+  assert.equal(customers[0].totalHuf, 12_970);
+  const historyResponse = await fetch(`${base}/api/sellers/allowed-seller/customers/${customers[0].id}/purchases?limit=1`, { headers: { cookie } });
+  assert.equal(historyResponse.status, 200);
+  const history = (await historyResponse.json()).purchases;
+  assert.equal(history.length, 1);
+  assert.equal(history[0].orderId, "ORDER-1");
+  const refund = await fetch(`${base}/api/sellers/allowed-seller/purchases/${history[0].id}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ expectedVersion: history[0].version, status: "refunded", reason: "Verification refund" }) });
+  assert.equal(refund.status, 200);
+  assert.equal((await fetch(`${base}/api/sellers/allowed-seller/customers`, { headers: { cookie } }).then((response) => response.json())).customers[0].totalHuf, 2990);
+  assert.equal((await fetch(`${base}/api/sellers/allowed-seller/purchases/${history[0].id}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ expectedVersion: history[0].version, status: "corrected", reason: "Stale correction" }) })).status, 409);
+  assert.equal((await fetch(`${base}/api/sellers/foreign-seller/customers`, { headers: { cookie } })).status, 403);
+  await Customer.create({ sellerId: foreignSeller._id, externalBuyerId: "FOREIGN-CUSTOMER", emailNormalized: user.emailNormalized, displayName: "Same email, other seller", sourceName: "Verification" });
+  assert.equal(await Customer.countDocuments({ emailNormalized: user.emailNormalized }), 2);
+  const buyerPage = await fetch(`${base}/buyer/allowed-seller`, { headers: { cookie } });
+  assert.equal(buyerPage.status, 200);
+  assert.match(await buyerPage.text(), /Korábbi termék/);
+
   const activationToken = createOpaqueToken();
   const pending = await User.create({
     emailNormalized: "pending.verify@example.test",
@@ -319,7 +358,7 @@ try {
     429,
   );
   console.log(
-    "Authentication and catalog integration passed: sessions, tenant denial, product validation, idempotent import, stale-batch rejection and archive filtering.",
+    "Authentication, catalog and purchase-ledger integration passed: tenant denial, idempotent imports, missing-product history, refund totals, stale corrections and buyer visibility.",
   );
 } finally {
   if (mongoose.connection.readyState) {

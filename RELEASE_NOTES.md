@@ -1,5 +1,31 @@
 # Release notes
 
+## 0.6.0 — 2026-09-09
+
+### New features
+
+- Seller-scoped customer records and immutable purchase lines with unique order/line identities.
+- Staged JSON purchase import for up to 200 rows, checksum replay safety and one-transaction application.
+- Chronological seller ledger with spend totals, product snapshots, corrections, refunds and optimistic versions.
+- Buyer self-service purchase history limited to the authenticated account's active seller relationship.
+- Persisted active, restricted and erasure-requested customer privacy states.
+
+### Fixed bugs
+
+- Refunds and corrected rows no longer contribute to customer spend totals.
+- Missing or discontinued product mappings retain their imported SKU and name as historical evidence.
+- Matching email addresses at different sellers remain separate customer profiles.
+
+### Known issues
+
+- GDS remains deferred by explicit user instruction after the package billing-limit failure.
+- Full privacy export, retention and erasure execution remains in issue #7; this release records the workflow state and preserves required financial evidence.
+- Customer history is intentionally bounded to the 100 latest rows while cursor pagination remains open.
+
+### Future roadmap
+
+Complete buyer preferences and privacy operations in #7, then build deterministic, explainable recommendations in #8.
+
 ## 0.5.0 — 2026-09-09
 
 ### New features
