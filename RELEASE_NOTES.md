@@ -1,5 +1,18 @@
 # Release notes
 
+## 1.1.0 — Realtime readiness
+
+### New features
+
+- Added a Socket.IO WebSocket-only endpoint with opaque-session handshake authentication and per-conversation authorization.
+- Added replayable Atlas realtime events, versioned message notifications, cursor recovery and 90-second presence expiry.
+- Added a durable HTTP replay endpoint and clear connected, reconnecting, disabled and degraded conversation states.
+
+### Known issues
+
+- `REALTIME_ENABLED` remains false until Vercel two-client, cross-instance, function-duration and deployment-replacement probes pass with synthetic accounts.
+- The Vercel WebSocket platform feature remains beta; HTTP conversations are the authoritative recovery path.
+
 ## 1.0.0 — Durable conversations
 
 ### New features

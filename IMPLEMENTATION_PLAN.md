@@ -18,6 +18,8 @@
 
 > Implementation update, 2026-09-09: conversation release 1.0.0 adds persistent seller/buyer threads, append-only activity events, retry-safe messages, unread counters, seller and buyer inboxes, ordered cursor pagination and server-side participant checks. Attachments, synchronization, notification delivery and Socket.IO remain in their later issue slices.
 
+> Implementation update, 2026-09-09: realtime readiness release 1.1.0 adds the Socket.IO WebSocket-only endpoint, an Atlas-backed seven-day event log, cursor replay, expiring presence, scoped room authorization and an explicit disabled/degraded GDS state. The selected Vercel project is Pro, `iad1`, Fluid Compute-enabled and uses the current beta transport. `REALTIME_ENABLED` stays false pending the required synthetic two-client cross-instance, duration-expiry and deployment-replacement probe; durable HTTP conversations remain authoritative.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition

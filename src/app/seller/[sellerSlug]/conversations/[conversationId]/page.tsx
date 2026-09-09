@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { BannerNotice, Button as GdsButton, EmptyState, GdsGrid, ListingCard, PageHeader, SectionPanel, Textarea as GdsTextarea } from "@discountdirect/gds-client";
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
+import { RealtimeThread } from "@/components/realtime-thread";
 import { conversationTimeline } from "@/messaging/service";
 import { sendConversationMessageAction } from "@/app/conversations/actions";
 
@@ -21,6 +22,7 @@ export default async function SellerConversationPage({ params, searchParams }: {
     <PageHeader title={result.conversation.customer?.displayName ?? result.conversation.buyer.displayName} description="Eladóhoz kötött beszélgetési idővonal. Az üzenet mentés után azonnal megjelenik; valós idejű kézbesítés még nincs." eyebrow="Beszélgetés" actions={<GdsButton component="a" href={`/seller/${sellerSlug}/conversations`} variant="default">Összes beszélgetés</GdsButton>} />
     {query.saved === "message" ? <BannerNotice severity="success" variant="compact" message="Az üzenet rögzítve." /> : null}
     {query.error ? <BannerNotice severity="error" variant="compact" message={errors[query.error] ?? "Az üzenet nem küldhető el."} /> : null}
+    <RealtimeThread conversationId={conversationId} />
     <SectionPanel title="Idővonal" description="Az események létrehozási idő és azonosító szerint rendezettek." divided={false}>
       {!result.events.length ? <EmptyState title="Még nincs esemény" description="Az első üzenet itt fog megjelenni." /> : <GdsGrid columns={{ base: 1 }}>
         {result.events.map((event) => <ListingCard key={event.id} title={event.kind === "activity" ? "Beszélgetés megnyitva" : event.senderRole === "seller" ? "Eladó" : "Vásárló"} description={event.body ?? "A beszélgetés megnyitásának rendszernaplója."} mediaSeed={event.id} mediaOverlay={event.kind === "activity" ? "Esemény" : "Üzenet"} metadata={[{ id: "when", label: "Időpont", value: date.format(new Date(event.createdAt)) }]} />)}

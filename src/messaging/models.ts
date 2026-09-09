@@ -13,6 +13,7 @@ const conversationSchema = new Schema(
     sellerUnreadCount: { type: Number, required: true, default: 0, min: 0 },
     buyerUnreadCount: { type: Number, required: true, default: 0, min: 0 },
     pendingOfferCount: { type: Number, required: true, default: 0, min: 0 },
+    version: { type: Number, required: true, default: 1, min: 1 },
   },
   { ...timestamps, collection: "conversations" },
 );

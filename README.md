@@ -1,6 +1,6 @@
 # DiscountDirect
 
-Personalized offers and seller–buyer relationships. Durable conversation release **1.0.0**.
+Personalized offers and seller–buyer relationships. Realtime-ready conversation release **1.1.0**.
 
 - [Application](https://discountdirect.vercel.app)
 - [General Dashboard](https://discountdirect.vercel.app/admin) — requires the operator key from `.env.local`
@@ -13,6 +13,7 @@ Personalized offers and seller–buyer relationships. Durable conversation relea
 - [Privacy and channel preferences](docs/privacy.md)
 - [Recommendation rules](docs/recommendations.md)
 - [Conversations](docs/conversations.md)
+- [Realtime transport](docs/realtime.md)
 
 Built with Next.js, React, TypeScript, MongoDB Atlas/Mongoose and SovereignSquad GDS 6.7.0; hosted on the existing Vercel project. The application uses the GDS `mint` preset (Mint circuit), Hungarian locale, one root provider, governed components and token-only local layout CSS. Socket.IO and later business features follow the issue plan.
 
@@ -29,4 +30,4 @@ pnpm dev
 
 `pnpm check` includes the GDS ESLint rules, strict adoption-manifest validation, consumer compliance scan, TypeScript, domain tests and the production build. GDS packages are pinned to the official 6.7.0 release bundle so local, GitHub Actions and Vercel installs are reproducible.
 
-No demo/customer data is created by this release. Authorized sellers can manage products, purchase histories and privacy requests within their own seller scope. They can also create stored, reproducible recommendation previews and durable conversations with linked buyers. Buyers manage seller-specific marketing consent, data requests and their own conversation inbox. Messages are persisted, retry-safe and do not yet provide live delivery; offers and campaigns are still planned, and previews never send anything.
+No demo/customer data is created by this release. Authorized sellers can manage products, purchase histories and privacy requests within their own seller scope. They can also create stored, reproducible recommendation previews and durable conversations with linked buyers. Buyers manage seller-specific marketing consent, data requests and their own conversation inbox. Messages are persisted and retry-safe. Realtime transport is deliberately disabled until its Vercel compatibility probe passes; offers and campaigns are still planned, and previews never send anything.

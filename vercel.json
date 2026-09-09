@@ -1,5 +1,10 @@
 {
   "framework": "nextjs",
   "buildCommand": "pnpm build",
-  "installCommand": "pnpm install --frozen-lockfile"
+  "installCommand": "pnpm install --frozen-lockfile",
+  "functions": {
+    "api/socket-io.ts": {
+      "maxDuration": 300
+    }
+  }
 }

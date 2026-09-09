@@ -1,6 +1,6 @@
 {
   "name": "discountdirect",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -32,16 +32,19 @@
     "@sovereignsquad/gds-core": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-core-6.7.0.tgz",
     "@sovereignsquad/gds-theme": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-theme-6.7.0.tgz",
     "@tabler/icons-react": "3.46.0",
+    "@vercel/functions": "3.9.6",
     "dayjs": "1.11.18",
     "mongoose": "9.9.5",
     "next": "15.5.21",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "server-only": "0.0.1"
+    "server-only": "0.0.1",
+    "socket.io": "4.8.3",
+    "socket.io-client": "4.8.3"
   },
   "devDependencies": {
-    "@next/eslint-plugin-next": "15.5.21",
     "@eslint/eslintrc": "3.3.1",
+    "@next/eslint-plugin-next": "15.5.21",
     "@sovereignsquad/gds-a11y": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-a11y-6.7.0.tgz",
     "@sovereignsquad/gds-compliance": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-compliance-6.7.0.tgz",
     "@sovereignsquad/gds-eslint-config": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-eslint-config-6.7.0.tgz",

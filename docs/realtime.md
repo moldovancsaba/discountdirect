@@ -1,0 +1,11 @@
+# Realtime transport
+
+Release 1.1.0 adds the realtime transport contract alongside the durable conversation data. `message.created`, `offer.updated` and `presence.changed` carry only `{eventId, conversationId, type, version, occurredAt, messageId}`. The client reloads the authoritative HTTP timeline after an event; message text and buyer details are never carried in the broadcast payload.
+
+The current production project runs in `iad1` on Vercel Pro with Fluid Compute enabled. The selected implementation is the documented Vercel beta Socket.IO endpoint at `/api/socket-io/socket.io`, with WebSocket transport only. The endpoint authenticates the existing opaque session cookie, reauthorizes every conversation subscription, keeps no tenant state in browser-supplied roles, and uses Atlas rather than process memory for replay, presence and cross-instance fanout.
+
+`RealtimeEvent` retains seven days of event metadata and supports bounded replay through `GET /api/conversations/{conversationId}/realtime-events?cursor=…`. `ConversationPresence` is renewed every 30 seconds and expires after 90 seconds. A MongoDB change stream on `RealtimeEvent` fans each instance's authorized rooms; reconnects resubscribe and replay from the cursor. A process replacement or duration expiry is therefore recoverable without duplicating a durable message.
+
+`REALTIME_ENABLED` is the operational switch. It defaults to `false` and must remain disabled until a synthetic two-client Vercel probe has verified upgrade routing, different-instance change-stream fanout, forced duration expiry, deployment replacement and replay on this exact project. When disabled or unavailable, the interface says so plainly and the durable HTTP message/timeline workflow remains available. Do not enable it as a substitute for that evidence.
+
+Vercel documents that WebSockets are beta, require Fluid Compute, and that reconnections can land on different instances; it also documents Socket.IO with the WebSocket transport and an external durable store for cross-instance coordination. [Vercel WebSockets documentation](https://vercel.com/docs/functions/websockets) · [Vercel Functions WebSocket support note](https://vercel.com/kb/guide/do-vercel-serverless-functions-support-websocket-connections).

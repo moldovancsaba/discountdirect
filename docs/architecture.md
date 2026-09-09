@@ -1,4 +1,4 @@
-# Application architecture — 1.0.0
+# Application architecture — 1.1.0
 
 Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. This matches the GDS 6.7.0 Next.js reference consumer while retaining current security patches. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
 
@@ -39,6 +39,8 @@ Release 0.9.0 adds immutable `RecommendationPreview` snapshots. The versioned ru
 
 Release 1.0.0 adds durable `Conversation` and `ConversationEvent` collections. Every conversation is unique to a seller and buyer, with an optional linked customer record, unread counters and a neutral zero pending-offer count. Opening a conversation records an activity event. Messages have a sender-scoped client request ID that makes retried sends idempotent, and their ordered timeline supports opaque cursor pagination. Seller membership and buyer relationship checks are applied for every inbox, timeline and message mutation. No attachment storage, notifications or Socket.IO transport exists yet.
 
+Release 1.1.0 adds a durable Atlas `RealtimeEvent` log and expiring `ConversationPresence` records. Every message transaction creates one replayable `message.created` event after its conversation version increases; retries create neither a second message nor a second realtime event. The Vercel Socket.IO endpoint accepts only WebSocket transport, verifies the opaque session at handshake, reauthorizes each room and fanouts the Atlas change stream to local authorized rooms. The browser always reloads its durable HTTP state after a realtime event. `REALTIME_ENABLED` is false until a Vercel two-client lifecycle probe passes; the UI reports disabled/degraded state and HTTP remains authoritative.
+
 `GET /api/me` resolves scopes on the server. Seller routes require an active membership for the exact seller slug. Buyer routes require an active relationship for the exact seller slug. Client-supplied roles and seller identifiers never grant access. Cookie-authenticated API mutations compare the request Origin with the effective Vercel host. Login attempts use an Atlas collection, so the five-attempt/15-minute limit applies across function instances.
 
 The account UI supports sign-in, activation, scoped workspace selection and logout. There is no public signup or working email recovery claim. Manual provisioning and recovery are documented in [authentication.md](authentication.md). Administrator MFA and migration away from the emergency operations key remain release gates in issue #4.
@@ -55,4 +57,4 @@ Use pnpm 10.30.3 and the committed lockfile. TypeScript 6.0 and ESLint 9 match t
 
 ## Remaining product work
 
-Public registration, administrator MFA, automated legal-deadline escalation, personalized offers, Socket.IO, presence tracking, campaigns, automations, delivery and redemption are not implemented. The existing issues #4–#20 specify those increments. No customer data has been seeded.
+Public registration, administrator MFA, automated legal-deadline escalation, personalized offers, production-approved realtime enablement, campaigns, automations, delivery and redemption are not implemented. The existing issues #4–#20 specify those increments. No customer data has been seeded.

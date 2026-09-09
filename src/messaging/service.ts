@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
 import { Customer } from "@/purchases/models";
+import { recordRealtimeEvent } from "@/realtime/service";
 import { Conversation, ConversationEvent } from "./models";
 
 export class MessagingError extends Error {
@@ -46,7 +47,7 @@ async function sellerAccess(userId: string, sellerSlug: string) {
   return seller;
 }
 
-async function participant(userId: string, conversationId: string) {
+export async function participant(userId: string, conversationId: string) {
   if (!mongoose.isValidObjectId(conversationId)) throw new MessagingError("INVALID");
   await connectDatabase();
   const conversation = await Conversation.findById(conversationId).lean();
@@ -143,7 +144,9 @@ export async function sendConversationMessage(userId: string, conversationId: st
     if (existing) { output = eventOutput(existing); return; }
     const now = new Date();
     const [created] = await ConversationEvent.create([{ conversationId: access.conversation._id, sellerId: access.conversation.sellerId, kind: "message", senderRole: access.role, senderUserId: userId, body: input.body, clientRequestId: input.clientRequestId, createdAt: now }], { session });
-    await Conversation.updateOne({ _id: access.conversation._id }, { $set: { lastEventAt: now, lastEventPreview: input.body.slice(0, 240) }, $inc: access.role === "seller" ? { buyerUnreadCount: 1 } : { sellerUnreadCount: 1 } }, { session });
+    const updated = await Conversation.findOneAndUpdate({ _id: access.conversation._id }, { $set: { lastEventAt: now, lastEventPreview: input.body.slice(0, 240) }, $inc: { ...(access.role === "seller" ? { buyerUnreadCount: 1 } : { sellerUnreadCount: 1 }), version: 1 } }, { new: true, session });
+    if (!updated) throw new MessagingError("NOT_FOUND");
+    await recordRealtimeEvent(session, { sellerId: access.conversation.sellerId, conversationId: access.conversation._id, type: "message.created", version: updated.version, messageId: created._id, occurredAt: now });
     output = eventOutput(created.toObject());
   });
   return output;

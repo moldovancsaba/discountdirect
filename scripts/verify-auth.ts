@@ -20,6 +20,7 @@ import { Customer, Purchase, purchaseModels } from "../src/purchases/models.ts";
 import { ChannelPreference, ConsentEvent, PrivacyRequest, privacyModels } from "../src/privacy/models.ts";
 import { RecommendationPreview, recommendationModels } from "../src/recommendations/models.ts";
 import { Conversation, ConversationEvent, messagingModels } from "../src/messaging/models.ts";
+import { RealtimeEvent, realtimeModels } from "../src/realtime/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -81,7 +82,7 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels])
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels])
     await dataModel.createIndexes();
 
   const password = "Verification password 2026";
@@ -386,6 +387,10 @@ try {
   const message = (await sent.json()).message;
   assert.equal((await post(messagesPath, { clientRequestId: "seller-message-001", body: "Szia, van egy kérdésünk a rendelésedről." }, cookie)).status, 201);
   assert.equal(await ConversationEvent.countDocuments({ conversationId: conversation.id, kind: "message" }), 1);
+  assert.equal(await RealtimeEvent.countDocuments({ conversationId: conversation.id, type: "message.created" }), 1);
+  const realtimeEvents = await fetch(`${base}/api/conversations/${conversation.id}/realtime-events`, { headers: { cookie: buyerCookie } });
+  assert.equal(realtimeEvents.status, 200);
+  assert.equal((await realtimeEvents.json()).events[0].type, "message.created");
   const buyerConversations = await fetch(`${base}/api/conversations`, { headers: { cookie: buyerCookie } });
   assert.equal(buyerConversations.status, 200);
   assert.equal((await buyerConversations.json()).conversations[0].buyerUnreadCount, 1);
