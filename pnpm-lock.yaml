@@ -57,6 +57,9 @@ importers:
       '@eslint/eslintrc':
         specifier: 3.3.1
         version: 3.3.1
+      '@next/eslint-plugin-next':
+        specifier: 15.5.21
+        version: 15.5.21
       '@sovereignsquad/gds-a11y':
         specifier: https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-a11y-6.7.0.tgz
         version: https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-a11y-6.7.0.tgz(axe-core@4.13.0)
@@ -81,6 +84,15 @@ importers:
       eslint-config-next:
         specifier: 15.5.21
         version: 15.5.21(eslint@9.39.5)(typescript@6.0.3)
+      eslint-plugin-jsx-a11y:
+        specifier: 6.10.2
+        version: 6.10.2(eslint@9.39.5)
+      eslint-plugin-react:
+        specifier: 7.37.5
+        version: 7.37.5(eslint@9.39.5)
+      eslint-plugin-react-hooks:
+        specifier: 5.2.0
+        version: 5.2.0(eslint@9.39.5)
       typescript:
         specifier: 6.0.3
         version: 6.0.3

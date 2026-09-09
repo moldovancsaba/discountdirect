@@ -11,7 +11,7 @@ const date = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: 
 const messages: Record<string, string> = { imported: "A vásárlási előzmények importálva.", corrected: "A tétel állapota frissült.", privacy: "Az adatkezelési állapot frissült." };
 const errors: Record<string, string> = { INVALID: "Ellenőrizd a megadott adatokat.", TOO_LARGE: "Az import 1–200 sort tartalmazhat.", STALE: "A tétel időközben megváltozott. Frissítsd az oldalt." };
 const statusLabel: Record<string, string> = { purchased: "Vásárlás", refunded: "Visszatérítve", corrected: "Helyesbítve" };
-const privacyLabel: Record<string, string> = { active: "Aktív", restricted: "Korlátozott", erasure_requested: "Törlésre jelölve" };
+const privacyLabel: Record<string, string> = { active: "Aktív", restricted: "Korlátozott", erasure_requested: "Törlésre jelölve", erased: "Anonimizált" };
 
 export default async function CustomersPage({ params, searchParams }: { params: Promise<{ sellerSlug: string }>; searchParams: Promise<{ customer?: string; batch?: string; saved?: string; error?: string }> }) {
   const user = await currentUser();
@@ -25,7 +25,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
   let batch: Awaited<ReturnType<typeof purchaseImportBatch>> | null = null;
   if (query.batch) { try { batch = await purchaseImportBatch(user.id, sellerSlug, query.batch); } catch { batch = null; } }
   return <Shell active="account">
-    <PageHeader title={result.seller.name} description="Eladóhoz kötött vásárlók és időrendi rendelési tételek. A visszatérített és helyesbített tételek nem számítanak bele a költésbe." eyebrow="Vásárlói főkönyv" actions={<div className="button-row"><GdsButton component="a" href={`/seller/${sellerSlug}`} variant="default" leftSection={<GdsIcon name="Package" decorative />}>Termékkatalógus</GdsButton><StatusBadge status="info">{result.customers.length} kapcsolat</StatusBadge></div>} />
+    <PageHeader title={result.seller.name} description="Eladóhoz kötött vásárlók és időrendi rendelési tételek. A visszatérített és helyesbített tételek nem számítanak bele a költésbe." eyebrow="Vásárlói főkönyv" actions={<div className="button-row"><GdsButton component="a" href={`/seller/${sellerSlug}`} variant="default" leftSection={<GdsIcon name="Package" decorative />}>Termékkatalógus</GdsButton><GdsButton component="a" href={`/seller/${sellerSlug}/privacy`} variant="default" leftSection={<GdsIcon name="Settings" decorative />}>Adatkezelési kérelmek</GdsButton><StatusBadge status="info">{result.customers.length} kapcsolat</StatusBadge></div>} />
     {query.saved && messages[query.saved] ? <BannerNotice variant="compact" severity="success" message={messages[query.saved]} /> : null}
     {query.error ? <BannerNotice variant="compact" severity="error" message={errors[query.error] ?? "A művelet nem hajtható végre."} /> : null}
     <SectionPanel id="customers" title="Vásárlók" description="Minden profil csak ehhez az eladóhoz tartozik." divided={false}>
@@ -43,7 +43,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
         />)}
       </GdsGrid>
     </SectionPanel>
-    {selected ? <SectionPanel id="history" title={`${selected.customer.displayName} előzményei`} description="Legfeljebb a 100 legújabb tétel, legújabbal kezdve." action={<form action={customerPrivacyAction.bind(null, sellerSlug, selected.customer._id.toString())}><GdsSelect name="status" label="Adatkezelési állapot" defaultValue={selected.customer.privacyStatus} data={[{ value: "active", label: "Aktív" }, { value: "restricted", label: "Korlátozott" }, { value: "erasure_requested", label: "Törlésre jelölve" }]} /><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Save" decorative />}>Állapot mentése</GdsButton></form>}>
+    {selected ? <SectionPanel id="history" title={`${selected.customer.displayName} előzményei`} description="Legfeljebb a 100 legújabb tétel, legújabbal kezdve." action={selected.customer.privacyStatus === "erased" ? <StatusBadge status="neutral">Anonimizált</StatusBadge> : <form action={customerPrivacyAction.bind(null, sellerSlug, selected.customer._id.toString())}><GdsSelect name="status" label="Adatkezelési állapot" defaultValue={selected.customer.privacyStatus} data={[{ value: "active", label: "Aktív" }, { value: "restricted", label: "Korlátozott" }, { value: "erasure_requested", label: "Törlésre jelölve" }]} /><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Save" decorative />}>Állapot mentése</GdsButton></form>}>
       <GdsGrid columns={{ base: 1, md: 2 }}>
         {selected.purchases.map((purchase) => <ListingCard
           key={purchase.id}

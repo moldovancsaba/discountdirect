@@ -1,5 +1,32 @@
 # Release notes
 
+## 0.8.0 — 2026-09-09
+
+### New features
+
+- Seller-specific e-mail and postal marketing preferences with an exact Hungarian notice version.
+- Append-only consent evidence for opt-ins and withdrawals; repeated unchanged saves do not create false events.
+- Buyer requests for access export, processing restriction and erasure with idempotent open-request handling.
+- Seller workflow with explicit requested, processing, completed and retryable failed states.
+- Seven-day authenticated JSON exports containing only the requesting buyer's data for the selected seller.
+- Transactional marketing withdrawal on restriction and erasure; erasure anonymizes seller-side identity and preserves financial purchase evidence.
+
+### Fixed bugs
+
+- Made Next.js lint plugins explicit development dependencies so clean installs resolve the complete lint configuration.
+- Added an indexed open-request key so concurrent duplicate privacy requests converge on one record.
+- Prevented an initial unchecked marketing channel from creating a false withdrawal event.
+
+### Known issues
+
+- Real personal data and marketing remain blocked until the controller owner approves the assessment, Hungarian notice, retention rules and operating procedure in issue #7.
+- Cancellation of already queued delivery work depends on the delivery and campaign implementations in issues #12–#14.
+- Automated request deadlines, reminders and operator escalation are not yet implemented.
+
+### Future roadmap
+
+Finish the remaining issue #7 approval and queued-delivery gates, then implement deterministic recommendations in #8 and persistent conversations in #9.
+
 ## 0.7.0 — 2026-09-09
 
 ### New features

@@ -1,6 +1,6 @@
 {
   "name": "discountdirect",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -40,6 +40,7 @@
     "server-only": "0.0.1"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "15.5.21",
     "@eslint/eslintrc": "3.3.1",
     "@sovereignsquad/gds-a11y": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-a11y-6.7.0.tgz",
     "@sovereignsquad/gds-compliance": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-compliance-6.7.0.tgz",
@@ -49,6 +50,9 @@
     "@types/react-dom": "19.2.7",
     "eslint": "9.39.5",
     "eslint-config-next": "15.5.21",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "5.2.0",
     "typescript": "6.0.3"
   },
   "packageManager": "pnpm@10.30.3"

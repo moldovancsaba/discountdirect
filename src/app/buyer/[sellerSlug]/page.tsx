@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { EmptyState, GdsGrid, ListingCard, PageHeader, SectionPanel, StatusBadge } from "@discountdirect/gds-client";
+import { Button as GdsButton, EmptyState, GdsGrid, GdsIcon, ListingCard, PageHeader, SectionPanel, StatusBadge } from "@discountdirect/gds-client";
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { buyerHistory } from "@/purchases/service";
@@ -14,7 +14,7 @@ export default async function BuyerPage({ params }: { params: Promise<{ sellerSl
   const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
   const date = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeZone: "Europe/Budapest" });
   return <Shell active="account">
-    <PageHeader title={history.seller.name} description="Csak a saját, aktív vásárlói kapcsolatod adatai jelenhetnek meg ezen az oldalon." eyebrow="Vásárlói kapcsolat" actions={<StatusBadge status="success" withIcon>{history.purchases.length} tétel</StatusBadge>} />
+    <PageHeader title={history.seller.name} description="Csak a saját, aktív vásárlói kapcsolatod adatai jelenhetnek meg ezen az oldalon." eyebrow="Vásárlói kapcsolat" actions={<div className="button-row"><GdsButton component="a" href={`/buyer/${sellerSlug}/preferences`} variant="default" leftSection={<GdsIcon name="Settings" decorative />}>Adatkezelési beállítások</GdsButton><StatusBadge status="success" withIcon>{history.purchases.length} tétel</StatusBadge></div>} />
     <SectionPanel title="Saját vásárlási előzményeim" description="A legújabb vásárlásokkal kezdve." divided={false}>
       {!history.customer ? <EmptyState title="Még nincs összekapcsolt vásárlás" description="Az eladó által importált, e-mail-címedhez kapcsolt tételek itt jelennek meg." /> : null}
       <GdsGrid columns={{ base: 1, md: 2 }}>

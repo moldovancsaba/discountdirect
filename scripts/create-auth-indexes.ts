@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { authModels } from "../src/auth/models.ts";
 import { catalogModels } from "../src/catalog/models.ts";
 import { purchaseModels } from "../src/purchases/models.ts";
+import { privacyModels } from "../src/privacy/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri || !/^mongodb(?:\+srv)?:\/\//.test(uri))
@@ -12,8 +13,8 @@ await mongoose.connect(uri, {
   autoIndex: false,
 });
 try {
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels]) await dataModel.createIndexes();
-  console.log("Authentication, catalog and purchase-ledger indexes are present.");
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels]) await dataModel.createIndexes();
+  console.log("Authentication, catalog, purchase-ledger and privacy indexes are present.");
 } finally {
   await mongoose.disconnect();
 }

@@ -5,6 +5,8 @@ import mongoose from "mongoose";
 import { connectDatabase } from "@/lib/database";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { Product } from "@/catalog/models";
+import { ChannelPreference, ConsentEvent } from "@/privacy/models";
+import { PRIVACY_NOTICE_VERSION } from "@/privacy/validation";
 import { Customer, Purchase, PurchaseImportBatch } from "./models";
 import { validatePurchaseInput, type PurchaseInput } from "./validation";
 
@@ -142,13 +144,29 @@ export async function updatePurchaseStatus(userId: string, sellerSlug: string, p
 export async function updateCustomerPrivacy(userId: string, sellerSlug: string, customerId: string, status: unknown) {
   if (!mongoose.isValidObjectId(customerId) || !["active", "restricted", "erasure_requested"].includes(String(status))) throw new PurchaseError("INVALID");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
-  const customer = await Customer.findOneAndUpdate(
-    { _id: customerId, sellerId: seller._id },
-    { $set: { privacyStatus: status } },
-    { returnDocument: "after", runValidators: true },
-  ).lean();
-  if (!customer) throw new PurchaseError("NOT_FOUND");
-  return { id: customer._id.toString(), privacyStatus: customer.privacyStatus };
+  const database = await connectDatabase();
+  let result: { id: string; privacyStatus: string } | undefined;
+  await database.connection.transaction(async (session) => {
+    const customer = await Customer.findOneAndUpdate(
+      { _id: customerId, sellerId: seller._id },
+      { $set: { privacyStatus: status } },
+      { returnDocument: "after", runValidators: true, session },
+    ).lean();
+    if (!customer) throw new PurchaseError("NOT_FOUND");
+    if (status !== "active" && customer.emailNormalized) {
+      const buyer = await User.findOne({ emailNormalized: customer.emailNormalized }).session(session).lean();
+      if (buyer) {
+        const now = new Date();
+        const subscribed = await ChannelPreference.find({ sellerId: seller._id, buyerUserId: buyer._id, purpose: "marketing", status: "subscribed" }).session(session).lean();
+        if (subscribed.length) {
+          await ChannelPreference.updateMany({ sellerId: seller._id, buyerUserId: buyer._id, purpose: "marketing", status: "subscribed" }, { $set: { status: "unsubscribed", noticeVersion: PRIVACY_NOTICE_VERSION, changedAt: now } }, { session });
+          await ConsentEvent.create(subscribed.map((row) => ({ sellerId: seller._id, buyerUserId: buyer._id, customerId: customer._id, channel: row.channel, purpose: "marketing", action: "withdrawn", noticeVersion: PRIVACY_NOTICE_VERSION, occurredAt: now, actorUserId: userId })), { session });
+        }
+      }
+    }
+    result = { id: customer._id.toString(), privacyStatus: customer.privacyStatus };
+  });
+  return result!;
 }
 
 export async function buyerHistory(userId: string, sellerSlug: string) {

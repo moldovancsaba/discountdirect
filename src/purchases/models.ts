@@ -9,7 +9,7 @@ const customerSchema = new Schema(
     externalBuyerId: { type: String, required: true, maxlength: 100 },
     emailNormalized: { type: String, default: null, maxlength: 254 },
     displayName: { type: String, required: true, maxlength: 120 },
-    privacyStatus: { type: String, enum: ["active", "restricted", "erasure_requested"], default: "active", index: true },
+    privacyStatus: { type: String, enum: ["active", "restricted", "erasure_requested", "erased"], default: "active", index: true },
     sourceName: { type: String, required: true, maxlength: 120 },
   },
   { ...timestamps, collection: "customers" },

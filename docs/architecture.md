@@ -1,4 +1,4 @@
-# Application architecture — 0.7.0
+# Application architecture — 0.8.0
 
 Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. This matches the GDS 6.7.0 Next.js reference consumer while retaining current security patches. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
 
@@ -8,6 +8,8 @@ Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8
 - `/admin`: protected General Dashboard with an on-demand Atlas ping, response duration, release version, and an explicit unavailable/not-yet-instrumented user-presence state.
 - `/api/health/live`: public process liveness; `{status,service,version}`; does not call Atlas.
 - `/api/health/ready`: operator Bearer token required; returns 401 before any database access when unauthorized, 200 for a successful ping, 503 when the database cannot be reached. Responses are not cached. Presence is `{status:"not_instrumented",activeUsers:null}`, never an invented zero.
+- `/buyer/{sellerSlug}/preferences`: buyer-owned, seller-scoped channel consent and privacy requests.
+- `/seller/{sellerSlug}/privacy`: seller-member workflow for processing access, restriction and erasure requests.
 
 ## Database connection
 
@@ -29,6 +31,10 @@ Release 0.5.0 adds seller-scoped `Product`, `ProductRevision` and `ImportBatch` 
 
 Release 0.6.0 adds `Customer`, `Purchase` and `PurchaseImportBatch`. Customer identity and order-line uniqueness include the seller ID. Purchase imports are validated and previewed before an Atlas transaction applies them. Original purchase rows remain durable: refunds and corrections change status with an optimistic version and reason, while active-spend totals include only purchased rows. Buyer history requires an active relationship and matches the authenticated account's normalized email inside the same seller scope.
 
+Release 0.8.0 adds `ChannelPreference`, append-only `ConsentEvent`, `PrivacyRequest` and expiring `PrivacyExport`. Preferences are unique by seller, buyer, channel and purpose. An opt-in or later withdrawal records the server-owned notice version. Repeating an unchanged preference does not invent another consent event. One open request of each type is allowed per seller and buyer; an indexed open key makes concurrent retries converge on the same request. Seller members can move requests through requested, processing, completed and retryable failed states.
+
+Completing restriction or erasure withdraws every active marketing channel in the same transaction. Erasure removes the seller-side customer name, e-mail and source identifier, revokes that seller relationship and preserves purchase rows required as financial evidence. Completing an access request creates a seller-scoped JSON snapshot that only the requesting buyer can download and that Atlas deletes after seven days.
+
 `GET /api/me` resolves scopes on the server. Seller routes require an active membership for the exact seller slug. Buyer routes require an active relationship for the exact seller slug. Client-supplied roles and seller identifiers never grant access. Cookie-authenticated API mutations compare the request Origin with the effective Vercel host. Login attempts use an Atlas collection, so the five-attempt/15-minute limit applies across function instances.
 
 The account UI supports sign-in, activation, scoped workspace selection and logout. There is no public signup or working email recovery claim. Manual provisioning and recovery are documented in [authentication.md](authentication.md). Administrator MFA and migration away from the emergency operations key remain release gates in issue #4.
@@ -45,4 +51,4 @@ Use pnpm 10.30.3 and the committed lockfile. TypeScript 6.0 and ESLint 9 match t
 
 ## Remaining product work
 
-Public registration, administrator MFA, personalized offers, conversations, Socket.IO, presence tracking, campaigns, automations, delivery and redemption are not implemented. The existing issues #4–#20 specify those increments. No customer data has been seeded.
+Public registration, administrator MFA, automated legal-deadline escalation, personalized offers, conversations, Socket.IO, presence tracking, campaigns, automations, delivery and redemption are not implemented. The existing issues #4–#20 specify those increments. No customer data has been seeded.

@@ -17,6 +17,7 @@ import {
 } from "../src/auth/crypto.ts";
 import { catalogModels, Product } from "../src/catalog/models.ts";
 import { Customer, Purchase, purchaseModels } from "../src/purchases/models.ts";
+import { ChannelPreference, ConsentEvent, PrivacyRequest, privacyModels } from "../src/privacy/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -78,7 +79,7 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels])
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels])
     await dataModel.createIndexes();
 
   const password = "Verification password 2026";
@@ -303,6 +304,49 @@ try {
   assert.equal(buyerPage.status, 200);
   assert.match(await buyerPage.text(), /Korábbi termék/);
 
+  const preferencesPath = "/api/buyer/allowed-seller/preferences";
+  const initialPreferences = await fetch(`${base}${preferencesPath}`, { headers: { cookie } });
+  assert.equal(initialPreferences.status, 200);
+  assert.deepEqual((await initialPreferences.json()).preferences.map((item: { subscribed: boolean }) => item.subscribed), [false, false]);
+  assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 403);
+  const preferenceUpdate = await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) });
+  assert.equal(preferenceUpdate.status, 200);
+  assert.equal(await ChannelPreference.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id }), 2);
+  assert.equal(await ConsentEvent.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id }), 1);
+  assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 200);
+  assert.equal(await ConsentEvent.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id }), 1);
+  const preferencesPage = await fetch(`${base}/buyer/allowed-seller/preferences`, { headers: { cookie } });
+  assert.equal(preferencesPage.status, 200);
+  assert.match(await preferencesPage.text(), /Marketingcsatornák/);
+  assert.equal((await fetch(`${base}/api/buyer/foreign-seller/preferences`, { headers: { cookie } })).status, 403);
+
+  const privacyRequestPath = "/api/buyer/allowed-seller/privacy-requests";
+  const exportRequestResponse = await post(privacyRequestPath, { type: "access_export" }, cookie);
+  assert.equal(exportRequestResponse.status, 201);
+  const exportRequest = (await exportRequestResponse.json()).request;
+  assert.equal((await post(privacyRequestPath, { type: "access_export" }, cookie)).status, 201);
+  assert.equal(await PrivacyRequest.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id, type: "access_export" }), 1);
+  const sellerPrivacyPage = await fetch(`${base}/seller/allowed-seller/privacy`, { headers: { cookie } });
+  assert.equal(sellerPrivacyPage.status, 200);
+  assert.match(await sellerPrivacyPage.text(), /Feldolgozási sor/);
+  const sellerRequestPath = `/api/sellers/allowed-seller/privacy-requests/${exportRequest.id}`;
+  assert.equal((await fetch(`${base}${sellerRequestPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ status: "completed", resolution: "Invalid direct transition" }) })).status, 409);
+  assert.equal((await fetch(`${base}${sellerRequestPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ status: "processing", resolution: "Identity verified" }) })).status, 200);
+  assert.equal((await fetch(`${base}${sellerRequestPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ status: "completed", resolution: "Export prepared" }) })).status, 200);
+  const exportDownload = await fetch(`${base}/api/buyer/allowed-seller/privacy-export?requestId=${exportRequest.id}`, { headers: { cookie } });
+  assert.equal(exportDownload.status, 200);
+  const exportPayload = await exportDownload.json();
+  assert.equal(exportPayload.purchases.length, 2);
+  assert.equal(exportPayload.preferences.find((item: { channel: string }) => item.channel === "email").status, "subscribed");
+
+  const restrictionRequest = (await (await post(privacyRequestPath, { type: "restriction" }, cookie)).json()).request;
+  const restrictionPath = `/api/sellers/allowed-seller/privacy-requests/${restrictionRequest.id}`;
+  assert.equal((await fetch(`${base}${restrictionPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ status: "processing", resolution: "Identity verified" }) })).status, 200);
+  assert.equal((await fetch(`${base}${restrictionPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ status: "completed", resolution: "Processing restricted" }) })).status, 200);
+  assert.equal((await Customer.findOne({ sellerId: allowedSeller._id, emailNormalized: user.emailNormalized }).lean())?.privacyStatus, "restricted");
+  assert.equal(await ChannelPreference.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id, status: "subscribed" }), 0);
+  assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 409);
+
   const activationToken = createOpaqueToken();
   const pending = await User.create({
     emailNormalized: "pending.verify@example.test",
@@ -358,7 +402,7 @@ try {
     429,
   );
   console.log(
-    "Authentication, catalog and purchase-ledger integration passed: tenant denial, idempotent imports, missing-product history, refund totals, stale corrections and buyer visibility.",
+    "Authentication, catalog, purchase-ledger and privacy integration passed: tenant denial, idempotent imports, consent evidence, request deduplication, export, restriction and marketing suppression.",
   );
 } finally {
   if (mongoose.connection.readyState) {

@@ -10,11 +10,11 @@ const steps = [
 export default function Home() {
   return (
     <Shell>
-      <PageHeader title="Minden jó ajánlat egy kapcsolattal kezdődik." description="A DiscountDirect összeköti a vásárlási előzményeket, a személyes ajánlatokat és a beszélgetéseket." eyebrow="Áttekintés" actions={<StatusBadge status="success" withIcon>0.7.0 · Mint circuit</StatusBadge>} />
+      <PageHeader title="Minden jó ajánlat egy kapcsolattal kezdődik." description="A DiscountDirect összeköti a vásárlási előzményeket, a személyes ajánlatokat és a beszélgetéseket." eyebrow="Áttekintés" actions={<StatusBadge status="success" withIcon>0.8.0 · Mint circuit</StatusBadge>} />
       <EditorialHero
         eyebrow="Az első lépés"
         title="Stabil alapok. Személyesebb kereskedelem."
-        description="A termékkatalógus és a vásárlói főkönyv már működik. Az üzemeltetői nézetben az adatbázis-kapcsolat és a rendszer állapota is ellenőrizhető."
+        description="A termékkatalógus, a vásárlói főkönyv és a hozzájárulás-kezelés már működik. Az üzemeltetői nézetben az adatbázis-kapcsolat és a rendszer állapota is ellenőrizhető."
         actions={[{ label: "Bejelentkezés", href: "/sign-in", variant: "primary" }]}
         meta={[{ id: "theme", label: "GDS 6.7.0 · Mint circuit", icon: <GdsIcon name="Theme" decorative /> }]}
         media={<GdsIcon name="Connectivity" size="xl" decorative />}
