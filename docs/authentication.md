@@ -7,7 +7,7 @@ The primary sign-in path matches the deli.africa sibling integration. `/api/auth
 - `https://discountdirect.vercel.app/auth/callback`
 - `https://discountdirect.vercel.app/api/oauth/callback`
 
-The callback exchanges the code on the server, loads `/api/oauth/userinfo`, then checks `/api/users/{userId}/apps/{clientId}/permissions`. Only an `approved` application permission can create a local session. The stable SSO subject is stored on the local user; the SSO `admin` role maps to the operator identity path. Seller memberships and buyer relationships remain local, server-checked records and are never inferred from an SSO profile.
+The callback exchanges the code on the server, loads `/api/oauth/userinfo`, then checks `/api/users/{userId}/apps/{clientId}/permissions`. Matching deli.africa, the returned permission state is synchronized with the local account and does not prevent local session creation. The stable SSO subject is stored on the local user; an approved SSO `admin` role maps to the operator identity path. Local operator assignment, seller memberships and buyer relationships remain server-checked records and are never inferred from an unapproved SSO permission.
 
 Required environment variables are `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET`, `SSO_REDIRECT1_URI` and `SSO_REDIRECT2_URI`. `SSO_ORIGIN` defaults to `https://sso.doneisbetter.com`. Never expose the secret to client code, query strings, logs, issues or documentation.
 

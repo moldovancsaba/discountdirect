@@ -6,6 +6,8 @@
 
 > Implementation update, 2026-09-09: SSO access release 0.4.0 adds the deli.africa-compatible DoneIsBetter Authorization Code/PKCE flow, both registered callbacks, per-app permission checks and local user synchronization. Existing Atlas sessions and tenant authorization remain authoritative after SSO completes.
 
+> Implementation update, 2026-09-09: catalog release 0.5.0 adds seller-scoped product create/edit/archive, durable revisions and a staged JSON import with row validation, checksum replay safety and optimistic stale-write rejection. GDS remains deferred by explicit user instruction.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition

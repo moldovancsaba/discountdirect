@@ -135,8 +135,6 @@ export async function completeSsoCallback(input: {
   const permissionRole = typeof permission?.role === "string"
     ? permission.role
     : typeof identity.role === "string" ? identity.role : "user";
-  if (permissionStatus !== "approved") throw new SsoError("ACCESS_DENIED");
-
   const user = await syncSsoUser({
     subject: identity.sub,
     email: identity.email,

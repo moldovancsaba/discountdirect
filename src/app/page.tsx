@@ -34,7 +34,7 @@ export default function Home() {
             beszélgetéseket.
           </p>
         </div>
-        <span className="pill">0.4.0 · Fejlesztés alatt</span>
+        <span className="pill">0.5.0 · Fejlesztés alatt</span>
       </div>
       <section className="hero-panel" aria-labelledby="foundation-title">
         <div>

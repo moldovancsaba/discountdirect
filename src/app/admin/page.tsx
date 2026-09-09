@@ -108,7 +108,7 @@ export default async function Admin({
         </article>
       </div>
       <section className="feature-card release-details">
-        <h2>Kiadás: 0.4.0</h2>
+        <h2>Kiadás: 0.5.0</h2>
         <p>
           Az alkalmazás és a védett állapotellenőrzés elérhető. A kereskedelmi
           funkciók fejlesztés alatt állnak.

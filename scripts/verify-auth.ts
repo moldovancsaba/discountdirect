@@ -15,6 +15,7 @@ import {
   hashOpaqueToken,
   hashPassword,
 } from "../src/auth/crypto.ts";
+import { catalogModels, Product } from "../src/catalog/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -76,7 +77,8 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const authModel of authModels) await authModel.createIndexes();
+  for (const dataModel of [...authModels, ...catalogModels])
+    await dataModel.createIndexes();
 
   const password = "Verification password 2026";
   const user = await User.create({
@@ -138,6 +140,130 @@ try {
     ),
   );
 
+  const productPath = "/api/sellers/allowed-seller/products";
+  const productInput = {
+    sku: "TV-001",
+    name: "Okostelevízió",
+    priceHuf: 199_990,
+    stock: 4,
+    category: "Televízió",
+    compatibleWith: ["HDMI"],
+    active: true,
+  };
+  const created = await post(productPath, productInput, cookie);
+  assert.equal(created.status, 201);
+  const createdProduct = (await created.json()).product;
+  assert.equal((await post(productPath, productInput, cookie)).status, 409);
+  assert.equal(
+    (await post(productPath, { ...productInput, sku: "BAD", priceHuf: -1 }, cookie))
+      .status,
+    400,
+  );
+  assert.equal(
+    (
+      await post(
+        "/api/sellers/foreign-seller/products",
+        { ...productInput, sku: "FOREIGN" },
+        cookie,
+      )
+    ).status,
+    403,
+  );
+
+  const importRows = [
+    { ...productInput, name: "Okostelevízió Plus", stock: 6 },
+    {
+      sku: "CAB-001",
+      name: "HDMI kábel",
+      priceHuf: 4990,
+      stock: 20,
+      category: "Kiegészítő",
+      compatibleWith: ["TV-001"],
+      active: true,
+    },
+  ];
+  const preview = await post(
+    `${productPath}/import`,
+    { schemaVersion: "1", rows: importRows },
+    cookie,
+  );
+  assert.equal(preview.status, 201);
+  const previewBody = await preview.json();
+  assert.deepEqual(
+    previewBody.batch.rows.map((row: { action: string }) => row.action),
+    ["update", "create"],
+  );
+  assert.equal(
+    (
+      await post(
+        `${productPath}/import`,
+        { action: "apply", batchId: previewBody.batch._id },
+        cookie,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await post(
+        `${productPath}/import`,
+        { action: "apply", batchId: previewBody.batch._id },
+        cookie,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(await Product.countDocuments({ sellerId: allowedSeller._id }), 2);
+
+  const stalePreview = await post(
+    `${productPath}/import`,
+    {
+      schemaVersion: "1",
+      rows: [{ ...productInput, name: "Importból érkező név", stock: 7 }],
+    },
+    cookie,
+  );
+  const staleBatch = (await stalePreview.json()).batch;
+  const currentProduct = await Product.findById(createdProduct.id).lean();
+  assert.ok(currentProduct);
+  const directEdit = await fetch(`${base}${productPath}/${createdProduct.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: base, cookie },
+    body: JSON.stringify({
+      expectedVersion: currentProduct.version,
+      product: { ...productInput, name: "Közvetlen szerkesztés", stock: 8 },
+    }),
+  });
+  assert.equal(directEdit.status, 200);
+  assert.equal(
+    (
+      await post(
+        `${productPath}/import`,
+        { action: "apply", batchId: staleBatch._id },
+        cookie,
+      )
+    ).status,
+    409,
+  );
+  const editedProduct = (await directEdit.json()).product;
+  const archived = await fetch(`${base}${productPath}/${createdProduct.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: base, cookie },
+    body: JSON.stringify({
+      expectedVersion: editedProduct.version,
+      product: { ...productInput, name: editedProduct.name, stock: 8, active: false },
+    }),
+  });
+  assert.equal(archived.status, 200);
+  const activeOnly = await fetch(`${base}${productPath}?includeArchived=false`, {
+    headers: { cookie },
+  });
+  assert.equal(activeOnly.status, 200);
+  assert.deepEqual(
+    (await activeOnly.json()).products.map((product: { sku: string }) => product.sku),
+    ["CAB-001"],
+  );
+
   const activationToken = createOpaqueToken();
   const pending = await User.create({
     emailNormalized: "pending.verify@example.test",
@@ -193,7 +319,7 @@ try {
     429,
   );
   console.log(
-    "Authentication integration passed: session, revocation, activation replay, durable rate limit and tenant denial.",
+    "Authentication and catalog integration passed: sessions, tenant denial, product validation, idempotent import, stale-batch rejection and archive filtering.",
   );
 } finally {
   if (mongoose.connection.readyState) {

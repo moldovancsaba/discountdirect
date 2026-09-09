@@ -1,5 +1,30 @@
 # Release notes
 
+## 0.5.0 — 2026-09-09
+
+### New features
+
+- Seller-scoped product creation, editing, confirmed archival and active-product filtering.
+- Integer HUF price, stock, SKU, category and compatibility validation with optimistic versions.
+- Durable JSON import preview for up to 100 rows, including per-row create/update/unchanged/error results.
+- Checksum-based import replay safety, stale-preview rejection and versioned product revision history.
+
+### Fixed bugs
+
+- Replaces the seller workspace placeholder with a persistent catalog workflow.
+- Invalid product input now returns a validation error instead of an availability failure.
+- SSO callback behavior now matches deli.africa: an absent or pending provider permission record is synchronized instead of incorrectly rejecting a valid local account session.
+
+### Known issues
+
+- GDS remains deferred by explicit user instruction after the package billing-limit failure.
+- Product images, external commerce connectors and historical offer snapshots arrive in later issues.
+- Issue #4’s remaining MFA, audit/revocation and realtime disconnect gates remain open.
+
+### Future roadmap
+
+Add purchase-history import and seller-buyer ledgers in #6, then privacy preferences and explainable recommendations.
+
 ## 0.4.0 — 2026-09-09
 
 ### New features

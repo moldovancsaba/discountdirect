@@ -1,6 +1,6 @@
 # DiscountDirect
 
-Personalized offers and seller–buyer relationships. SSO access release **0.4.0**.
+Personalized offers and seller–buyer relationships. Seller catalog release **0.5.0**.
 
 - [Application](https://discountdirect.vercel.app)
 - [General Dashboard](https://discountdirect.vercel.app/admin) — requires the operator key from `.env.local`
@@ -23,4 +23,4 @@ pnpm db:check
 pnpm dev
 ```
 
-No demo/customer data is created by this release. Accounts are created only through the documented manual provisioning flow; messages, offers and campaigns are not yet available.
+No demo/customer data is created by this release. Authorized sellers can create, edit, archive and import products from their workspace. Messages, offers and campaigns are not yet available.

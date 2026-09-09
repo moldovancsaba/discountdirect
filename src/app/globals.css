@@ -507,6 +507,30 @@ input {
   background: var(--paper);
   border-radius: 10px;
 }
+.catalog-section { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; margin: 0 0 24px; }
+.catalog-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: end; }
+.catalog-form label { margin: 0; }
+.catalog-form .wide { grid-column: span 2; }
+.product-list { display: grid; gap: 12px; }
+.product-row { border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; justify-content: space-between; gap: 24px; align-items: center; }
+.product-row h3 { margin: 12px 0 4px; }
+.product-row p { margin: 0 0 6px; color: var(--muted); font-size: 13px; }
+.product-row small { color: var(--muted); }
+.product-row details { min-width: 140px; }
+.product-row details[open] { width: min(100%, 680px); }
+.product-row summary { list-style: none; }
+.product-row .compact { margin-top: 16px; }
+.is-archived { opacity: 0.72; background: var(--paper); }
+.button-danger { background: #8a332f; }
+.confirm-check { display: flex; align-items: center; gap: 9px; font-weight: 400 !important; }
+.confirm-check input { width: auto; }
+textarea { width: 100%; resize: vertical; border: 1px solid #a3b2a5; border-radius: 8px; padding: 13px; font: inherit; color: var(--ink); }
+.catalog-section form > .button { margin-top: 16px; }
+.empty-state { padding: 28px; text-align: center; background: var(--paper); border-radius: 12px; margin-bottom: 16px; }
+.import-preview { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 20px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 11px; border-bottom: 1px solid var(--line); }
 @media (min-width: 1500px) {
   .main-content {
     padding-top: 60px;
@@ -555,6 +579,11 @@ input {
   }
 }
 @media (max-width: 760px) {
+  .catalog-form { grid-template-columns: 1fr; }
+  .catalog-form .wide { grid-column: auto; }
+  .product-row { display: block; }
+  .product-row details { margin-top: 16px; }
+  .product-row details[open] { width: 100%; }
   .app-shell {
     display: block;
   }
