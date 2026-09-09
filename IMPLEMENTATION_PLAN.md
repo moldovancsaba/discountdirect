@@ -14,6 +14,8 @@
 
 > Implementation update, 2026-09-09: privacy release 0.8.0 adds seller-scoped e-mail/postal preferences, versioned consent evidence, idempotent access/restriction/erasure requests, seller processing states, seven-day buyer exports, restriction/erasure marketing suppression and seller-side anonymization while retaining financial evidence. Controller approval and future queued-delivery cancellation remain gates in #7.
 
+> Implementation update, 2026-09-09: recommendation release 0.9.0 adds stored, reproducible seller previews with versioned compatibility, replenishment and same-category rules, fixed precedence, evidence IDs, product snapshots, channel-consent gates and deterministic retry behavior. No preview sends a message or offer.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition

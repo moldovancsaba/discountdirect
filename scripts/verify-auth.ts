@@ -18,6 +18,7 @@ import {
 import { catalogModels, Product } from "../src/catalog/models.ts";
 import { Customer, Purchase, purchaseModels } from "../src/purchases/models.ts";
 import { ChannelPreference, ConsentEvent, PrivacyRequest, privacyModels } from "../src/privacy/models.ts";
+import { RecommendationPreview, recommendationModels } from "../src/recommendations/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -79,7 +80,7 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels])
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels])
     await dataModel.createIndexes();
 
   const password = "Verification password 2026";
@@ -320,6 +321,19 @@ try {
   assert.match(await preferencesPage.text(), /Marketingcsatornák/);
   assert.equal((await fetch(`${base}/api/buyer/foreign-seller/preferences`, { headers: { cookie } })).status, 403);
 
+  assert.equal((await post(productPath, { sku: "REC-001", name: "Ajánlott kiegészítő", priceHuf: 7990, stock: 5, category: "Kiegészítő", compatibleWith: ["MISSING-001"], active: true }, cookie)).status, 201);
+  const recommendationsPath = `/api/sellers/allowed-seller/customers/${customers[0].id}/recommendations`;
+  const recommendationResponse = await post(recommendationsPath, { channel: "email" }, cookie);
+  assert.equal(recommendationResponse.status, 201);
+  const recommendation = (await recommendationResponse.json()).preview;
+  assert.equal(recommendation.status, "eligible");
+  assert.equal(recommendation.recommendations[0].productSku, "REC-001");
+  assert.equal(recommendation.recommendations[0].reasonCode, "COMPATIBLE_ACCESSORY");
+  const recommendationReplay = (await (await post(recommendationsPath, { channel: "email" }, cookie)).json()).preview;
+  assert.equal(recommendationReplay.id, recommendation.id);
+  assert.equal(await RecommendationPreview.countDocuments({ sellerId: allowedSeller._id, customerId: customers[0].id }), 1);
+  assert.equal((await post(`/api/sellers/foreign-seller/customers/${customers[0].id}/recommendations`, { channel: "email" }, cookie)).status, 403);
+
   const privacyRequestPath = "/api/buyer/allowed-seller/privacy-requests";
   const exportRequestResponse = await post(privacyRequestPath, { type: "access_export" }, cookie);
   assert.equal(exportRequestResponse.status, 201);
@@ -402,7 +416,7 @@ try {
     429,
   );
   console.log(
-    "Authentication, catalog, purchase-ledger and privacy integration passed: tenant denial, idempotent imports, consent evidence, request deduplication, export, restriction and marketing suppression.",
+    "Authentication, catalog, purchase-ledger, privacy and recommendation integration passed: tenant denial, idempotent imports, consent evidence, request deduplication, export, restriction, marketing suppression and reproducible evidence-based ranking.",
   );
 } finally {
   if (mongoose.connection.readyState) {

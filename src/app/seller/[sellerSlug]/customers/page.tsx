@@ -3,7 +3,8 @@ import { BannerNotice, Button as GdsButton, EmptyState, GdsGrid, GdsIcon, Listin
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { customerHistory, listCustomers, purchaseImportBatch } from "@/purchases/service";
-import { applyPurchasesAction, customerPrivacyAction, previewPurchasesAction, purchaseStatusAction } from "./actions";
+import { recommendationPreview } from "@/recommendations/service";
+import { applyPurchasesAction, customerPrivacyAction, previewPurchasesAction, purchaseStatusAction, recommendationPreviewAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
@@ -13,7 +14,7 @@ const errors: Record<string, string> = { INVALID: "Ellenőrizd a megadott adatok
 const statusLabel: Record<string, string> = { purchased: "Vásárlás", refunded: "Visszatérítve", corrected: "Helyesbítve" };
 const privacyLabel: Record<string, string> = { active: "Aktív", restricted: "Korlátozott", erasure_requested: "Törlésre jelölve", erased: "Anonimizált" };
 
-export default async function CustomersPage({ params, searchParams }: { params: Promise<{ sellerSlug: string }>; searchParams: Promise<{ customer?: string; batch?: string; saved?: string; error?: string }> }) {
+export default async function CustomersPage({ params, searchParams }: { params: Promise<{ sellerSlug: string }>; searchParams: Promise<{ customer?: string; batch?: string; preview?: string; saved?: string; error?: string }> }) {
   const user = await currentUser();
   if (!user) redirect("/sign-in");
   const { sellerSlug } = await params;
@@ -24,6 +25,8 @@ export default async function CustomersPage({ params, searchParams }: { params: 
   if (query.customer) { try { selected = await customerHistory(user.id, sellerSlug, query.customer); } catch { selected = null; } }
   let batch: Awaited<ReturnType<typeof purchaseImportBatch>> | null = null;
   if (query.batch) { try { batch = await purchaseImportBatch(user.id, sellerSlug, query.batch); } catch { batch = null; } }
+  let recommendation: Awaited<ReturnType<typeof recommendationPreview>> | null = null;
+  if (query.preview) { try { recommendation = await recommendationPreview(user.id, sellerSlug, query.preview); } catch { recommendation = null; } }
   return <Shell active="account">
     <PageHeader title={result.seller.name} description="Eladóhoz kötött vásárlók és időrendi rendelési tételek. A visszatérített és helyesbített tételek nem számítanak bele a költésbe." eyebrow="Vásárlói főkönyv" actions={<div className="button-row"><GdsButton component="a" href={`/seller/${sellerSlug}`} variant="default" leftSection={<GdsIcon name="Package" decorative />}>Termékkatalógus</GdsButton><GdsButton component="a" href={`/seller/${sellerSlug}/privacy`} variant="default" leftSection={<GdsIcon name="Settings" decorative />}>Adatkezelési kérelmek</GdsButton><StatusBadge status="info">{result.customers.length} kapcsolat</StatusBadge></div>} />
     {query.saved && messages[query.saved] ? <BannerNotice variant="compact" severity="success" message={messages[query.saved]} /> : null}
@@ -55,6 +58,17 @@ export default async function CustomersPage({ params, searchParams }: { params: 
           metadata={[{ id: "order", label: "Rendelés", value: `${purchase.orderId} / ${purchase.lineId}` }, { id: "sku", label: "Cikkszám", value: purchase.productSku }, { id: "version", label: "Verzió", value: `v${purchase.version}` }]}
           revealContent={purchase.status === "purchased" ? <form action={purchaseStatusAction.bind(null, sellerSlug, selected.customer._id.toString(), purchase.id, purchase.version)}><GdsSelect name="status" label="Helyesbítés típusa" defaultValue="refunded" data={[{ value: "refunded", label: "Visszatérítve" }, { value: "corrected", label: "Helyesbítve" }]} /><TextInput name="reason" label="Indok" required maxLength={300} /><GdsButton type="submit" leftSection={<GdsIcon name="Save" decorative />}>Mentés</GdsButton></form> : <BannerNotice variant="compact" severity="info" message={purchase.correctionReason ?? "A tétel már lezárt állapotú."} />}
         />)}
+      </GdsGrid>
+      <form action={recommendationPreviewAction.bind(null, sellerSlug, selected.customer._id.toString())}>
+        <GdsSelect name="channel" label="Ajánlási előnézet csatornája" defaultValue="email" data={[{ value: "email", label: "E-mail" }, { value: "postal", label: "Postai levél" }]} />
+        <GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Preview" decorative />}>Ajánlások előnézete</GdsButton>
+      </form>
+    </SectionPanel> : null}
+    {recommendation ? <SectionPanel title="Determinista ajánlási előnézet" description={`Szabályverzió: ${recommendation.ruleVersion}. Ez csak előnézet; semmilyen üzenetet nem küld.`} divided={false}>
+      {recommendation.status === "blocked" ? <BannerNotice severity="warning" message={`Az előnézet letiltva: ${recommendation.exclusionReasons.join(", ")}.`} /> : null}
+      {recommendation.status === "empty" ? <EmptyState title="Nincs megalapozott ajánlás" description="Az aktív katalógus és a vásárlási bizonyítékok alapján egyik szabály sem adott találatot." /> : null}
+      <GdsGrid columns={{ base: 1, md: 2 }}>
+        {recommendation.recommendations.map((item: { productId: string; productName: string; reasonText: string; priceHuf: number; score: number; productSku: string; reasonCode: string; evidencePurchaseIds: string[] }) => <ListingCard key={item.productId} title={item.productName} description={item.reasonText} price={money.format(item.priceHuf)} mediaSeed={item.productId} mediaOverlay={`${item.score} pont`} metadata={[{ id: "sku", label: "Cikkszám", value: item.productSku }, { id: "rule", label: "Szabály", value: item.reasonCode }, { id: "evidence", label: "Bizonyíték", value: `${item.evidencePurchaseIds.length} vásárlási tétel` }]} />)}
       </GdsGrid>
     </SectionPanel> : null}
     <SectionPanel id="purchase-import" title="Vásárlási JSON-import" description="Legfeljebb 200 sor. Az előnézet ellenőrzi az ismétlődő rendelési tételeket és a mezőket; az ismeretlen cikkszám megmarad pillanatképként.">

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/auth/service";
 import { applyPurchaseImport, previewPurchaseImport, updateCustomerPrivacy, updatePurchaseStatus } from "@/purchases/service";
+import { createRecommendationPreview } from "@/recommendations/service";
 
 async function identity() {
   const user = await currentUser();
@@ -57,4 +58,16 @@ export async function customerPrivacyAction(sellerSlug: string, customerId: stri
     error = cause instanceof Error ? cause.message : "INVALID";
   }
   redirect(`/seller/${sellerSlug}/customers?customer=${customerId}&${error ? `error=${encodeURIComponent(error)}` : "saved=privacy"}`);
+}
+
+export async function recommendationPreviewAction(sellerSlug: string, customerId: string, form: FormData) {
+  const user = await identity();
+  let destination = `/seller/${sellerSlug}/customers?customer=${customerId}&error=INVALID`;
+  try {
+    const preview = await createRecommendationPreview(user.id, sellerSlug, customerId, form.get("channel"));
+    destination = `/seller/${sellerSlug}/customers?customer=${customerId}&preview=${preview.id}`;
+  } catch (cause) {
+    destination = `/seller/${sellerSlug}/customers?customer=${customerId}&error=${encodeURIComponent(cause instanceof Error ? cause.message : "INVALID")}`;
+  }
+  redirect(destination);
 }

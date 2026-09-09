@@ -1,5 +1,31 @@
 # Release notes
 
+## 0.9.0 — 2026-09-09
+
+### New features
+
+- Stored seller recommendation previews using versioned compatibility, 90-day replenishment and same-category rules.
+- Fixed rule priority, stable product-ID tie-breaking and a 20-result bound.
+- Human-readable Hungarian reasons backed by exact purchase IDs and product/version/price snapshots.
+- Channel consent, active relationship and privacy-state gates before ranking.
+- Input hashing so an unchanged repeated preview resolves to the same durable record.
+
+### Fixed bugs
+
+- Refunded and corrected purchases cannot become recommendation evidence.
+- Inactive and zero-stock products are excluded before rule evaluation.
+- Customers without active consent or an active relationship receive an explicit blocked preview instead of inferred recommendations.
+
+### Known issues
+
+- Recommendation previews do not create or deliver offers; those workflows remain in issues #9–#13.
+- Declined-offer exclusions start when durable offers exist in issue #11.
+- Issue #7 still requires controller-owner approval before real personal data or marketing.
+
+### Future roadmap
+
+Build persistent seller-buyer conversations in #9, then add Socket.IO delivery and recovery in #10.
+
 ## 0.8.0 — 2026-09-09
 
 ### New features

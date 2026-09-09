@@ -1,0 +1,9 @@
+import mongoose from "mongoose";
+
+const { Schema, model, models } = mongoose;
+const recommendationSchema = new Schema({ productId: { type: Schema.Types.ObjectId, required: true, ref: "Product" }, productVersion: { type: Number, required: true }, productSku: { type: String, required: true }, productName: { type: String, required: true }, priceHuf: { type: Number, required: true }, score: { type: Number, required: true }, reasonCode: { type: String, required: true }, reasonText: { type: String, required: true }, evidencePurchaseIds: [{ type: Schema.Types.ObjectId, required: true, ref: "Purchase" }] }, { _id: false, versionKey: false });
+const previewSchema = new Schema({ sellerId: { type: Schema.Types.ObjectId, required: true, ref: "Seller", index: true }, customerId: { type: Schema.Types.ObjectId, required: true, ref: "Customer", index: true }, buyerUserId: { type: Schema.Types.ObjectId, default: null, ref: "User" }, channel: { type: String, enum: ["email", "postal"], required: true }, ruleVersion: { type: String, required: true }, inputHash: { type: String, required: true }, status: { type: String, enum: ["eligible", "blocked", "empty"], required: true }, exclusionReasons: [{ type: String }], recommendations: [recommendationSchema], createdByUserId: { type: Schema.Types.ObjectId, required: true, ref: "User" } }, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false, collection: "recommendation_previews" });
+previewSchema.index({ sellerId: 1, customerId: 1, channel: 1, ruleVersion: 1, inputHash: 1 }, { unique: true });
+previewSchema.index({ sellerId: 1, customerId: 1, createdAt: -1 });
+export const RecommendationPreview = models.RecommendationPreview || model("RecommendationPreview", previewSchema);
+export const recommendationModels = [RecommendationPreview];

@@ -1,0 +1,3 @@
+import { errorResponse } from "@/auth/http";
+import { RecommendationError } from "./service";
+export function recommendationError(error: unknown) { if (error instanceof RecommendationError) { const map = { FORBIDDEN: ["FORBIDDEN", "Ehhez az eladóhoz nincs hozzáférésed.", 403], NOT_FOUND: ["NOT_FOUND", "A kért ajánlási előnézet nem található.", 404], INVALID: ["INVALID_RECOMMENDATION", "Az ajánlási kérés érvénytelen.", 400] } as const; const [code, message, status] = map[error.code]; return errorResponse(code, message, status); } return errorResponse("RECOMMENDATIONS_UNAVAILABLE", "Az ajánlások átmenetileg nem érhetők el.", 503); }

@@ -1,4 +1,4 @@
-# Application architecture — 0.8.0
+# Application architecture — 0.9.0
 
 Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. This matches the GDS 6.7.0 Next.js reference consumer while retaining current security patches. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
 
@@ -34,6 +34,8 @@ Release 0.6.0 adds `Customer`, `Purchase` and `PurchaseImportBatch`. Customer id
 Release 0.8.0 adds `ChannelPreference`, append-only `ConsentEvent`, `PrivacyRequest` and expiring `PrivacyExport`. Preferences are unique by seller, buyer, channel and purpose. An opt-in or later withdrawal records the server-owned notice version. Repeating an unchanged preference does not invent another consent event. One open request of each type is allowed per seller and buyer; an indexed open key makes concurrent retries converge on the same request. Seller members can move requests through requested, processing, completed and retryable failed states.
 
 Completing restriction or erasure withdraws every active marketing channel in the same transaction. Erasure removes the seller-side customer name, e-mail and source identifier, revokes that seller relationship and preserves purchase rows required as financial evidence. Completing an access request creates a seller-scoped JSON snapshot that only the requesting buyer can download and that Atlas deletes after seven days.
+
+Release 0.9.0 adds immutable `RecommendationPreview` snapshots. The versioned rule engine considers only active in-stock seller products, active purchase rows, catalog compatibility, repeat age and same-category evidence. It applies fixed rule precedence and product-ID tie-breaking. A preview is blocked without an active buyer relationship, active customer state and consent for the selected channel. The input hash makes identical retries return the same stored snapshot; each result retains product version, price, rule, explanation and purchase evidence IDs.
 
 `GET /api/me` resolves scopes on the server. Seller routes require an active membership for the exact seller slug. Buyer routes require an active relationship for the exact seller slug. Client-supplied roles and seller identifiers never grant access. Cookie-authenticated API mutations compare the request Origin with the effective Vercel host. Login attempts use an Atlas collection, so the five-attempt/15-minute limit applies across function instances.
 
