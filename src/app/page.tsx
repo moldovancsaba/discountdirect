@@ -34,7 +34,7 @@ export default function Home() {
             beszélgetéseket.
           </p>
         </div>
-        <span className="pill">Fejlesztés alatt</span>
+        <span className="pill">0.3.0 · Fejlesztés alatt</span>
       </div>
       <section className="hero-panel" aria-labelledby="foundation-title">
         <div>
@@ -48,8 +48,8 @@ export default function Home() {
             Az alkalmazás alapja elkészült. Az üzemeltetői nézetben
             ellenőrizhető az adatbázis-kapcsolat és a rendszer állapota.
           </p>
-          <Link className="button button-light" href="/admin">
-            Rendszerállapot megnyitása <span aria-hidden="true">↗</span>
+          <Link className="button button-light" href="/sign-in">
+            Bejelentkezés <span aria-hidden="true">↗</span>
           </Link>
         </div>
         <div className="relationship-art" aria-hidden="true">

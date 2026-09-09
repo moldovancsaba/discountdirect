@@ -7,7 +7,16 @@ export async function GET(request: Request) {
     request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1] ?? "";
   const headers = { "Cache-Control": "no-store" };
   if (!matchesToken(token, process.env.OPERATIONS_TOKEN))
-    return Response.json({ error: { code: "UNAUTHORIZED", message: "Operator access required", requestId: crypto.randomUUID() } }, { status: 401, headers });
+    return Response.json(
+      {
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Operator access required",
+          requestId: crypto.randomUUID(),
+        },
+      },
+      { status: 401, headers },
+    );
   const database = await databaseHealth();
   return Response.json(
     {

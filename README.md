@@ -1,6 +1,6 @@
 # DiscountDirect
 
-Personalized offers and seller–buyer relationships. Foundation release **0.2.0**.
+Personalized offers and seller–buyer relationships. Access foundation release **0.3.0**.
 
 - [Application](https://discountdirect.vercel.app)
 - [General Dashboard](https://discountdirect.vercel.app/admin) — requires the operator key from `.env.local`
@@ -8,6 +8,7 @@ Personalized offers and seller–buyer relationships. Foundation release **0.2.0
 - [Implementation plan](IMPLEMENTATION_PLAN.md)
 - [Release notes](RELEASE_NOTES.md)
 - [Architecture](docs/architecture.md) · [Setup and operations](docs/operations.md)
+- [Authentication and provisioning](docs/authentication.md)
 
 Built with Next.js, React, TypeScript and MongoDB Atlas/Mongoose; hosted on the existing Vercel project. Socket.IO and business features follow the issue plan. GDS is temporarily deferred by explicit user instruction; its adoption remains in issue #3.
 
@@ -22,4 +23,4 @@ pnpm db:check
 pnpm dev
 ```
 
-No demo/customer data is created by this release. Customer accounts, messages, offers and campaigns are not yet available.
+No demo/customer data is created by this release. Accounts are created only through the documented manual provisioning flow; messages, offers and campaigns are not yet available.

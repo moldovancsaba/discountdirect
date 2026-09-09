@@ -1,6 +1,7 @@
 "use server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { revokeSession, USER_SESSION_COOKIE } from "@/auth/service";
 import {
   createSession,
   matchesToken,
@@ -30,6 +31,9 @@ export async function signIn(form: FormData) {
   redirect("/admin");
 }
 export async function signOut() {
-  (await cookies()).delete(SESSION_COOKIE);
+  const cookieStore = await cookies();
+  await revokeSession(cookieStore.get(USER_SESSION_COOKIE)?.value);
+  cookieStore.delete(USER_SESSION_COOKIE);
+  cookieStore.delete(SESSION_COOKIE);
   redirect("/admin");
 }

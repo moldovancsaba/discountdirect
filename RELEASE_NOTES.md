@@ -1,5 +1,33 @@
 # Release notes
 
+## 0.3.0 — 2026-09-09
+
+### New features
+
+- Manual, one-time account activation and recovery tokens stored only as hashes.
+- Versioned scrypt password hashing and opaque Atlas-backed sessions with idle and absolute expiry.
+- Seller membership, buyer relationship and operator roles resolved on the server.
+- Sign-in, activation, scoped account workspace, logout, `/api/me` and session APIs.
+- Atlas-backed cross-instance login throttling and same-origin protection for cookie-authenticated writes.
+- Isolated authentication integration verification covering tenant denial and cleanup.
+
+### Fixed bugs
+
+- Replaces demo-style role switching with explicit persisted authorization boundaries.
+- Logout now revokes the stored session rather than only clearing a browser cookie.
+- Invalid credentials do not disclose whether an account exists.
+
+### Known issues
+
+- GDS remains deferred by user instruction after the GitHub Packages billing-limit failure.
+- Operator MFA, full audit/revocation controls and removal of the emergency operations key remain open in #4. Production users should not be provisioned until those gates and privacy review are complete.
+- Recovery links require an owner-approved manual handoff until delivery issue #20 is implemented.
+- Product data, messaging, offers and realtime session-disconnect notifications are not implemented.
+
+### Future roadmap
+
+Complete the remaining #3/#4 gates, then catalog, purchase history, privacy preferences and explainable recommendations (#5–#8).
+
 ## 0.2.0 — 2026-09-08
 
 ### New features

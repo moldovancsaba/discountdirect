@@ -2,6 +2,8 @@
 
 > Implementation update, 2026-09-08: foundation release 0.2.0 adds the runnable application, Atlas health checks and temporary protected operations access. The user explicitly deferred GDS after a GitHub Packages billing-limit error; #3 remains open. See RELEASE_NOTES.md and docs/operations.md. The remaining plan below retains its target-state requirements.
 
+> Implementation update, 2026-09-09: access foundation release 0.3.0 adds password hashing, one-time activation/recovery, opaque revocable sessions, durable login limits, server-resolved seller/buyer scopes and protected workspace entry points. Issue #4 remains open for MFA, complete audit/revocation operations and the deferred GDS dependency.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition
@@ -26,19 +28,19 @@ Source inspection is completed. Initial rendered seller screen was inspected; a 
 
 ## Reference behavior inventory
 
-| Surface | Observed behavior | Required production replacement | Issues |
-|---|---|---|---|
-| Seller conversations | Eight buyers, latest entry, pending-offer badges | Tenant-scoped, paginated inbox; pending offers distinguished from unread messages | #4 #9 |
-| Conversation thread | Text bubbles, offer cards and non-chat timeline events | Durable ordered records; send/retry; channel event provenance | #9 #10 #13 |
-| Context panel | Purchases at this seller; recommended products with reasons | Imported purchase ledger and explainable rules | #5 #6 #8 |
-| Individual offer | Channel selection, discounted HUF amount, buyer accept/decline | Immutable snapshot, authenticated atomic state transition, expiry | #11 |
-| Flash campaign | Select product, discount, 6/24/48 hours, 10/20/50 units, audience reasons and preview | Shared stock reservation, server expiry, idempotent audience fanout and actual delivery progress | #12 #13 |
-| Offer-list automation | Multiple products; weekly, fortnightly or monthly; per-buyer preview; start and stop | Durable schedule, Budapest calendar semantics, run ledger and recovery | #14 |
-| Buyer chat | Own conversation with seller; eight-person demo selector | Own authenticated inbox; no cross-buyer selector | #4 #9 #15 |
-| Email view | Latest offer sample, inert CTA and preference footer | Canonical offer link and preference center; preview until transport exists | #7 #15 #20 |
-| Mailing view | Printed letter, sample address, predictable coupon | Authorized print-ready letter and secure single-use redemption; postal dispatch remains an operational arrangement | #15 #16 |
-| Newsletter view | Catalog filtered per buyer; sample frequency and prices | Actual campaign/run snapshot and working preferences | #14 #15 |
-| General Dashboard | Absent | Protected DB/user connections, performance, failures, backlog and release visibility | #17 |
+| Surface               | Observed behavior                                                                     | Required production replacement                                                                                    | Issues     |
+| --------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------- |
+| Seller conversations  | Eight buyers, latest entry, pending-offer badges                                      | Tenant-scoped, paginated inbox; pending offers distinguished from unread messages                                  | #4 #9      |
+| Conversation thread   | Text bubbles, offer cards and non-chat timeline events                                | Durable ordered records; send/retry; channel event provenance                                                      | #9 #10 #13 |
+| Context panel         | Purchases at this seller; recommended products with reasons                           | Imported purchase ledger and explainable rules                                                                     | #5 #6 #8   |
+| Individual offer      | Channel selection, discounted HUF amount, buyer accept/decline                        | Immutable snapshot, authenticated atomic state transition, expiry                                                  | #11        |
+| Flash campaign        | Select product, discount, 6/24/48 hours, 10/20/50 units, audience reasons and preview | Shared stock reservation, server expiry, idempotent audience fanout and actual delivery progress                   | #12 #13    |
+| Offer-list automation | Multiple products; weekly, fortnightly or monthly; per-buyer preview; start and stop  | Durable schedule, Budapest calendar semantics, run ledger and recovery                                             | #14        |
+| Buyer chat            | Own conversation with seller; eight-person demo selector                              | Own authenticated inbox; no cross-buyer selector                                                                   | #4 #9 #15  |
+| Email view            | Latest offer sample, inert CTA and preference footer                                  | Canonical offer link and preference center; preview until transport exists                                         | #7 #15 #20 |
+| Mailing view          | Printed letter, sample address, predictable coupon                                    | Authorized print-ready letter and secure single-use redemption; postal dispatch remains an operational arrangement | #15 #16    |
+| Newsletter view       | Catalog filtered per buyer; sample frequency and prices                               | Actual campaign/run snapshot and working preferences                                                               | #14 #15    |
+| General Dashboard     | Absent                                                                                | Protected DB/user connections, performance, failures, backlog and release visibility                               | #17        |
 
 Dataset: one example seller (ElektroHome Kft.), eight example buyers, 49 purchase rows, 26 catalog products and one initial automation. These are fictional fixtures, not a migration source for production customer data.
 
@@ -61,16 +63,16 @@ Dependencies in each issue control readiness, even if several items share a phas
 
 ## Stack and architecture
 
-| Concern | Decision |
-|---|---|
-| Frontend and HTTP backend | Next.js App Router, React, strict TypeScript/TSX |
-| Runtime | Vercel Node.js; existing project currently configured for 24.x; verify selected package compatibility |
-| Database | MongoDB Atlas through the Vercel integration; Mongoose schemas and server-only access |
-| Realtime | Socket.IO server/client, WebSocket-only transport on Vercel |
-| UI | GDS packages and governance; no independently used competing UI library |
+| Concern                     | Decision                                                                                                                    |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Frontend and HTTP backend   | Next.js App Router, React, strict TypeScript/TSX                                                                            |
+| Runtime                     | Vercel Node.js; existing project currently configured for 24.x; verify selected package compatibility                       |
+| Database                    | MongoDB Atlas through the Vercel integration; Mongoose schemas and server-only access                                       |
+| Realtime                    | Socket.IO server/client, WebSocket-only transport on Vercel                                                                 |
+| UI                          | GDS packages and governance; no independently used competing UI library                                                     |
 | Languages and configuration | TypeScript, TSX, JavaScript for tooling, JSON, Markdown and platform configuration; no unrelated backend language/framework |
-| Background work | Vercel Cron calling authenticated bounded workers; MongoDB leases, run ledger and outbox |
-| Versioning and delivery | Existing GitHub repository, checks, documented version and Vercel Production deployment per implementation task |
+| Background work             | Vercel Cron calling authenticated bounded workers; MongoDB leases, run ledger and outbox                                    |
+| Versioning and delivery     | Existing GitHub repository, checks, documented version and Vercel Production deployment per implementation task             |
 
 GDS's React/vendor dependencies are intrinsic to the explicitly requested design system; they do not authorize feature code to import raw Mantine/Tabler or add another design system. Install aligned authenticated GDS versions; its guide currently verifies Next.js 15/React 19. Choose a patched supported Next.js line and test compatibility rather than treating that documented baseline as permission to install an outdated patch.
 
@@ -118,28 +120,28 @@ Before closing an implementation issue: document, commit/push, run required chec
 
 ## Backlog
 
-| Order | Issue | Initial status | Depends on |
-|---|---|---|---|
-| 10 | [#1 Foundation: Next.js TypeScript application and delivery baseline](https://github.com/moldovancsaba/discountdirect/issues/1) | Todo (NEXT) | — |
-| 20 | [#2 Data: Connect MongoDB Atlas to the existing Vercel project](https://github.com/moldovancsaba/discountdirect/issues/2) | Todo (NEXT) | #1 |
-| 30 | [#3 UI: Adopt General Design System and responsive application shell](https://github.com/moldovancsaba/discountdirect/issues/3) | Todo (NEXT) | #1 |
-| 40 | [#4 Access: Seller buyer and administrator authentication and tenant isolation](https://github.com/moldovancsaba/discountdirect/issues/4) | Backlog (SOONER) | #1, #2, #3 |
-| 50 | [#5 Catalog: Seller products and validated import workflow](https://github.com/moldovancsaba/discountdirect/issues/5) | Backlog (SOONER) | #2, #3, #4 |
-| 60 | [#6 Customers: Purchase history and seller-buyer relationship ledger](https://github.com/moldovancsaba/discountdirect/issues/6) | Backlog (SOONER) | #2, #4, #5 |
-| 70 | [#7 Privacy: Channel preferences consent and data lifecycle](https://github.com/moldovancsaba/discountdirect/issues/7) | Backlog (SOONER) | #4, #6 |
-| 80 | [#8 Recommendations: Explainable purchase-based targeting](https://github.com/moldovancsaba/discountdirect/issues/8) | Backlog (SOONER) | #5, #6, #7 |
-| 90 | [#9 Messaging: Persistent conversations and channel timeline](https://github.com/moldovancsaba/discountdirect/issues/9) | Backlog (SOONER) | #3, #4, #6 |
-| 100 | [#10 Realtime: Socket.IO on Vercel with MongoDB coordination](https://github.com/moldovancsaba/discountdirect/issues/10) | Backlog (SOONER) | #2, #4, #9 |
-| 110 | [#11 Offers: Personalized offer lifecycle and buyer decisions](https://github.com/moldovancsaba/discountdirect/issues/11) | Backlog (SOONER) | #7, #8, #9, #10 |
-| 120 | [#12 Campaigns: Flash offers with atomic stock and expiry](https://github.com/moldovancsaba/discountdirect/issues/12) | Backlog (SOONER) | #8, #11 |
-| 130 | [#13 Delivery: Durable outbox and honest channel delivery states](https://github.com/moldovancsaba/discountdirect/issues/13) | Backlog (SOONER) | #7, #9, #11 |
-| 140 | [#14 Automations: Recurring personalized offer lists and scheduler](https://github.com/moldovancsaba/discountdirect/issues/14) | Backlog (SOONER) | #8, #12, #13 |
-| 150 | [#15 Buyer: Offer inbox email newsletter and printable letter views](https://github.com/moldovancsaba/discountdirect/issues/15) | Backlog (SOONER) | #3, #7, #11, #13, #14 |
-| 160 | [#16 Redemption: Single-use coupon and reservation confirmation](https://github.com/moldovancsaba/discountdirect/issues/16) | Backlog (SOONER) | #11, #12, #15 |
-| 170 | [#17 Operations: General Dashboard and production health visibility](https://github.com/moldovancsaba/discountdirect/issues/17) | Backlog (SOONER) | #2, #4, #10, #13, #14 |
-| 180 | [#18 Quality: End-to-end security accessibility and recovery verification](https://github.com/moldovancsaba/discountdirect/issues/18) | Backlog (SOONER) | #5, #6, #7, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17 |
-| 190 | [#19 Release: Production rollout documentation and rollback](https://github.com/moldovancsaba/discountdirect/issues/19) | Backlog (SOONER) | #18 |
-| 200 | [#20 Roadmap: Real email delivery and inbound reply integration](https://github.com/moldovancsaba/discountdirect/issues/20) | Roadmap (LATER) | #7, #13, #15 |
+| Order | Issue                                                                                                                                     | Initial status   | Depends on                                                 |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------- |
+| 10    | [#1 Foundation: Next.js TypeScript application and delivery baseline](https://github.com/moldovancsaba/discountdirect/issues/1)           | Todo (NEXT)      | —                                                          |
+| 20    | [#2 Data: Connect MongoDB Atlas to the existing Vercel project](https://github.com/moldovancsaba/discountdirect/issues/2)                 | Todo (NEXT)      | #1                                                         |
+| 30    | [#3 UI: Adopt General Design System and responsive application shell](https://github.com/moldovancsaba/discountdirect/issues/3)           | Todo (NEXT)      | #1                                                         |
+| 40    | [#4 Access: Seller buyer and administrator authentication and tenant isolation](https://github.com/moldovancsaba/discountdirect/issues/4) | Backlog (SOONER) | #1, #2, #3                                                 |
+| 50    | [#5 Catalog: Seller products and validated import workflow](https://github.com/moldovancsaba/discountdirect/issues/5)                     | Backlog (SOONER) | #2, #3, #4                                                 |
+| 60    | [#6 Customers: Purchase history and seller-buyer relationship ledger](https://github.com/moldovancsaba/discountdirect/issues/6)           | Backlog (SOONER) | #2, #4, #5                                                 |
+| 70    | [#7 Privacy: Channel preferences consent and data lifecycle](https://github.com/moldovancsaba/discountdirect/issues/7)                    | Backlog (SOONER) | #4, #6                                                     |
+| 80    | [#8 Recommendations: Explainable purchase-based targeting](https://github.com/moldovancsaba/discountdirect/issues/8)                      | Backlog (SOONER) | #5, #6, #7                                                 |
+| 90    | [#9 Messaging: Persistent conversations and channel timeline](https://github.com/moldovancsaba/discountdirect/issues/9)                   | Backlog (SOONER) | #3, #4, #6                                                 |
+| 100   | [#10 Realtime: Socket.IO on Vercel with MongoDB coordination](https://github.com/moldovancsaba/discountdirect/issues/10)                  | Backlog (SOONER) | #2, #4, #9                                                 |
+| 110   | [#11 Offers: Personalized offer lifecycle and buyer decisions](https://github.com/moldovancsaba/discountdirect/issues/11)                 | Backlog (SOONER) | #7, #8, #9, #10                                            |
+| 120   | [#12 Campaigns: Flash offers with atomic stock and expiry](https://github.com/moldovancsaba/discountdirect/issues/12)                     | Backlog (SOONER) | #8, #11                                                    |
+| 130   | [#13 Delivery: Durable outbox and honest channel delivery states](https://github.com/moldovancsaba/discountdirect/issues/13)              | Backlog (SOONER) | #7, #9, #11                                                |
+| 140   | [#14 Automations: Recurring personalized offer lists and scheduler](https://github.com/moldovancsaba/discountdirect/issues/14)            | Backlog (SOONER) | #8, #12, #13                                               |
+| 150   | [#15 Buyer: Offer inbox email newsletter and printable letter views](https://github.com/moldovancsaba/discountdirect/issues/15)           | Backlog (SOONER) | #3, #7, #11, #13, #14                                      |
+| 160   | [#16 Redemption: Single-use coupon and reservation confirmation](https://github.com/moldovancsaba/discountdirect/issues/16)               | Backlog (SOONER) | #11, #12, #15                                              |
+| 170   | [#17 Operations: General Dashboard and production health visibility](https://github.com/moldovancsaba/discountdirect/issues/17)           | Backlog (SOONER) | #2, #4, #10, #13, #14                                      |
+| 180   | [#18 Quality: End-to-end security accessibility and recovery verification](https://github.com/moldovancsaba/discountdirect/issues/18)     | Backlog (SOONER) | #5, #6, #7, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17 |
+| 190   | [#19 Release: Production rollout documentation and rollback](https://github.com/moldovancsaba/discountdirect/issues/19)                   | Backlog (SOONER) | #18                                                        |
+| 200   | [#20 Roadmap: Real email delivery and inbound reply integration](https://github.com/moldovancsaba/discountdirect/issues/20)               | Roadmap (LATER)  | #7, #13, #15                                               |
 
 ## Project board contract
 
@@ -152,15 +154,19 @@ The delivery board groups by Status. A second table view should expose title/sta
 ## Planning release notes
 
 ### New Features
+
 Documented product inventory, architecture, delivery sequencing, reusable issue template and 20 linked implementation issues using the requested issue structure. Created and repository-linked project #61 with the template's board/table views and exact status columns.
 
 ### Fixed Bugs
+
 No application code has been changed; prototype production gaps are specified for implementation.
 
 ### Known Issues
+
 Atlas integration and GDS build credentials are not yet verified. Vercel framework is not set. Application features are not implemented. Email/postal transport is not configured. Project #61 is created, linked and populated; its eight status columns and 20 active issue placements have been verified.
 
 ### Future Roadmap
+
 Execute #1–#19 in dependency order; resolve #20 before claiming external email support; scope future postal fulfillment, payments and commerce imports separately.
 
 ## Planning verification record

@@ -4,7 +4,7 @@ export function Shell({
   active = "home",
 }: {
   children: React.ReactNode;
-  active?: "home" | "admin";
+  active?: "home" | "admin" | "account" | "sign-in";
 }) {
   return (
     <div className="app-shell">
@@ -32,9 +32,21 @@ export function Shell({
           >
             <span aria-hidden="true">◎</span> Rendszerállapot
           </Link>
+          <Link
+            href="/account"
+            aria-current={active === "account" ? "page" : undefined}
+          >
+            <span aria-hidden="true">◇</span> Saját munkatér
+          </Link>
+          <Link
+            href="/sign-in"
+            aria-current={active === "sign-in" ? "page" : undefined}
+          >
+            <span aria-hidden="true">→</span> Bejelentkezés
+          </Link>
         </nav>
         <div className="sidebar-footer">
-          <span className="release-dot" /> Alapozó kiadás <span>0.2.0</span>
+          <span className="release-dot" /> Hozzáférési kiadás <span>0.3.0</span>
         </div>
       </aside>
       <div className="workspace-main">
