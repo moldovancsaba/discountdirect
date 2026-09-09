@@ -16,6 +16,8 @@
 
 > Implementation update, 2026-09-09: recommendation release 0.9.0 adds stored, reproducible seller previews with versioned compatibility, replenishment and same-category rules, fixed precedence, evidence IDs, product snapshots, channel-consent gates and deterministic retry behavior. No preview sends a message or offer.
 
+> Implementation update, 2026-09-09: conversation release 1.0.0 adds persistent seller/buyer threads, append-only activity events, retry-safe messages, unread counters, seller and buyer inboxes, ordered cursor pagination and server-side participant checks. Attachments, synchronization, notification delivery and Socket.IO remain in their later issue slices.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition

@@ -19,6 +19,7 @@ import { catalogModels, Product } from "../src/catalog/models.ts";
 import { Customer, Purchase, purchaseModels } from "../src/purchases/models.ts";
 import { ChannelPreference, ConsentEvent, PrivacyRequest, privacyModels } from "../src/privacy/models.ts";
 import { RecommendationPreview, recommendationModels } from "../src/recommendations/models.ts";
+import { Conversation, ConversationEvent, messagingModels } from "../src/messaging/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -80,7 +81,7 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels])
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels])
     await dataModel.createIndexes();
 
   const password = "Verification password 2026";
@@ -361,6 +362,42 @@ try {
   assert.equal(await ChannelPreference.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id, status: "subscribed" }), 0);
   assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 409);
 
+  const buyerPassword = "Conversation buyer password 2026";
+  const conversationBuyer = await User.create({
+    emailNormalized: "conversation.buyer@example.test",
+    displayName: "Conversation Buyer",
+    passwordHash: await hashPassword(buyerPassword),
+    status: "active",
+  });
+  await BuyerRelationship.create({ sellerId: allowedSeller._id, buyerUserId: conversationBuyer._id, status: "active" });
+  const conversationCustomer = await Customer.create({ sellerId: allowedSeller._id, externalBuyerId: "CONVERSATION-CUSTOMER", emailNormalized: conversationBuyer.emailNormalized, displayName: "Conversation Buyer", sourceName: "Verification" });
+  const buyerLogin = await post("/api/auth/session", { email: conversationBuyer.emailNormalized, password: buyerPassword });
+  assert.equal(buyerLogin.status, 201);
+  const buyerCookie = cookieFrom(buyerLogin);
+  const conversationsPath = `/api/sellers/allowed-seller/customers/${conversationCustomer._id}/conversations`;
+  const conversationResponse = await post(conversationsPath, {}, cookie);
+  assert.equal(conversationResponse.status, 201);
+  const conversation = (await conversationResponse.json()).conversation;
+  assert.equal((await post(conversationsPath, {}, cookie)).status, 201);
+  assert.equal(await Conversation.countDocuments({ sellerId: allowedSeller._id, buyerUserId: conversationBuyer._id }), 1);
+  const messagesPath = `/api/conversations/${conversation.id}/messages`;
+  const sent = await post(messagesPath, { clientRequestId: "seller-message-001", body: "Szia, van egy kérdésünk a rendelésedről." }, cookie);
+  assert.equal(sent.status, 201);
+  const message = (await sent.json()).message;
+  assert.equal((await post(messagesPath, { clientRequestId: "seller-message-001", body: "Szia, van egy kérdésünk a rendelésedről." }, cookie)).status, 201);
+  assert.equal(await ConversationEvent.countDocuments({ conversationId: conversation.id, kind: "message" }), 1);
+  const buyerConversations = await fetch(`${base}/api/conversations`, { headers: { cookie: buyerCookie } });
+  assert.equal(buyerConversations.status, 200);
+  assert.equal((await buyerConversations.json()).conversations[0].buyerUnreadCount, 1);
+  const buyerTimeline = await fetch(`${base}${messagesPath}`, { headers: { cookie: buyerCookie } });
+  assert.equal(buyerTimeline.status, 200);
+  const timeline = await buyerTimeline.json();
+  assert.equal(timeline.events.at(-1).id, message.id);
+  assert.equal((await post(messagesPath, { clientRequestId: "buyer-message-001", body: "Köszönöm, válaszolok." }, buyerCookie)).status, 201);
+  assert.equal((await fetch(`${base}/api/sellers/allowed-seller/conversations`, { headers: { cookie } })).status, 200);
+  assert.equal((await fetch(`${base}${messagesPath}`, { headers: { cookie: "discountdirect-session=invalid" } })).status, 401);
+  assert.equal((await fetch(`${base}${messagesPath}`, { headers: { cookie } })).status, 200);
+
   const activationToken = createOpaqueToken();
   const pending = await User.create({
     emailNormalized: "pending.verify@example.test",
@@ -416,7 +453,7 @@ try {
     429,
   );
   console.log(
-    "Authentication, catalog, purchase-ledger, privacy and recommendation integration passed: tenant denial, idempotent imports, consent evidence, request deduplication, export, restriction, marketing suppression and reproducible evidence-based ranking.",
+    "Authentication, catalog, purchase-ledger, privacy, recommendation and conversation integration passed: tenant denial, idempotent imports, consent evidence, request deduplication, export, marketing suppression, reproducible ranking, durable message retries and participant-only timelines.",
   );
 } finally {
   if (mongoose.connection.readyState) {

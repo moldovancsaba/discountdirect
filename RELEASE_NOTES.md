@@ -1,5 +1,17 @@
 # Release notes
 
+## 1.0.0 — Durable conversations
+
+### New features
+
+- Added seller-scoped buyer conversations, a buyer inbox, a seller inbox and chronological activity timelines.
+- Added retry-safe message writes keyed by sender and client request ID, with unread counts and ordered cursor pagination.
+- Enforced active seller membership or buyer relationship for every conversation read and write; added isolated Atlas integration coverage.
+
+### Known issues
+
+- Delivery, attachments, notifications, synchronization and real-time transport remain in later board items.
+
 ## 0.9.0 — 2026-09-09
 
 ### New features

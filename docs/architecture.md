@@ -1,4 +1,4 @@
-# Application architecture — 0.9.0
+# Application architecture — 1.0.0
 
 Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. This matches the GDS 6.7.0 Next.js reference consumer while retaining current security patches. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
 
@@ -37,6 +37,8 @@ Completing restriction or erasure withdraws every active marketing channel in th
 
 Release 0.9.0 adds immutable `RecommendationPreview` snapshots. The versioned rule engine considers only active in-stock seller products, active purchase rows, catalog compatibility, repeat age and same-category evidence. It applies fixed rule precedence and product-ID tie-breaking. A preview is blocked without an active buyer relationship, active customer state and consent for the selected channel. The input hash makes identical retries return the same stored snapshot; each result retains product version, price, rule, explanation and purchase evidence IDs.
 
+Release 1.0.0 adds durable `Conversation` and `ConversationEvent` collections. Every conversation is unique to a seller and buyer, with an optional linked customer record, unread counters and a neutral zero pending-offer count. Opening a conversation records an activity event. Messages have a sender-scoped client request ID that makes retried sends idempotent, and their ordered timeline supports opaque cursor pagination. Seller membership and buyer relationship checks are applied for every inbox, timeline and message mutation. No attachment storage, notifications or Socket.IO transport exists yet.
+
 `GET /api/me` resolves scopes on the server. Seller routes require an active membership for the exact seller slug. Buyer routes require an active relationship for the exact seller slug. Client-supplied roles and seller identifiers never grant access. Cookie-authenticated API mutations compare the request Origin with the effective Vercel host. Login attempts use an Atlas collection, so the five-attempt/15-minute limit applies across function instances.
 
 The account UI supports sign-in, activation, scoped workspace selection and logout. There is no public signup or working email recovery claim. Manual provisioning and recovery are documented in [authentication.md](authentication.md). Administrator MFA and migration away from the emergency operations key remain release gates in issue #4.
@@ -53,4 +55,4 @@ Use pnpm 10.30.3 and the committed lockfile. TypeScript 6.0 and ESLint 9 match t
 
 ## Remaining product work
 
-Public registration, administrator MFA, automated legal-deadline escalation, personalized offers, conversations, Socket.IO, presence tracking, campaigns, automations, delivery and redemption are not implemented. The existing issues #4–#20 specify those increments. No customer data has been seeded.
+Public registration, administrator MFA, automated legal-deadline escalation, personalized offers, Socket.IO, presence tracking, campaigns, automations, delivery and redemption are not implemented. The existing issues #4–#20 specify those increments. No customer data has been seeded.

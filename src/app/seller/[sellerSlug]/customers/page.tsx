@@ -4,6 +4,7 @@ import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { customerHistory, listCustomers, purchaseImportBatch } from "@/purchases/service";
 import { recommendationPreview } from "@/recommendations/service";
+import { openConversationAction } from "@/app/conversations/actions";
 import { applyPurchasesAction, customerPrivacyAction, previewPurchasesAction, purchaseStatusAction, recommendationPreviewAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +47,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
         />)}
       </GdsGrid>
     </SectionPanel>
-    {selected ? <SectionPanel id="history" title={`${selected.customer.displayName} előzményei`} description="Legfeljebb a 100 legújabb tétel, legújabbal kezdve." action={selected.customer.privacyStatus === "erased" ? <StatusBadge status="neutral">Anonimizált</StatusBadge> : <form action={customerPrivacyAction.bind(null, sellerSlug, selected.customer._id.toString())}><GdsSelect name="status" label="Adatkezelési állapot" defaultValue={selected.customer.privacyStatus} data={[{ value: "active", label: "Aktív" }, { value: "restricted", label: "Korlátozott" }, { value: "erasure_requested", label: "Törlésre jelölve" }]} /><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Save" decorative />}>Állapot mentése</GdsButton></form>}>
+    {selected ? <SectionPanel id="history" title={`${selected.customer.displayName} előzményei`} description="Legfeljebb a 100 legújabb tétel, legújabbal kezdve." action={<div className="button-row"><form action={openConversationAction.bind(null, sellerSlug, selected.customer._id.toString())}><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Message" decorative />}>Beszélgetés megnyitása</GdsButton></form>{selected.customer.privacyStatus === "erased" ? <StatusBadge status="neutral">Anonimizált</StatusBadge> : <form action={customerPrivacyAction.bind(null, sellerSlug, selected.customer._id.toString())}><GdsSelect name="status" label="Adatkezelési állapot" defaultValue={selected.customer.privacyStatus} data={[{ value: "active", label: "Aktív" }, { value: "restricted", label: "Korlátozott" }, { value: "erasure_requested", label: "Törlésre jelölve" }]} /><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Save" decorative />}>Állapot mentése</GdsButton></form>}</div>}>
       <GdsGrid columns={{ base: 1, md: 2 }}>
         {selected.purchases.map((purchase) => <ListingCard
           key={purchase.id}
