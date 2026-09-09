@@ -1,4 +1,4 @@
-# Foundation architecture — 0.3.0
+# Foundation architecture — 0.4.0
 
 Next.js 16.3.4 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
 
@@ -22,6 +22,8 @@ Use `MONGODB_DB` to select a database, default `discountdirect`. Each future ten
 ## Identity access slice
 
 Release 0.3.0 adds Atlas-backed users, sellers, memberships, buyer relationships, activation/recovery tokens, sessions and durable login rate limits. Passwords use versioned Node scrypt parameters and a random salt. Browser sessions store only a random opaque token; Atlas stores its SHA-256 hash. Sessions have a 30-minute idle deadline and a 12-hour absolute deadline. Activation and recovery rotate `authVersion` and revoke all existing sessions in one transaction.
+
+Release 0.4.0 adds the same DoneIsBetter OAuth/OIDC integration contract used by the deli.africa sibling project. A signed, HttpOnly, SameSite Lax flow cookie carries the ten-minute state, nonce, PKCE verifier and safe return path. The backend exchanges the authorization code, loads user info and checks the client-specific permission record. Only an `approved` permission creates a DiscountDirect session. SSO users are synchronized by stable provider subject, with verified local tenant memberships and buyer relationships remaining authoritative. An approved SSO `admin` role grants the existing operator identity path.
 
 `GET /api/me` resolves scopes on the server. Seller routes require an active membership for the exact seller slug. Buyer routes require an active relationship for the exact seller slug. Client-supplied roles and seller identifiers never grant access. Cookie-authenticated API mutations compare the request Origin with the effective Vercel host. Login attempts use an Atlas collection, so the five-attempt/15-minute limit applies across function instances.
 

@@ -1,5 +1,16 @@
 # Authentication and account provisioning
 
+## DoneIsBetter SSO
+
+The primary sign-in path matches the deli.africa sibling integration. `/api/auth/login` creates a signed, ten-minute OAuth flow cookie and redirects to `sso.doneisbetter.com` using Authorization Code, PKCE S256, state, nonce and the `openid profile email offline_access` scopes. The SSO client must register both callback URLs:
+
+- `https://discountdirect.vercel.app/auth/callback`
+- `https://discountdirect.vercel.app/api/oauth/callback`
+
+The callback exchanges the code on the server, loads `/api/oauth/userinfo`, then checks `/api/users/{userId}/apps/{clientId}/permissions`. Only an `approved` application permission can create a local session. The stable SSO subject is stored on the local user; the SSO `admin` role maps to the operator identity path. Seller memberships and buyer relationships remain local, server-checked records and are never inferred from an SSO profile.
+
+Required environment variables are `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET`, `SSO_REDIRECT1_URI` and `SSO_REDIRECT2_URI`. `SSO_ORIGIN` defaults to `https://sso.doneisbetter.com`. Never expose the secret to client code, query strings, logs, issues or documentation.
+
 DiscountDirect has no public registration. An authorized operator provisions an account and hands the resulting one-time link to the intended person through an owner-approved channel. The link expires after one hour, is stored only as a hash and can be used once.
 
 ## Prepare indexes

@@ -42,6 +42,24 @@ export class AuthError extends Error {
   }
 }
 
+export async function createUserSession(
+  user: { _id: unknown; authVersion: number },
+  userAgent: string,
+) {
+  const now = new Date();
+  const token = createOpaqueToken();
+  await Session.create({
+    tokenHash: hashOpaqueToken(token),
+    userId: user._id,
+    authVersion: user.authVersion,
+    lastSeenAt: now,
+    idleExpiresAt: nowPlus(IDLE_MS, now),
+    absoluteExpiresAt: nowPlus(ABSOLUTE_MS, now),
+    userAgentHash: hashRateLimitKey(userAgent.slice(0, 500)),
+  });
+  return { token, maxAge: Math.floor(ABSOLUTE_MS / 1000) };
+}
+
 function nowPlus(milliseconds: number, now = new Date()) {
   return new Date(now.getTime() + milliseconds);
 }
@@ -125,17 +143,7 @@ export async function authenticate(
     throw new AuthError("INVALID_CREDENTIALS");
   }
   await LoginRateLimit.deleteOne({ keyHash: rateKey });
-  const token = createOpaqueToken();
-  await Session.create({
-    tokenHash: hashOpaqueToken(token),
-    userId: user._id,
-    authVersion: user.authVersion,
-    lastSeenAt: now,
-    idleExpiresAt: nowPlus(IDLE_MS, now),
-    absoluteExpiresAt: nowPlus(ABSOLUTE_MS, now),
-    userAgentHash: hashRateLimitKey(userAgent.slice(0, 500)),
-  });
-  return { token, maxAge: Math.floor(ABSOLUTE_MS / 1000) };
+  return createUserSession(user, userAgent);
 }
 
 export async function resolveSession(
@@ -167,7 +175,11 @@ export async function resolveSession(
     id: user._id.toString(),
     email: user.emailNormalized,
     displayName: user.displayName,
-    systemRole: user.systemRole ?? null,
+    systemRole:
+      user.systemRole ??
+      (user.ssoStatus === "approved" && user.ssoRole === "admin"
+        ? "operator"
+        : null),
   };
 }
 

@@ -1,5 +1,29 @@
 # Release notes
 
+## 0.4.0 — 2026-09-09
+
+### New features
+
+- DoneIsBetter OAuth/OIDC sign-in matching the deli.africa sibling implementation.
+- Authorization Code flow with PKCE S256, state, nonce and a signed ten-minute flow cookie.
+- Both registered callback paths, server-side token exchange, user-info sync and per-client permission checks.
+- Approved SSO users synchronize to Atlas and receive the existing revocable DiscountDirect session; approved SSO administrators use the operator identity path.
+
+### Fixed bugs
+
+- The sign-in page now offers the shared DoneIsBetter identity instead of requiring every user to maintain a separate local password.
+- Unsafe return destinations, modified flow cookies, expired flows and unapproved app permissions are rejected.
+
+### Known issues
+
+- GDS remains deferred by user instruction after the GitHub Packages billing-limit failure.
+- The emergency operations key remains available during database outages until the remaining #4 controls are complete.
+- Full production login verification requires an approved human SSO account; automated checks cover redirect construction, PKCE and flow-cookie integrity without storing credentials.
+
+### Future roadmap
+
+Complete MFA, audit/revocation controls and realtime disconnect handling in #4, then continue catalog, purchase history, preferences and recommendations.
+
 ## 0.3.0 — 2026-09-09
 
 ### New features

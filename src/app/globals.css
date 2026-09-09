@@ -435,6 +435,25 @@ input {
 .login-panel form {
   display: grid;
 }
+.sso-button {
+  width: 100%;
+  margin-top: 12px;
+}
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  margin: 24px 0 0;
+}
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  height: 1px;
+  background: var(--line);
+  flex: 1;
+}
 .login-panel form .button,
 .feature-card .button {
   margin-top: 20px;

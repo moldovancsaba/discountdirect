@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
@@ -14,6 +15,10 @@ const messages = {
   invalid: "Az e-mail-cím vagy a jelszó nem megfelelő.",
   limited: "Túl sok próbálkozás történt. Próbáld újra 15 perc múlva.",
   unavailable: "A bejelentkezés átmenetileg nem érhető el.",
+  sso_denied: "Az SSO-hozzáférést megszakították vagy elutasították.",
+  sso_disabled: "Ez a DiscountDirect-fiók le van tiltva.",
+  sso_failed: "Az SSO-bejelentkezés nem ellenőrizhető. Próbáld újra.",
+  sso_unavailable: "Az SSO-bejelentkezés átmenetileg nem érhető el.",
 };
 
 export default async function SignInPage({
@@ -35,9 +40,18 @@ export default async function SignInPage({
         </span>
         <h2 id="login-title">Fiók megnyitása</h2>
         <p>
-          Nincs nyilvános regisztráció. A fiókokat az üzemeltető biztonságos,
-          egyszer használatos hivatkozással aktiválja.
+          Használd a központi DoneIsBetter-fiókodat, vagy jelentkezz be a
+          korábban aktivált helyi hozzáféréseddel.
         </p>
+        {message ? (
+          <p role="alert" id="login-error" className="error-message">
+            {message}
+          </p>
+        ) : null}
+        <Link className="button sso-button" href="/api/auth/login?returnTo=/account">
+          Bejelentkezés DoneIsBetter SSO-val <span aria-hidden="true">→</span>
+        </Link>
+        <div className="login-divider"><span>vagy</span></div>
         <form action={signIn}>
           <label htmlFor="email">E-mail-cím</label>
           <input
@@ -59,11 +73,6 @@ export default async function SignInPage({
             maxLength={128}
             aria-describedby={message ? "login-error" : undefined}
           />
-          {message ? (
-            <p role="alert" id="login-error" className="error-message">
-              {message}
-            </p>
-          ) : null}
           <button className="button" type="submit">
             Bejelentkezés <span aria-hidden="true">→</span>
           </button>

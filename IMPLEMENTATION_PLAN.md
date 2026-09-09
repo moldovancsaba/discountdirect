@@ -4,6 +4,8 @@
 
 > Implementation update, 2026-09-09: access foundation release 0.3.0 adds password hashing, one-time activation/recovery, opaque revocable sessions, durable login limits, server-resolved seller/buyer scopes and protected workspace entry points. Issue #4 remains open for MFA, complete audit/revocation operations and the deferred GDS dependency.
 
+> Implementation update, 2026-09-09: SSO access release 0.4.0 adds the deli.africa-compatible DoneIsBetter Authorization Code/PKCE flow, both registered callbacks, per-app permission checks and local user synchronization. Existing Atlas sessions and tenant authorization remain authoritative after SSO completes.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition

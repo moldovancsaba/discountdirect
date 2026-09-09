@@ -21,9 +21,20 @@ const userSchema = new Schema(
       index: true,
     },
     systemRole: { type: String, enum: ["operator", null], default: null },
+    ssoUserId: { type: String, default: null },
+    ssoRole: { type: String, default: null },
+    ssoStatus: { type: String, default: null },
+    lastSsoLoginAt: { type: Date, default: null },
     authVersion: { type: Number, default: 1, min: 1 },
   },
   { ...timestamps, collection: "users" },
+);
+userSchema.index(
+  { ssoUserId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { ssoUserId: { $type: "string" } },
+  },
 );
 
 const sellerSchema = new Schema(
