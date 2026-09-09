@@ -1,5 +1,17 @@
 # Release notes
 
+## 1.2.0 — Immutable offer lifecycle
+
+### New features
+
+- Added seller-created offers backed by immutable recommendation, price and reason snapshots.
+- Added server-calculated integer-HUF discounts, retry-safe creation and atomic buyer accept/decline decisions.
+- Added buyer offer inboxes, expiry checks, offer events and conversation pending-offer counts.
+
+### Known issues
+
+- An accepted offer is a decision or reservation intent only; inventory reservation, payment, delivery and redemption remain later releases.
+
 ## 1.1.0 — Realtime readiness
 
 ### New features

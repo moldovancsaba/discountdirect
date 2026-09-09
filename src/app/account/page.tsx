@@ -35,7 +35,7 @@ export default async function AccountPage() {
         mediaSeed={`buyer-${relationship.id}`}
         mediaOverlay="Vásárló"
         metadata={[{ id: "relationship", label: "Kapcsolat", value: "Aktív" }]}
-        primaryAction={<div className="button-row"><GdsButton component="a" href={`/buyer/${relationship.slug}`} leftSection={<GdsIcon name="Launch" decorative />}>Kapcsolat megnyitása</GdsButton><GdsButton component="a" href="/buyer/conversations" variant="default" leftSection={<GdsIcon name="Message" decorative />}>Üzenetek</GdsButton></div>}
+        primaryAction={<div className="button-row"><GdsButton component="a" href={`/buyer/${relationship.slug}`} leftSection={<GdsIcon name="Launch" decorative />}>Kapcsolat megnyitása</GdsButton><GdsButton component="a" href="/buyer/conversations" variant="default" leftSection={<GdsIcon name="Message" decorative />}>Üzenetek</GdsButton><GdsButton component="a" href="/buyer/offers" variant="default" leftSection={<GdsIcon name="Tag" decorative />}>Ajánlatok</GdsButton></div>}
       />)}
       {user.systemRole === "operator" ? <ListingCard
         title="Rendszerállapot"

@@ -20,6 +20,8 @@
 
 > Implementation update, 2026-09-09: realtime readiness release 1.1.0 adds the Socket.IO WebSocket-only endpoint, an Atlas-backed seven-day event log, cursor replay, expiring presence, scoped room authorization and an explicit disabled/degraded GDS state. The selected Vercel project is Pro, `iad1`, Fluid Compute-enabled and uses the current beta transport. `REALTIME_ENABLED` stays false pending the required synthetic two-client cross-instance, duration-expiry and deployment-replacement probe; durable HTTP conversations remain authoritative.
 
+> Implementation update, 2026-09-09: offer release 1.2.0 adds seller-created immutable recommendation snapshots, server-calculated HUF discounting, retry-safe creation, server-governed expiry and atomic buyer accept/decline decisions. Offers do not claim payment, stock reservation, delivery or fulfillment; those workflows remain in their own later slices.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition

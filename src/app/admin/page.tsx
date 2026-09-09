@@ -35,7 +35,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
       <MetricCard label="Adatbázis válaszideje" value={database.latencyMs === null ? "Nem elérhető" : `${database.latencyMs} ms`} description="Kapcsolódás és állapotellenőrzés" icon={<GdsIcon name="Time" decorative />} />
       <MetricCard label="Aktív felhasználók" value="Még nincs mérés" description="A jelenlétkövetés a valós idejű funkciókkal érkezik." icon={<GdsIcon name="Users" decorative />} />
     </GdsGrid>
-    <SectionPanel title="Kiadás: 1.1.0" description="GDS 6.7.0, tartós beszélgetések és ellenőrizhető, fokozatosan engedélyezhető élő frissítés." action={<GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Refresh" decorative />}>Állapot frissítése</GdsButton>}>
+    <SectionPanel title="Kiadás: 1.2.0" description="GDS 6.7.0, tartós beszélgetések, fokozatos élő frissítés és ajánlati döntések." action={<GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Refresh" decorative />}>Állapot frissítése</GdsButton>}>
       <StatusBadge status="success" withIcon>Production</StatusBadge>
     </SectionPanel>
   </Shell>;

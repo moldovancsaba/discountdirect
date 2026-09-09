@@ -1,9 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { randomUUID } from "node:crypto";
 import { currentUser } from "@/auth/service";
 import { applyPurchaseImport, previewPurchaseImport, updateCustomerPrivacy, updatePurchaseStatus } from "@/purchases/service";
 import { createRecommendationPreview } from "@/recommendations/service";
+import { createOffer } from "@/offers/service";
 
 async function identity() {
   const user = await currentUser();
@@ -69,5 +71,15 @@ export async function recommendationPreviewAction(sellerSlug: string, customerId
   } catch (cause) {
     destination = `/seller/${sellerSlug}/customers?customer=${customerId}&error=${encodeURIComponent(cause instanceof Error ? cause.message : "INVALID")}`;
   }
+  redirect(destination);
+}
+
+export async function createOfferAction(sellerSlug: string, customerId: string, previewId: string, form: FormData) {
+  const user = await identity();
+  let destination = `/seller/${sellerSlug}/customers?customer=${customerId}&preview=${previewId}&error=INVALID`;
+  try {
+    await createOffer(user.id, sellerSlug, { previewId, productId: form.get("productId"), discountPct: Number(form.get("discountPct")), expiresAt: form.get("expiresAt"), clientRequestId: randomUUID() });
+    destination = `/seller/${sellerSlug}/customers?customer=${customerId}&preview=${previewId}&saved=offer`;
+  } catch (cause) { destination = `/seller/${sellerSlug}/customers?customer=${customerId}&preview=${previewId}&error=${encodeURIComponent(cause instanceof Error ? cause.message : "INVALID")}`; }
   redirect(destination);
 }

@@ -1,6 +1,6 @@
 # DiscountDirect
 
-Personalized offers and seller–buyer relationships. Realtime-ready conversation release **1.1.0**.
+Personalized offers and seller–buyer relationships. Immutable offer lifecycle release **1.2.0**.
 
 - [Application](https://discountdirect.vercel.app)
 - [General Dashboard](https://discountdirect.vercel.app/admin) — requires the operator key from `.env.local`
@@ -14,6 +14,7 @@ Personalized offers and seller–buyer relationships. Realtime-ready conversatio
 - [Recommendation rules](docs/recommendations.md)
 - [Conversations](docs/conversations.md)
 - [Realtime transport](docs/realtime.md)
+- [Offers](docs/offers.md)
 
 Built with Next.js, React, TypeScript, MongoDB Atlas/Mongoose and SovereignSquad GDS 6.7.0; hosted on the existing Vercel project. The application uses the GDS `mint` preset (Mint circuit), Hungarian locale, one root provider, governed components and token-only local layout CSS. Socket.IO and later business features follow the issue plan.
 

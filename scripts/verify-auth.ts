@@ -21,6 +21,7 @@ import { ChannelPreference, ConsentEvent, PrivacyRequest, privacyModels } from "
 import { RecommendationPreview, recommendationModels } from "../src/recommendations/models.ts";
 import { Conversation, ConversationEvent, messagingModels } from "../src/messaging/models.ts";
 import { RealtimeEvent, realtimeModels } from "../src/realtime/models.ts";
+import { Offer, offerModels } from "../src/offers/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -82,7 +83,7 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels])
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels])
     await dataModel.createIndexes();
 
   const password = "Verification password 2026";
@@ -335,6 +336,16 @@ try {
   assert.equal(recommendationReplay.id, recommendation.id);
   assert.equal(await RecommendationPreview.countDocuments({ sellerId: allowedSeller._id, customerId: customers[0].id }), 1);
   assert.equal((await post(`/api/sellers/foreign-seller/customers/${customers[0].id}/recommendations`, { channel: "email" }, cookie)).status, 403);
+  const offersPath = "/api/sellers/allowed-seller/offers";
+  const offerResponse = await post(offersPath, { previewId: recommendation.id, productId: recommendation.recommendations[0].productId, discountPct: 15, expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), clientRequestId: "verification-offer-001" }, cookie);
+  assert.equal(offerResponse.status, 201);
+  const offer = (await offerResponse.json()).offer;
+  assert.equal(offer.priceHuf, Math.round(7990 * 0.85));
+  assert.equal((await post(offersPath, { previewId: recommendation.id, productId: recommendation.recommendations[0].productId, discountPct: 99, expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), clientRequestId: "verification-offer-001" }, cookie)).status, 201);
+  assert.equal(await Offer.countDocuments({ sellerId: allowedSeller._id }), 1);
+  assert.equal((await fetch(`${base}/api/offers`, { headers: { cookie } })).status, 200);
+  assert.equal((await post(`/api/offers/${offer.id}/respond`, { expectedVersion: offer.version, decision: "accepted" }, cookie)).status, 200);
+  assert.equal((await post(`/api/offers/${offer.id}/respond`, { expectedVersion: offer.version, decision: "declined" }, cookie)).status, 409);
 
   const privacyRequestPath = "/api/buyer/allowed-seller/privacy-requests";
   const exportRequestResponse = await post(privacyRequestPath, { type: "access_export" }, cookie);
