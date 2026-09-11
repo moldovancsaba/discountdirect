@@ -1,0 +1,9 @@
+# Flash campaigns
+
+Release 1.3.0 adds seller-scoped flash campaigns. A campaign is launched from an active catalog product with a whole-percent discount, a 6, 24 or 48 hour expiry, a maximum claim quantity and one marketing channel. The server builds its audience from the newest eligible recommendation preview for each active buyer who still has consent for that exact channel. An empty audience cannot launch.
+
+Each campaign stores an immutable product, price, audience, reason and purchase-evidence snapshot. Repeating the same seller client request returns the original campaign and never creates duplicate buyer offers. The channel is an eligibility check only: this release creates no e-mail, postal delivery, payment, fulfillment or external inventory integration.
+
+Campaign quantity is a claim cap, never an independent stock pool. A buyer who accepts a campaign offer atomically creates one `CampaignReservation`; a seller/product inventory balance accepts the reservation only while its count is below the current DiscountDirect catalog stock. The campaign counter and balance update inside the same Atlas transaction, so concurrent buyers cannot claim the final unit twice. A cancellation changes each outstanding reservation to `released` exactly once and decrements that shared balance. External stock can be stale because there is no external inventory synchronization.
+
+Seller APIs are `POST` and `GET /api/sellers/{sellerSlug}/campaigns/flash`, `GET /api/sellers/{sellerSlug}/campaigns/{campaignId}`, and `POST /api/sellers/{sellerSlug}/campaigns/{campaignId}/cancel`. The create body is `{productId, discountPct, quantity, expiresAt, channel, clientRequestId}`. Buyer claim remains `POST /api/offers/{offerId}/respond`; campaign offers return `CAMPAIGN_SOLD_OUT` when the shared balance or campaign window has closed.

@@ -8,6 +8,7 @@ const offerSchema = new Schema({
   buyerUserId: { type: Schema.Types.ObjectId, required: true, ref: "User", index: true },
   customerId: { type: Schema.Types.ObjectId, required: true, ref: "Customer", index: true },
   conversationId: { type: Schema.Types.ObjectId, default: null, ref: "Conversation" },
+  campaignId: { type: Schema.Types.ObjectId, default: null, ref: "Campaign", index: true },
   recommendationPreviewId: { type: Schema.Types.ObjectId, required: true, ref: "RecommendationPreview" },
   channel: { type: String, enum: ["email", "postal"], required: true },
   productId: { type: Schema.Types.ObjectId, required: true, ref: "Product" },
@@ -31,6 +32,7 @@ const offerSchema = new Schema({
 offerSchema.index({ sellerId: 1, createdByUserId: 1, clientRequestId: 1 }, { unique: true });
 offerSchema.index({ buyerUserId: 1, status: 1, expiresAt: 1, _id: 1 });
 offerSchema.index({ sellerId: 1, customerId: 1, createdAt: -1, _id: -1 });
+offerSchema.index({ campaignId: 1, buyerUserId: 1 }, { unique: true, partialFilterExpression: { campaignId: { $type: "objectId" } } });
 
 const offerEventSchema = new Schema({
   offerId: { type: Schema.Types.ObjectId, required: true, ref: "Offer", index: true }, sellerId: { type: Schema.Types.ObjectId, required: true, ref: "Seller", index: true },

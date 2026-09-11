@@ -22,6 +22,7 @@ import { RecommendationPreview, recommendationModels } from "../src/recommendati
 import { Conversation, ConversationEvent, messagingModels } from "../src/messaging/models.ts";
 import { RealtimeEvent, realtimeModels } from "../src/realtime/models.ts";
 import { Offer, offerModels } from "../src/offers/models.ts";
+import { Campaign, CampaignInventoryBalance, CampaignReservation, campaignModels } from "../src/campaigns/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -83,7 +84,7 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels])
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels, ...campaignModels])
     await dataModel.createIndexes();
 
   const password = "Verification password 2026";
@@ -346,6 +347,24 @@ try {
   assert.equal((await fetch(`${base}/api/offers`, { headers: { cookie } })).status, 200);
   assert.equal((await post(`/api/offers/${offer.id}/respond`, { expectedVersion: offer.version, decision: "accepted" }, cookie)).status, 200);
   assert.equal((await post(`/api/offers/${offer.id}/respond`, { expectedVersion: offer.version, decision: "declined" }, cookie)).status, 409);
+
+  const campaignPath = "/api/sellers/allowed-seller/campaigns/flash";
+  const campaignInput = { productId: recommendation.recommendations[0].productId, discountPct: 20, quantity: 1, channel: "email", expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), clientRequestId: "verification-campaign-001" };
+  const campaignResponse = await post(campaignPath, campaignInput, cookie);
+  assert.equal(campaignResponse.status, 201);
+  const campaign = (await campaignResponse.json()).campaign;
+  assert.equal(campaign.priceHuf, Math.round(7990 * 0.8));
+  assert.equal(campaign.audienceSize, 1);
+  assert.equal((await post(campaignPath, { ...campaignInput, discountPct: 99 }, cookie)).status, 201);
+  assert.equal(await Campaign.countDocuments({ sellerId: allowedSeller._id }), 1);
+  const campaignOffer = await Offer.findOne({ campaignId: campaign.id }).lean();
+  assert.ok(campaignOffer);
+  assert.equal((await post(`/api/offers/${campaignOffer._id}/respond`, { expectedVersion: campaignOffer.version, decision: "accepted" }, cookie)).status, 200);
+  assert.equal(await CampaignReservation.countDocuments({ campaignId: campaign.id, status: "reserved" }), 1);
+  assert.equal((await CampaignInventoryBalance.findOne({ sellerId: allowedSeller._id, productId: campaignInput.productId }).lean())?.reserved, 1);
+  assert.equal((await post(`/api/sellers/allowed-seller/campaigns/${campaign.id}/cancel`, {}, cookie)).status, 200);
+  assert.equal(await CampaignReservation.countDocuments({ campaignId: campaign.id, status: "released" }), 1);
+  assert.equal((await CampaignInventoryBalance.findOne({ sellerId: allowedSeller._id, productId: campaignInput.productId }).lean())?.reserved, 0);
 
   const privacyRequestPath = "/api/buyer/allowed-seller/privacy-requests";
   const exportRequestResponse = await post(privacyRequestPath, { type: "access_export" }, cookie);

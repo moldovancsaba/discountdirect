@@ -7,6 +7,7 @@ import { recommendationModels } from "../src/recommendations/models.ts";
 import { messagingModels } from "../src/messaging/models.ts";
 import { realtimeModels } from "../src/realtime/models.ts";
 import { offerModels } from "../src/offers/models.ts";
+import { campaignModels } from "../src/campaigns/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri || !/^mongodb(?:\+srv)?:\/\//.test(uri))
@@ -17,8 +18,8 @@ await mongoose.connect(uri, {
   autoIndex: false,
 });
 try {
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels]) await dataModel.createIndexes();
-  console.log("Authentication, catalog, purchase-ledger, privacy, recommendation, conversation, realtime and offer indexes are present.");
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels, ...campaignModels]) await dataModel.createIndexes();
+  console.log("Authentication, catalog, purchase-ledger, privacy, recommendation, conversation, realtime, offer and campaign indexes are present.");
 } finally {
   await mongoose.disconnect();
 }
