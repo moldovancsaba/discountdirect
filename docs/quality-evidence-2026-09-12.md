@@ -5,12 +5,14 @@ Release 1.4.1 was verified against the production alias `https://discountdirect.
 ## Release checks
 
 - `pnpm check`: passed.
-- `vercel build --prod --yes`: passed.
+- `vercel deploy --prod --yes`: passed; production deployment `dpl_JE3Y5ctssB43zTBj83Hev4UQQAUk`.
 - `pnpm test:auth-integration`: passed against temporary isolated Atlas collections.
 - `pnpm db:indexes`: passed.
 - `pnpm db:check`: passed.
+- `pnpm db:restore-drill`: passed using disposable `dd_restore_*` database and removed synthetic probe data.
 - `git diff --check`: passed.
 - `pnpm test:quality-release`: passed against production.
+- `pnpm ops:monitor`: passed against production liveness, readiness and cron checks.
 
 ## Critical paths
 
@@ -23,7 +25,8 @@ Release 1.4.1 was verified against the production alias `https://discountdirect.
 | Liveness | `/api/health/live` returns 200 with service `discountdirect` and version `1.4.1`. | Pass |
 | Readiness | `/api/health/ready` returns 401 without a token and 200 with the operator token. | Pass |
 | Cron | `/api/cron/automations` returns 401 without `CRON_SECRET` and 200 with a bounded result set when authorized. | Pass |
-| Rollback recovery | Vercel rolled back to `dpl_53tW4ENKFk1pjaU3gWA3yg6Bzcsa`, then restored `dpl_C2MwMxdpoZays3KgBqwUpQsBnMS5`; health and readiness passed after restore. | Pass |
+| Access revocation | `pnpm test:auth-integration` verifies session revocation, user disable, seller membership revocation and buyer relationship revocation with `AuthAuditEvent` records. | Pass |
+| Rollback recovery | Vercel rolled back to `dpl_53tW4ENKFk1pjaU3gWA3yg6Bzcsa`, restored delivery release `dpl_C2MwMxdpoZays3KgBqwUpQsBnMS5`, then deployed access release `dpl_JE3Y5ctssB43zTBj83Hev4UQQAUk`; health and readiness passed after each production restore/deploy. | Pass |
 
 ## Accessibility matrix
 
