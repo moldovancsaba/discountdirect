@@ -63,7 +63,7 @@ io.use(async (socket, next) => {
   next();
 });
 
-io.engine.on("connection_error", (error) => {
+io.engine.on("connection_error", (error: { code?: unknown; message?: unknown }) => {
   console.warn("realtime connection error", { code: error.code, message: error.message });
 });
 
