@@ -24,7 +24,7 @@ Release 1.5.0 was verified against the production alias `https://discountdirect.
 | Protected buyer/seller routes | `/account`, `/buyer/offers`, `/buyer/lists`, `/buyer/redemptions` and `/seller/sample-shop` redirect unauthenticated users to `/sign-in`. | Pass |
 | Liveness | `/api/health/live` returns 200 with service `discountdirect` and version `1.5.0`. | Pass |
 | Readiness | `/api/health/ready` returns 401 without a token and 200 with the operator token. | Pass |
-| Cron | `/api/cron/automations` returns 401 without `CRON_SECRET` and 200 with a bounded result set when authorized. | Pass |
+| Cron | `/api/cron/automations` and `/api/cron/deliveries` return 401 without `CRON_SECRET` and 200 with bounded result sets when authorized. | Pass |
 | Access revocation | `pnpm test:auth-integration` verifies session revocation, user disable, seller membership revocation and buyer relationship revocation with `AuthAuditEvent` records. | Pass |
 | Realtime | Production WebSocket upgrade returned `101 Switching Protocols`; strict realtime probe passed with seller and buyer on distinct Vercel runtime instances. | Pass |
 | Rollback recovery | Vercel rollback remains available to the last verified 1.4.1 access release `dpl_JE3Y5ctssB43zTBj83Hev4UQQAUk`; realtime can also be disabled with `REALTIME_ENABLED=false` and a redeploy while durable HTTP conversations remain authoritative. | Pass |
@@ -43,4 +43,4 @@ Release 1.5.0 was verified against the production alias `https://discountdirect.
 
 ## Recovery and limits
 
-No real customer delivery was triggered during verification. Production delivery rows remain honest outbox states until issue #20 selects and verifies an external transport. Realtime is enabled for release 1.5.0 after the Vercel WebSocket production probe passed with synthetic users.
+No real customer delivery was triggered during verification. Production delivery rows remain honest outbox states until issue #20's Resend/DNS/Vercel activation checklist is verified. Realtime is enabled for release 1.5.0 after the Vercel WebSocket production probe passed with synthetic users.

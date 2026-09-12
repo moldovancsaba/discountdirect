@@ -93,11 +93,25 @@ if (prodEnv.OPERATIONS_TOKEN) {
   checks.push("automation cron fails closed without cron token");
 }
 
+{
+  const { response, body } = await json("/api/cron/deliveries?limit=1");
+  assert.equal(response.status, 401);
+  assert.equal(body.error.code, "UNAUTHORIZED");
+  checks.push("delivery cron fails closed without cron token");
+}
+
 if (prodEnv.CRON_SECRET) {
   const { response, body } = await json("/api/cron/automations?limit=1", { headers: { Authorization: `Bearer ${prodEnv.CRON_SECRET}` } });
   assert.equal(response.status, 200);
   assert.ok(Array.isArray(body.results));
   checks.push("automation cron accepts cron token and returns bounded results");
+}
+
+if (prodEnv.CRON_SECRET) {
+  const { response, body } = await json("/api/cron/deliveries?limit=1", { headers: { Authorization: `Bearer ${prodEnv.CRON_SECRET}` } });
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(body.results));
+  checks.push("delivery cron accepts cron token and returns bounded results");
 }
 
 console.log(`Quality audit passed for ${base}`);

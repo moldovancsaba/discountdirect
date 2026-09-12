@@ -8,6 +8,7 @@ export function deliveryError(error: unknown) {
       NOT_FOUND: ["NOT_FOUND", "A keresett kézbesítési adat nem található.", 404],
       INVALID: ["INVALID_DELIVERY", "A kézbesítési kérés érvénytelen.", 400],
       CONFLICT: ["DELIVERY_CONFLICT", "A kézbesítés állapota közben megváltozott.", 409],
+      UNAVAILABLE: ["DELIVERY_UNAVAILABLE", "A kézbesítési szolgáltatás nincs teljesen beállítva.", 503],
     } as const;
     const [code, message, status] = map[error.code];
     return errorResponse(code, message, status);

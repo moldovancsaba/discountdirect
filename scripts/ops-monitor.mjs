@@ -54,10 +54,20 @@ assert.equal(cronDenied.response.status, 401, "cron must reject missing token");
 assert.equal(cronDenied.body.error?.code, "UNAUTHORIZED", "cron unauthorized response must be explicit");
 findings.push({ check: "cron_unauthorized", status: "ok", latencyMs: cronDenied.latencyMs });
 
+const deliveryCronDenied = await readJson("/api/cron/deliveries?limit=1");
+assert.equal(deliveryCronDenied.response.status, 401, "delivery cron must reject missing token");
+assert.equal(deliveryCronDenied.body.error?.code, "UNAUTHORIZED", "delivery cron unauthorized response must be explicit");
+findings.push({ check: "delivery_cron_unauthorized", status: "ok", latencyMs: deliveryCronDenied.latencyMs });
+
 if (!env.CRON_SECRET) throw new Error("CRON_SECRET unavailable for production monitor");
 const cron = await readJson("/api/cron/automations?limit=1", { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } });
 assert.equal(cron.response.status, 200, "cron must return HTTP 200 with token");
 assert.ok(Array.isArray(cron.body.results), "cron response must include bounded results array");
 findings.push({ check: "cron_authorized", status: "ok", latencyMs: cron.latencyMs, processed: cron.body.processed });
+
+const deliveryCron = await readJson("/api/cron/deliveries?limit=1", { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } });
+assert.equal(deliveryCron.response.status, 200, "delivery cron must return HTTP 200 with token");
+assert.ok(Array.isArray(deliveryCron.body.results), "delivery cron response must include bounded results array");
+findings.push({ check: "delivery_cron_authorized", status: "ok", latencyMs: deliveryCron.latencyMs, processed: deliveryCron.body.processed });
 
 console.log(JSON.stringify({ service: "discountdirect", base, checkedAt: new Date().toISOString(), status: "ok", findings }, null, 2));

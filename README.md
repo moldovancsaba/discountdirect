@@ -17,6 +17,7 @@ Personalized offers and seller–buyer relationships. Realtime transport release
 - [Offers](docs/offers.md)
 - [Flash campaigns](docs/campaigns.md)
 - [Delivery, automations and redemption](docs/delivery-automation-redemption.md)
+- [E-mail delivery provider evidence](docs/email-delivery-provider-evidence-2026-09-12.md)
 
 Built with Next.js, React, TypeScript, MongoDB Atlas/Mongoose and SovereignSquad GDS 6.7.0; hosted on the existing Vercel project. The application uses the GDS `mint` preset (Mint circuit), Hungarian locale, one root provider, governed components and token-only local layout CSS. Socket.IO and later business features follow the issue plan.
 
@@ -33,4 +34,4 @@ pnpm dev
 
 `pnpm check` includes the GDS ESLint rules, strict adoption-manifest validation, consumer compliance scan, TypeScript, domain tests and the production build. GDS packages are pinned to the official 6.7.0 release bundle so local, GitHub Actions and Vercel installs are reproducible.
 
-No demo/customer data is created by this release. Authorized sellers can manage products, purchase histories and privacy requests within their own seller scope. They can create reproducible recommendation previews, durable conversations, immutable personal offers, flash campaigns with atomic in-app inventory reservations, recurring offer-list automations, delivery outbox records and single-use redemption coupons. Buyers manage seller-specific marketing consent, data requests, their inbox, offer lists, printable letters and coupons. Messages are persisted and retry-safe. Realtime transport is enabled after the synthetic Vercel probe passed on production; e-mail and postal delivery remain honest outbox states until an approved transport exists.
+No demo/customer data is created by this release. Authorized sellers can manage products, purchase histories and privacy requests within their own seller scope. They can create reproducible recommendation previews, durable conversations, immutable personal offers, flash campaigns with atomic in-app inventory reservations, recurring offer-list automations, delivery outbox records and single-use redemption coupons. Buyers manage seller-specific marketing consent, data requests, their inbox, offer lists, printable letters and coupons. Messages are persisted and retry-safe. Realtime transport is enabled after the synthetic Vercel probe passed on production; e-mail delivery now has a Resend-gated adapter and signed inbound route, but production sending remains disabled until sender DNS, Vercel variables and controlled round-trip evidence are approved.

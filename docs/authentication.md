@@ -47,7 +47,7 @@ The command prints the one-time link once. Do not paste it into an issue, log, s
 
 ## Recovery and revocation
 
-Until delivery issue #20 exists, recovery is a manual identity-verification procedure. After confirming the requester using the owner-approved offline process, create a recovery link:
+Until approved e-mail delivery is production-enabled, recovery is a manual identity-verification procedure. After confirming the requester using the owner-approved offline process, create a recovery link:
 
 ```sh
 APP_URL=https://discountdirect.vercel.app pnpm auth:provision -- --email person@example.com --name "Person Name" --role buyer --seller-slug sample-shop --purpose recovery --created-by "operator name"

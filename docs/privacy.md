@@ -2,7 +2,7 @@
 
 Release 0.8.0 provides a seller-scoped workflow for marketing consent and data-subject requests. It is an engineering control, not legal approval. Real personal data and marketing remain blocked until the controller owner approves the assessment, Hungarian notice copy, retention rules and operating procedure required by issue #7.
 
-The current controller/operating record is `docs/privacy-controller-record-2026-09-12.md`. Release 1.5.0 still blocks real outbound marketing because no approved delivery provider exists; issue #20 owns that provider decision and verification.
+The current controller/operating record is `docs/privacy-controller-record-2026-09-12.md`. The issue #20 code path selects Resend as the first supported adapter, but real outbound marketing remains disabled until sender-domain DNS, staged-recipient rollout and production webhook evidence are approved.
 
 ## Buyer controls
 
@@ -28,7 +28,7 @@ Completing restriction changes the customer record to restricted and withdraws a
 
 ## Delivery gate
 
-Delivery code calls the server-side marketing eligibility check immediately before creating a delivery row. It returns false unless the exact seller and buyer have an active customer record and a subscribed preference for that channel. Restriction and erasure workflows cancel queued, processing and retryable delivery work for the buyer. Real external marketing transport remains disabled until issue #20 selects and verifies a provider.
+Delivery code calls the server-side marketing eligibility check immediately before creating a delivery row and again immediately before provider send. It returns false unless the exact seller and buyer have an active customer record and a subscribed preference for that channel. Seller/global suppressions for unsubscribe, objection, hard bounce, complaint and provider suppression also block enqueue/send. Restriction and erasure workflows cancel queued, processing and retryable delivery work for the buyer. Real external marketing transport remains disabled until the issue #20 activation checklist is verified.
 
 ## API
 

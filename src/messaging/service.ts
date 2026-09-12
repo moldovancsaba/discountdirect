@@ -139,3 +139,27 @@ export async function sendConversationMessage(userId: string, conversationId: st
   });
   return output;
 }
+
+export async function recordInboundBuyerMessage(input: { sellerId: unknown; buyerUserId: unknown; clientRequestId: string; body: string; conversationId?: unknown }) {
+  const value = messageInput(input.clientRequestId, input.body);
+  await connectDatabase();
+  const conversation = await Conversation.findOne({
+    ...(input.conversationId ? { _id: input.conversationId } : {}),
+    sellerId: input.sellerId,
+    buyerUserId: input.buyerUserId,
+  }).lean();
+  if (!conversation) throw new MessagingError("NOT_FOUND");
+  const database = await connectDatabase();
+  let output: any;
+  await database.connection.transaction(async (session) => {
+    const existing = await ConversationEvent.findOne({ conversationId: conversation._id, senderUserId: input.buyerUserId, clientRequestId: value.clientRequestId }).session(session).lean();
+    if (existing) { output = eventOutput(existing); return; }
+    const now = new Date();
+    const [created] = await ConversationEvent.create([{ conversationId: conversation._id, sellerId: conversation.sellerId, kind: "message", senderRole: "buyer", senderUserId: input.buyerUserId, body: value.body, clientRequestId: value.clientRequestId, createdAt: now }], { session });
+    const updated = await Conversation.findOneAndUpdate({ _id: conversation._id }, { $set: { lastEventAt: now, lastEventPreview: value.body.slice(0, 240) }, $inc: { sellerUnreadCount: 1, version: 1 } }, { new: true, session });
+    if (!updated) throw new MessagingError("NOT_FOUND");
+    await recordRealtimeEvent(session, { sellerId: conversation.sellerId, conversationId: conversation._id, type: "message.created", version: updated.version, messageId: created._id, occurredAt: now });
+    output = eventOutput(created.toObject());
+  });
+  return output;
+}

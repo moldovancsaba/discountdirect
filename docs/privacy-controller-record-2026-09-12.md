@@ -1,11 +1,11 @@
 # Privacy controller record — 2026-09-12
 
-This record documents the engineering controls for DiscountDirect release 1.5.0. It is not legal advice and does not approve real outbound marketing. Real e-mail/postal dispatch remains blocked until issue #20 selects and verifies a provider, sender domain, unsubscribe, bounce/complaint handling and signed inbound callbacks.
+This record documents the engineering controls for DiscountDirect release 1.5.0. It is not legal advice and does not approve real outbound marketing. Issue #20 now has a Resend adapter path, but real e-mail/postal dispatch remains blocked until sender-domain DNS, Vercel provider variables, unsubscribe, bounce/complaint handling and signed inbound callbacks are verified with controlled production evidence.
 
 ## Current launch boundary
 
 - Allowed: synthetic verification, authenticated seller/buyer/operator workflows, in-app offers, in-app conversations, in-app offer lists, printable buyer letters and redemption coupons.
-- Not allowed: real outbound e-mail, postal dispatch, provider webhooks, purchased contact lists or importing real customer data without controller approval.
+- Not allowed: real outbound e-mail to customers, postal dispatch, live provider webhook activation, purchased contact lists or importing real customer data without controller approval.
 - Delivery rows are audit/outbox records. They must remain `unsupported`, `suppressed`, `queued`, `retryable`, `cancelled` or another truthful state; they must not be relabeled as sent without external-provider evidence.
 
 ## Notice and consent
@@ -13,7 +13,7 @@ This record documents the engineering controls for DiscountDirect release 1.5.0.
 - Current notice identifier: `privacy-hu-2026-09-09-v1`.
 - Consent is seller-scoped and channel-specific.
 - A missing preference means no consent.
-- The delivery gate checks active seller-buyer relationship, active customer record and subscribed channel immediately before writing a delivery row.
+- The delivery gate checks active seller-buyer relationship, active customer record, subscribed channel and suppressions immediately before writing a delivery row and again before provider send.
 - Restriction and erasure withdraw subscribed marketing channels and cancel queued, processing or retryable delivery rows for the affected seller-buyer pair.
 
 ## Data subject procedures
@@ -40,6 +40,7 @@ Only one open request of each type exists per seller-buyer pair. Repeated or con
 - MongoDB Atlas stores application records.
 - DoneIsBetter SSO provides authentication identity data.
 - GitHub stores source, issues and project-board evidence.
+- Resend is the selected e-mail adapter path for issue #20, but is not production-active until DNS/webhook/staged-recipient evidence is approved.
 
 Current infrastructure uses Vercel dynamic egress to Atlas and server-only secrets. Static egress or Secure Compute remains a hardening option before real marketing launch.
 
@@ -47,4 +48,4 @@ Current infrastructure uses Vercel dynamic egress to Atlas and server-only secre
 
 - `pnpm test:auth-integration` covers consent evidence, request deduplication, access export, marketing suppression, participant isolation, honest delivery outbox states, buyer lists and single-use coupon redemption.
 - `pnpm db:indexes` confirms the privacy, delivery, automation and redemption indexes are present.
-- `docs/delivery-automation-redemption.md`, `docs/privacy.md`, `docs/operations-alerts.md` and this record describe the current support and recovery procedures.
+- `docs/delivery-automation-redemption.md`, `docs/email-delivery-provider-evidence-2026-09-12.md`, `docs/privacy.md`, `docs/operations-alerts.md` and this record describe the current support and recovery procedures.

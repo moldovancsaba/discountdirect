@@ -1,5 +1,19 @@
 # Release notes
 
+## Unreleased — Provider-gated e-mail delivery
+
+### New features
+
+- Added a Resend-backed delivery worker behind explicit environment configuration.
+- Added signed inbound webhook handling for replies, bounce/complaint/suppression callbacks and duplicate-event protection.
+- Added seller/global delivery suppressions plus signed unsubscribe links.
+- Added `/api/cron/deliveries`, `/api/email/inbound` and `/api/email/unsubscribe`.
+
+### Known issues
+
+- Real production sending remains blocked until Resend sender-domain DNS, webhook signing, Vercel variables and staged-recipient evidence are attached to issue #20.
+- Postal dispatch remains an honest unsupported state.
+
 ## 1.5.0 — Production realtime transport probe
 
 ### New features
@@ -55,13 +69,13 @@
 
 ### Known issues
 
-- Outbox entries remain `TRANSPORT_NOT_CONFIGURED` until an approved e-mail/postal provider is selected and verified in issue #20.
+- Outbox entries remain `TRANSPORT_NOT_CONFIGURED` until an approved e-mail/postal provider is configured and verified in issue #20.
 - Cron requires `CRON_SECRET` in Vercel Production before scheduled automation processing can run.
 - Coupons do not prove payment, external inventory synchronization or fulfillment.
 
 ### Future roadmap
 
-Complete external delivery-provider approval, SPF/DKIM/DMARC evidence, signed inbound webhooks, bounce handling and unsubscribe processing in issue #20.
+Complete external delivery-provider activation, SPF/DKIM/DMARC evidence, signed inbound production webhooks, bounce handling and unsubscribe processing in issue #20.
 
 ## 1.3.0 — Flash campaigns
 

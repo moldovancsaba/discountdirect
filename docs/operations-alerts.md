@@ -20,7 +20,7 @@ Run manually or from the heartbeat:
 pnpm ops:monitor
 ```
 
-The command checks production liveness, unauthorized readiness, authorized readiness, unauthorized cron and authorized cron. It reads local production tokens from `.env.production.local` or the process environment and prints only status metadata, never token values.
+The command checks production liveness, unauthorized readiness, authorized readiness, unauthorized automation cron, authorized automation cron, unauthorized delivery cron and authorized delivery cron. It reads local production tokens from `.env.production.local` or the process environment and prints only status metadata, never token values.
 
 ## Alert thresholds
 
@@ -29,9 +29,10 @@ The command checks production liveness, unauthorized readiness, authorized readi
 | Liveness | `/api/health/live` is not HTTP 200, status is not `ok`, or version is not `1.5.0`. | Inspect the current Vercel deployment. If the latest deployment is faulty, roll back to the latest verified Ready deployment and open a GitHub issue with the deployment ID. |
 | Readiness authorization | `/api/health/ready` without a token is not HTTP 401. | Treat as an access-control regression. Roll back if production behavior changed, then inspect `src/app/api/health/ready/route.ts`. |
 | Database readiness | Authenticated `/api/health/ready` is not HTTP 200 or `database.connected` is false. | Check Vercel `MONGODB_URI`, Atlas user/database/network posture, then rerun `pnpm db:check`. Do not print the URI. |
-| Cron authorization | `/api/cron/automations` without a token is not HTTP 401. | Treat as an access-control regression and roll back if production behavior changed. |
-| Cron execution | Authorized cron is not HTTP 200, response lacks `results`, or Vercel Cron stops invoking for more than two expected intervals. | Check `CRON_SECRET`, `vercel.json`, Vercel cron status and `/api/cron/automations?limit=1` manually. |
-| Delivery outbox | Dashboard shows retryable rows older than two hours or terminal failures above zero. `TRANSPORT_NOT_CONFIGURED` is not a failure before issue #20. | Inspect seller delivery log, confirm current consent, and leave rows honest; do not mark external sends successful without provider evidence. |
+| Cron authorization | `/api/cron/automations` or `/api/cron/deliveries` without a token is not HTTP 401. | Treat as an access-control regression and roll back if production behavior changed. |
+| Cron execution | Authorized cron is not HTTP 200, response lacks `results`, or Vercel Cron stops invoking for more than two expected intervals. | Check `CRON_SECRET`, `vercel.json`, Vercel cron status and the relevant cron path manually. |
+| Delivery outbox | Dashboard shows retryable rows older than two hours or terminal failures above zero. `TRANSPORT_NOT_CONFIGURED` and `EMAIL_TRANSPORT_CONFIGURATION_INCOMPLETE` are not failures before provider activation. | Inspect seller delivery log, confirm current consent and suppression state, and leave rows honest; do not mark external sends successful without provider evidence. |
+| E-mail provider webhook | `/api/email/inbound` accepts unsigned/stale requests, duplicate provider events create duplicate messages, or bounce/complaint callbacks do not create suppressions. | Disable `EMAIL_DELIVERY_PROVIDER`, keep unsubscribe secret available, inspect `delivery_webhook_events`, then replay only verified provider events. |
 | Automation backlog | Active automations have due schedules older than two cron intervals. | Run authorized cron with `limit=1`, then inspect automations and Atlas connectivity. |
 | Redemption | Seller reports a coupon code that cannot be confirmed and is not safely unknown/expired/redeemed. | Use seller redemption screen; never log raw coupon codes in issue comments. |
 | Realtime | `pnpm test:realtime-production -- --base-url=https://discountdirect.vercel.app --require-distinct-runtime` fails, live sockets cannot subscribe, unauthorized subscriptions do not fail closed, or reconnect replay misses an event. | Set `REALTIME_ENABLED=false` in Vercel Production, redeploy, then rely on durable HTTP conversations while investigating `api/socket-io.ts`, Atlas change streams and Vercel WebSocket status. |
