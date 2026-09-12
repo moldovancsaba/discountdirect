@@ -22,6 +22,7 @@
     "ops:monitor": "node scripts/ops-monitor.mjs",
     "test:realtime-production": "node --experimental-strip-types --env-file=.env.production.local scripts/realtime-production-probe.ts",
     "test:auth-integration": "node --experimental-strip-types --env-file=.env.local scripts/verify-auth.ts",
+    "test:email-integration": "node --experimental-strip-types --env-file=.env.local scripts/verify-email-delivery.ts",
     "db:indexes": "node --experimental-strip-types --env-file=.env.local scripts/create-auth-indexes.ts",
     "db:restore-drill": "node --env-file=.env.local scripts/restore-drill.mjs",
     "auth:provision": "node --experimental-strip-types --env-file=.env.local scripts/provision-user.ts"

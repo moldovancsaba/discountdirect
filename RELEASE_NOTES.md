@@ -8,6 +8,7 @@
 - Added signed inbound webhook handling for replies, bounce/complaint/suppression callbacks and duplicate-event protection.
 - Added seller/global delivery suppressions plus signed unsubscribe links.
 - Added `/api/cron/deliveries`, `/api/email/inbound` and `/api/email/unsubscribe`.
+- Added a synthetic e-mail integration verifier for cron send, signed inbound reply, forged/duplicate webhook handling, bounce suppression and unsubscribe without real recipients.
 
 ### Known issues
 

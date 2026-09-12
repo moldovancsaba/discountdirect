@@ -16,6 +16,7 @@ const config: EmailTransportConfig = {
   enabled: true,
   provider: "resend",
   apiKey: "re_test",
+  apiBaseUrl: "https://api.resend.com",
   from: "DiscountDirect <offers@example.com>",
   replyDomain: "reply.example.com",
   webhookSecret: "whsec_" + Buffer.from("test webhook secret").toString("base64"),

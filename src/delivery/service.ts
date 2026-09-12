@@ -410,7 +410,11 @@ export async function suppressDeliveryBuyer(deliveryId: string, token: string) {
   const now = new Date();
   await database.connection.transaction(async (session) => {
     await upsertSuppression(session, delivery, "unsubscribe", `unsubscribe:${deliveryId}`, now);
-    await DeliveryOutbox.updateOne({ _id: delivery._id }, { $set: { reasonCode: "EMAIL_UNSUBSCRIBED", lastProviderEventAt: now } }, { session });
+    await DeliveryOutbox.updateOne(
+      { _id: delivery._id },
+      { $set: { status: "suppressed", reasonCode: "EMAIL_UNSUBSCRIBED", completedAt: now, nextAttemptAt: null, lockedUntil: null, lockedBy: null, lastProviderEventAt: now } },
+      { session },
+    );
     await recordEvent(session, { deliveryId: delivery._id, sellerId: delivery.sellerId, status: "suppressed", reasonCode: "EMAIL_UNSUBSCRIBED", occurredAt: now });
   });
   return { status: "suppressed", reasonCode: "EMAIL_UNSUBSCRIBED" };

@@ -7,6 +7,7 @@ export type EmailTransportConfig = {
   enabled: true;
   provider: "resend";
   apiKey: string;
+  apiBaseUrl: string;
   from: string;
   replyDomain: string;
   webhookSecret: string;
@@ -50,6 +51,7 @@ export function emailTransportReadiness(env: Env = process.env): EmailTransportR
   if (!provider) return { enabled: false, provider: null, reasonCode: "TRANSPORT_NOT_CONFIGURED" };
   if (provider !== "resend") return { enabled: false, provider: null, reasonCode: "EMAIL_TRANSPORT_UNSUPPORTED_PROVIDER" };
   const apiKey = clean(env.RESEND_API_KEY);
+  const apiBaseUrl = clean(env.RESEND_API_BASE_URL) || "https://api.resend.com";
   const from = clean(env.RESEND_FROM);
   const replyDomain = clean(env.RESEND_REPLY_DOMAIN).toLowerCase();
   const webhookSecret = clean(env.RESEND_WEBHOOK_SECRET);
@@ -66,6 +68,7 @@ export function emailTransportReadiness(env: Env = process.env): EmailTransportR
     enabled: true,
     provider: "resend",
     apiKey,
+    apiBaseUrl,
     from,
     replyDomain,
     webhookSecret,
@@ -169,7 +172,7 @@ export async function sendResendEmail(
   fetcher: FetchLike = fetch,
 ) {
   const url = unsubscribeUrl(input.deliveryId, config);
-  const response = await fetcher("https://api.resend.com/emails", {
+  const response = await fetcher(`${config.apiBaseUrl}/emails`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
@@ -206,7 +209,7 @@ export async function sendResendEmail(
 }
 
 export async function getResendReceivedEmail(config: EmailTransportConfig, emailId: string, fetcher: FetchLike = fetch) {
-  const response = await fetcher(`https://api.resend.com/emails/receiving/${encodeURIComponent(emailId)}`, {
+  const response = await fetcher(`${config.apiBaseUrl}/emails/receiving/${encodeURIComponent(emailId)}`, {
     headers: { Authorization: `Bearer ${config.apiKey}` },
   });
   const bodyText = await response.text();

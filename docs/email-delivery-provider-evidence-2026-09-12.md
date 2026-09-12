@@ -16,6 +16,7 @@ Verification run:
 
 - `pnpm check`: passed.
 - `pnpm test:auth-integration`: passed against a temporary isolated Atlas database; no provider variables were set, so existing unsupported outbox behavior remained honest.
+- `pnpm test:email-integration`: added after the initial preview evidence; it runs against a disposable Atlas database and local fake Resend endpoint to verify cron send, provider acceptance, signed inbound reply, duplicate rejection, forged webhook rejection, bounce suppression, future-send suppression and signed unsubscribe without contacting real recipients.
 - `pnpm db:indexes`: passed; new delivery suppression and webhook-event indexes are present.
 - `pnpm db:restore-drill`: passed using disposable `dd_restore_d48f146aff`; synthetic probe data was removed.
 - `git diff --check`: passed.
@@ -59,6 +60,8 @@ Set values only in approved secret stores:
 - `RESEND_REPLY_DOMAIN`
 - `RESEND_WEBHOOK_SECRET`
 
+`RESEND_API_BASE_URL` is present only for isolated local verification against a fake Resend endpoint. Leave it unset in Preview and Production so the adapter uses Resend's official API.
+
 `MONGODB_URI`, `MONGODB_DB`, `OPERATIONS_TOKEN` and `CRON_SECRET` remain required for database, operations and cron access.
 
 ## Activation checklist
@@ -68,10 +71,11 @@ Set values only in approved secret stores:
 3. Configure receiving for the reply domain and route `reply+*` addresses to Resend.
 4. Create a Resend webhook for `email.received`, bounce, complaint and suppression events pointing to `/api/email/inbound`.
 5. Store the variables above in Vercel Preview first; keep `EMAIL_STAGED_RECIPIENTS` limited to synthetic recipients.
-6. Deploy an exact-commit Preview, create a synthetic buyer with active consent, enqueue one personal offer, run the authorized delivery cron and verify a Resend-accepted provider message ID.
-7. Send a controlled reply to `reply+{deliveryId}@{RESEND_REPLY_DOMAIN}` and verify one buyer `ConversationEvent` appears in the correct conversation.
-8. Trigger Resend bounce/complaint test events or approved test recipients and verify future outbox rows become `suppressed`.
-9. Repeat the same evidence in Production only after the owner approves sender reputation rollout and staged-recipient expansion.
+6. Run `pnpm check` and `pnpm test:email-integration` locally before deploying; the latter uses a disposable database and local fake Resend endpoint.
+7. Deploy an exact-commit Preview, create a synthetic buyer with active consent, enqueue one personal offer, run the authorized delivery cron and verify a Resend-accepted provider message ID.
+8. Send a controlled reply to `reply+{deliveryId}@{RESEND_REPLY_DOMAIN}` and verify one buyer `ConversationEvent` appears in the correct conversation.
+9. Trigger Resend bounce/complaint test events or approved test recipients and verify future outbox rows become `suppressed`.
+10. Repeat the same evidence in Production only after the owner approves sender reputation rollout and staged-recipient expansion.
 
 ## Rollback
 
