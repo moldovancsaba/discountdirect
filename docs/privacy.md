@@ -2,6 +2,8 @@
 
 Release 0.8.0 provides a seller-scoped workflow for marketing consent and data-subject requests. It is an engineering control, not legal approval. Real personal data and marketing remain blocked until the controller owner approves the assessment, Hungarian notice copy, retention rules and operating procedure required by issue #7.
 
+The current controller/operating record is `docs/privacy-controller-record-2026-09-12.md`. Release 1.4.0 still blocks real outbound marketing because no approved delivery provider exists; issue #20 owns that provider decision and verification.
+
 ## Buyer controls
 
 An authenticated buyer opens `/buyer/{sellerSlug}/preferences`. E-mail and postal marketing are separate, optional choices. Saving a new opt-in or changing an existing choice writes the current preference and an append-only event with purpose `marketing`, the exact notice version, time and actor. Saving the same state twice is idempotent. A missing preference means no consent.
