@@ -4,7 +4,8 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "functions": {
     "api/socket-io.ts": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "src/**/*.ts"
     }
   },
   "crons": [

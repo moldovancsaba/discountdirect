@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Mongoose change stream data is normalized at this boundary. */
 import mongoose from "mongoose";
-import { connectDatabaseCore } from "@/lib/database-core";
+import { connectDatabaseCore } from "../lib/database-core.ts";
 import { ConversationPresence, RealtimeEvent } from "./models";
 import type { RealtimeEventPayload, RealtimeEventType } from "./contracts";
-import { participant } from "@/messaging/access";
-import { MessagingError } from "@/messaging/errors";
+import { participant } from "../messaging/access.ts";
+import { MessagingError } from "../messaging/errors.ts";
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const PRESENCE_MS = 90_000;
