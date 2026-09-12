@@ -40,6 +40,11 @@ type SubscriptionAck = {
   error?: { code?: string };
 };
 
+type SubscribedSocket = {
+  socket: Socket;
+  ack: SubscriptionAck;
+};
+
 const probeId = randomBytes(5).toString("hex");
 const created = {
   sellerIds: [] as mongoose.Types.ObjectId[],
@@ -274,6 +279,55 @@ function runtimeKey(meta?: RuntimeMeta) {
   return `${meta?.deploymentId ?? "unknown"}:${meta?.instanceId ?? "unknown"}`;
 }
 
+async function connectSubscribedSocket(
+  label: string,
+  baseUrl: string,
+  cookie: string,
+  conversationId: string,
+  cursor?: string,
+): Promise<SubscribedSocket> {
+  const socket = await connectSocket(label, baseUrl, cookie);
+  const ack = await emitWithAck(socket, "conversation.subscribe", {
+    conversationId,
+    ...(cursor ? { cursor } : {}),
+  });
+  assert.equal(ack.ok, true, JSON.stringify(ack));
+  return { socket, ack };
+}
+
+async function connectBuyerSocket(
+  args: ProbeArgs,
+  cookie: string,
+  conversationId: string,
+  avoidedRuntime?: string,
+) {
+  if (!args.requireDistinctRuntime || !avoidedRuntime)
+    return connectSubscribedSocket("buyer", args.peerUrl, cookie, conversationId);
+
+  const candidateCount = 12;
+  const candidates = await Promise.allSettled(
+    Array.from({ length: candidateCount }, (_, index) =>
+      connectSubscribedSocket(`buyer-${index + 1}`, args.peerUrl, cookie, conversationId),
+    ),
+  );
+  const fulfilled = candidates.flatMap((candidate) =>
+    candidate.status === "fulfilled" ? [candidate.value] : [],
+  );
+  const selected =
+    fulfilled.find((candidate) => runtimeKey(candidate.ack.meta) !== avoidedRuntime) ??
+    fulfilled[0];
+  for (const candidate of fulfilled) {
+    if (candidate !== selected) candidate.socket.close();
+  }
+  if (!selected) {
+    const errors = candidates.flatMap((candidate) =>
+      candidate.status === "rejected" ? [String(candidate.reason)] : [],
+    );
+    throw new Error(`buyer socket candidate batch failed: ${errors.join("; ")}`);
+  }
+  return selected;
+}
+
 const sockets: Socket[] = [];
 const args = parseArgs();
 
@@ -281,17 +335,25 @@ try {
   await connectDatabase();
   const seeded = await seedSyntheticConversation();
   const sellerSocket = await connectSocket("seller", args.baseUrl, seeded.sellerCookie);
-  const buyerSocket = await connectSocket("buyer", args.peerUrl, seeded.buyerCookie);
-  sockets.push(sellerSocket, buyerSocket);
+  sockets.push(sellerSocket);
 
   const sellerAck = await emitWithAck(sellerSocket, "conversation.subscribe", {
     conversationId: seeded.conversationId,
   });
-  const buyerAck = await emitWithAck(buyerSocket, "conversation.subscribe", {
+  assert.equal(sellerAck.ok, true, JSON.stringify(sellerAck));
+  const buyer = await connectBuyerSocket(
+    args,
+    seeded.buyerCookie,
+    seeded.conversationId,
+    runtimeKey(sellerAck.meta),
+  );
+  const buyerSocket = buyer.socket;
+  const buyerAck = buyer.ack;
+  sockets.push(buyerSocket);
+  const buyerHeartbeatAck = await emitWithAck(buyerSocket, "presence.heartbeat", {
     conversationId: seeded.conversationId,
   });
-  assert.equal(sellerAck.ok, true, JSON.stringify(sellerAck));
-  assert.equal(buyerAck.ok, true, JSON.stringify(buyerAck));
+  assert.equal(buyerHeartbeatAck.ok, true, JSON.stringify(buyerHeartbeatAck));
   assert.ok(
     await ConversationPresence.countDocuments({
       conversationId: seeded.conversationId,

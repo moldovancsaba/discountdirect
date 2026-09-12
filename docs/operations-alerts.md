@@ -34,7 +34,7 @@ The command checks production liveness, unauthorized readiness, authorized readi
 | Delivery outbox | Dashboard shows retryable rows older than two hours or terminal failures above zero. `TRANSPORT_NOT_CONFIGURED` is not a failure before issue #20. | Inspect seller delivery log, confirm current consent, and leave rows honest; do not mark external sends successful without provider evidence. |
 | Automation backlog | Active automations have due schedules older than two cron intervals. | Run authorized cron with `limit=1`, then inspect automations and Atlas connectivity. |
 | Redemption | Seller reports a coupon code that cannot be confirmed and is not safely unknown/expired/redeemed. | Use seller redemption screen; never log raw coupon codes in issue comments. |
-| Realtime | `pnpm test:realtime-production` fails, live sockets cannot subscribe, unauthorized subscriptions do not fail closed, or reconnect replay misses an event. | Set `REALTIME_ENABLED=false` in Vercel Production, redeploy, then rely on durable HTTP conversations while investigating `api/socket-io.ts`, Atlas change streams and Vercel WebSocket status. |
+| Realtime | `pnpm test:realtime-production -- --base-url=https://discountdirect.vercel.app --require-distinct-runtime` fails, live sockets cannot subscribe, unauthorized subscriptions do not fail closed, or reconnect replay misses an event. | Set `REALTIME_ENABLED=false` in Vercel Production, redeploy, then rely on durable HTTP conversations while investigating `api/socket-io.ts`, Atlas change streams and Vercel WebSocket status. |
 
 ## Escalation notes
 

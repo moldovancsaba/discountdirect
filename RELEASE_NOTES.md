@@ -7,11 +7,13 @@
 - Added a production realtime probe that seeds synthetic accounts, validates Socket.IO fanout, unauthorized subscription rejection, presence and reconnect replay, then removes probe data.
 - Moved session resolution and conversation participation checks behind runtime-safe shared modules for the standalone WebSocket function.
 - Added per-connection runtime metadata so probes can distinguish deployment and function-instance paths without exposing secrets.
+- Enabled the production Vercel WebSocket rollout after the strict synthetic probe passed with seller and buyer sockets on distinct runtime instances.
 
 ### Fixed bugs
 
 - The Socket.IO endpoint no longer depends on modules that import the Next server-only marker.
 - Reconnect replay is verified through the durable `RealtimeEvent` cursor path rather than process memory.
+- The Vercel Socket.IO route now normalizes the mounted function path, packages shared source dependencies, and accepts no-trailing-slash WebSocket upgrades without a redirect.
 
 ### Known issues
 

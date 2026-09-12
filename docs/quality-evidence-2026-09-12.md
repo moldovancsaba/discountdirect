@@ -1,18 +1,18 @@
 # Quality evidence — 2026-09-12
 
-Release 1.4.1 was verified against the production alias `https://discountdirect.vercel.app` after rollback, restore and audited access revocation checks.
+Release 1.5.0 was verified against the production alias `https://discountdirect.vercel.app` after audited access revocation, realtime and operations checks.
 
 ## Release checks
 
 - `pnpm check`: passed.
-- `vercel deploy --prod --yes`: passed; production deployment `dpl_JE3Y5ctssB43zTBj83Hev4UQQAUk`.
+- `vercel deploy --prod --yes`: passed; production deployment `dpl_4HtzhSAkAy8htM3WWmt8N7JjEqAS`.
 - `pnpm test:auth-integration`: passed against temporary isolated Atlas collections.
 - `pnpm db:indexes`: passed.
-- `pnpm db:check`: passed.
-- `pnpm db:restore-drill`: passed using disposable `dd_restore_*` database and removed synthetic probe data.
+- `pnpm db:restore-drill`: passed using disposable `dd_restore_441e1b679b` database and removed synthetic probe data.
 - `git diff --check`: passed.
 - `pnpm test:quality-release`: passed against production.
 - `pnpm ops:monitor`: passed against production liveness, readiness and cron checks.
+- `pnpm test:realtime-production -- --base-url=https://discountdirect.vercel.app --require-distinct-runtime`: passed against production synthetic users and cleaned up probe data.
 
 ## Critical paths
 
@@ -22,11 +22,12 @@ Release 1.4.1 was verified against the production alias `https://discountdirect.
 | Sign-in | E-mail/password labels, autocomplete hints and SSO action render on `/sign-in`. | Pass |
 | Operator gate | `/admin` renders only the access form until an operator session exists. | Pass |
 | Protected buyer/seller routes | `/account`, `/buyer/offers`, `/buyer/lists`, `/buyer/redemptions` and `/seller/sample-shop` redirect unauthenticated users to `/sign-in`. | Pass |
-| Liveness | `/api/health/live` returns 200 with service `discountdirect` and version `1.4.1`. | Pass |
+| Liveness | `/api/health/live` returns 200 with service `discountdirect` and version `1.5.0`. | Pass |
 | Readiness | `/api/health/ready` returns 401 without a token and 200 with the operator token. | Pass |
 | Cron | `/api/cron/automations` returns 401 without `CRON_SECRET` and 200 with a bounded result set when authorized. | Pass |
 | Access revocation | `pnpm test:auth-integration` verifies session revocation, user disable, seller membership revocation and buyer relationship revocation with `AuthAuditEvent` records. | Pass |
-| Rollback recovery | Vercel rolled back to `dpl_53tW4ENKFk1pjaU3gWA3yg6Bzcsa`, restored delivery release `dpl_C2MwMxdpoZays3KgBqwUpQsBnMS5`, then deployed access release `dpl_JE3Y5ctssB43zTBj83Hev4UQQAUk`; health and readiness passed after each production restore/deploy. | Pass |
+| Realtime | Production WebSocket upgrade returned `101 Switching Protocols`; strict realtime probe passed with seller and buyer on distinct Vercel runtime instances. | Pass |
+| Rollback recovery | Vercel rollback remains available to the last verified 1.4.1 access release `dpl_JE3Y5ctssB43zTBj83Hev4UQQAUk`; realtime can also be disabled with `REALTIME_ENABLED=false` and a redeploy while durable HTTP conversations remain authoritative. | Pass |
 
 ## Accessibility matrix
 
@@ -42,4 +43,4 @@ Release 1.4.1 was verified against the production alias `https://discountdirect.
 
 ## Recovery and limits
 
-No real customer delivery was triggered during verification. Production delivery rows remain honest outbox states until issue #20 selects and verifies an external transport. Realtime remains disabled until issue #10 completes the Vercel WebSocket production probe.
+No real customer delivery was triggered during verification. Production delivery rows remain honest outbox states until issue #20 selects and verifies an external transport. Realtime is enabled for release 1.5.0 after the Vercel WebSocket production probe passed with synthetic users.
