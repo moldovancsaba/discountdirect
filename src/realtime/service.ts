@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Mongoose change stream data is normalized at this boundary. */
 import mongoose from "mongoose";
 import { connectDatabaseCore } from "../lib/database-core.ts";
-import { ConversationPresence, RealtimeEvent } from "./models";
-import type { RealtimeEventPayload, RealtimeEventType } from "./contracts";
+import { ConversationPresence, RealtimeEvent } from "./models.ts";
+import type { RealtimeEventPayload, RealtimeEventType } from "./contracts.ts";
 import { participant } from "../messaging/access.ts";
 import { MessagingError } from "../messaging/errors.ts";
 

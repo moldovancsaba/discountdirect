@@ -2,8 +2,8 @@ import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { Server } from "socket.io";
 import { resolveSessionToken, USER_SESSION_COOKIE } from "../src/auth/session-core.ts";
-import { conversationSubscription } from "../src/realtime/contracts";
-import { realtimeEnabled, realtimeConversationAccess, removePresence, replayRealtimeEvents, heartbeatPresence, watchRealtimeEvents } from "../src/realtime/service";
+import { conversationSubscription } from "../src/realtime/contracts.ts";
+import { realtimeEnabled, realtimeConversationAccess, removePresence, replayRealtimeEvents, heartbeatPresence, watchRealtimeEvents } from "../src/realtime/service.ts";
 
 const server = createServer();
 const ioOptions = { path: "/api/socket-io", transports: ["websocket"], allowUpgrades: true } as ConstructorParameters<typeof Server>[1];
