@@ -1,6 +1,6 @@
 # DiscountDirect
 
-Personalized offers and seller–buyer relationships. Access revocation release **1.4.1**.
+Personalized offers and seller–buyer relationships. Realtime transport release **1.5.0**.
 
 - [Application](https://discountdirect.vercel.app)
 - [General Dashboard](https://discountdirect.vercel.app/admin) — requires the operator key from `.env.local`
@@ -33,4 +33,4 @@ pnpm dev
 
 `pnpm check` includes the GDS ESLint rules, strict adoption-manifest validation, consumer compliance scan, TypeScript, domain tests and the production build. GDS packages are pinned to the official 6.7.0 release bundle so local, GitHub Actions and Vercel installs are reproducible.
 
-No demo/customer data is created by this release. Authorized sellers can manage products, purchase histories and privacy requests within their own seller scope. They can create reproducible recommendation previews, durable conversations, immutable personal offers, flash campaigns with atomic in-app inventory reservations, recurring offer-list automations, delivery outbox records and single-use redemption coupons. Buyers manage seller-specific marketing consent, data requests, their inbox, offer lists, printable letters and coupons. Messages are persisted and retry-safe. Realtime transport is deliberately disabled until its Vercel compatibility probe passes; e-mail and postal delivery remain honest outbox states until an approved transport exists.
+No demo/customer data is created by this release. Authorized sellers can manage products, purchase histories and privacy requests within their own seller scope. They can create reproducible recommendation previews, durable conversations, immutable personal offers, flash campaigns with atomic in-app inventory reservations, recurring offer-list automations, delivery outbox records and single-use redemption coupons. Buyers manage seller-specific marketing consent, data requests, their inbox, offer lists, printable letters and coupons. Messages are persisted and retry-safe. Realtime transport is enabled only after the synthetic Vercel probe passes; e-mail and postal delivery remain honest outbox states until an approved transport exists.

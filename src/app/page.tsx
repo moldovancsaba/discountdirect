@@ -10,7 +10,7 @@ const steps = [
 export default function Home() {
   return (
     <Shell>
-      <PageHeader title="Minden jó ajánlat egy kapcsolattal kezdődik." description="A DiscountDirect összeköti a vásárlási előzményeket, a személyes ajánlatokat és a tartós beszélgetéseket." eyebrow="Áttekintés" actions={<StatusBadge status="success" withIcon>1.4.1 · Mint circuit</StatusBadge>} />
+      <PageHeader title="Minden jó ajánlat egy kapcsolattal kezdődik." description="A DiscountDirect összeköti a vásárlási előzményeket, a személyes ajánlatokat és a tartós beszélgetéseket." eyebrow="Áttekintés" actions={<StatusBadge status="success" withIcon>1.5.0 · Mint circuit</StatusBadge>} />
       <EditorialHero
         eyebrow="Az első lépés"
         title="Stabil alapok. Személyesebb kereskedelem."

@@ -1,5 +1,23 @@
 # Release notes
 
+## 1.5.0 — Production realtime transport probe
+
+### New features
+
+- Added a production realtime probe that seeds synthetic accounts, validates Socket.IO fanout, unauthorized subscription rejection, presence and reconnect replay, then removes probe data.
+- Moved session resolution and conversation participation checks behind runtime-safe shared modules for the standalone WebSocket function.
+- Added per-connection runtime metadata so probes can distinguish deployment and function-instance paths without exposing secrets.
+
+### Fixed bugs
+
+- The Socket.IO endpoint no longer depends on modules that import the Next server-only marker.
+- Reconnect replay is verified through the durable `RealtimeEvent` cursor path rather than process memory.
+
+### Known issues
+
+- WebSockets remain a Vercel beta capability and depend on Fluid Compute, function duration and Atlas change streams.
+- Realtime can be disabled immediately by setting `REALTIME_ENABLED=false` and redeploying; durable HTTP conversations remain authoritative.
+
 ## 1.4.1 — Access revocation and operations gates
 
 ### New features
@@ -16,7 +34,7 @@
 ### Known issues
 
 - The break-glass `OPERATIONS_TOKEN` remains available as an outage fallback and readiness-probe credential.
-- Realtime transport remains disabled until issue #10 completes the production WebSocket disconnect probe.
+- Realtime transport is released in 1.5.0 after the production WebSocket probe.
 
 ## 1.4.0 — Delivery automation and redemption
 

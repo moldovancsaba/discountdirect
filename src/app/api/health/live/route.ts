@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 export function GET() {
   return Response.json(
-    { status: "ok", service: "discountdirect", version: "1.4.1" },
+    { status: "ok", service: "discountdirect", version: "1.5.0" },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

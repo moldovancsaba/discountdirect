@@ -1,5 +1,5 @@
 import { errorResponse } from "@/auth/http";
-import { MessagingError } from "./service";
+import { MessagingError } from "./errors";
 
 export function messagingError(error: unknown) {
   if (error instanceof MessagingError) {

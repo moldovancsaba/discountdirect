@@ -1,6 +1,6 @@
 {
   "name": "discountdirect",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -20,6 +20,7 @@
     "test:smoke": "node --env-file=.env.local scripts/smoke.mjs",
     "test:quality-release": "node scripts/quality-audit.mjs",
     "ops:monitor": "node scripts/ops-monitor.mjs",
+    "test:realtime-production": "node --experimental-strip-types --env-file=.env.production.local scripts/realtime-production-probe.ts",
     "test:auth-integration": "node --experimental-strip-types --env-file=.env.local scripts/verify-auth.ts",
     "db:indexes": "node --experimental-strip-types --env-file=.env.local scripts/create-auth-indexes.ts",
     "db:restore-drill": "node --env-file=.env.local scripts/restore-drill.mjs",

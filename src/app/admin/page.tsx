@@ -70,7 +70,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
       <MetricCard label="Kuponok" value={String(couponTotal)} description={`${redemptions.issued ?? 0} kiadva · ${redemptions.redeemed ?? 0} beváltva`} icon={<GdsIcon name="Tag" decorative />} />
       <MetricCard label="Aktív felhasználók" value="Még nincs mérés" description="A jelenlétkövetés a valós idejű funkciókkal érkezik." icon={<GdsIcon name="Users" decorative />} />
     </GdsGrid>
-    <SectionPanel title="Kiadás: 1.4.1" description="GDS 6.7.0, auditált hozzáférés-visszavonás, tartós kézbesítési napló, automatizált ajánlatlisták és egyszer használható kuponok." action={<GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Refresh" decorative />}>Állapot frissítése</GdsButton>}>
+    <SectionPanel title="Kiadás: 1.5.0" description="GDS 6.7.0, produkciós realtime próba, auditált hozzáférés-visszavonás, tartós kézbesítési napló és egyszer használható kuponok." action={<GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Refresh" decorative />}>Állapot frissítése</GdsButton>}>
       <StatusBadge status="success" withIcon>Production</StatusBadge>
     </SectionPanel>
     <SectionPanel title="Hozzáférések és munkamenetek" description="Operátori revokációs felület auditnaplóval. A műveletek növelik az authVersion értéket és visszavonják a nyitott munkameneteket.">

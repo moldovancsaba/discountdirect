@@ -1,9 +1,10 @@
-import "server-only";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Mongoose change stream data is normalized at this boundary. */
 import mongoose from "mongoose";
-import { connectDatabase } from "@/lib/database";
+import { connectDatabaseCore } from "@/lib/database-core";
 import { ConversationPresence, RealtimeEvent } from "./models";
 import type { RealtimeEventPayload, RealtimeEventType } from "./contracts";
+import { participant } from "@/messaging/access";
+import { MessagingError } from "@/messaging/errors";
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const PRESENCE_MS = 90_000;
@@ -39,10 +40,8 @@ async function recordPresenceChange(conversation: { _id: unknown; sellerId: unkn
 
 export async function realtimeConversationAccess(userId: string, conversationId: string) {
   if (!mongoose.isValidObjectId(conversationId)) throw new RealtimeError("INVALID");
-  const { participant } = await import("@/messaging/service");
   try { return await participant(userId, conversationId); }
   catch (error) {
-    const { MessagingError } = await import("@/messaging/service");
     if (error instanceof MessagingError) throw new RealtimeError(error.code === "INVALID" ? "INVALID" : error.code);
     throw error;
   }
@@ -88,7 +87,7 @@ export async function eventPayloadFromChange(change: any) {
 }
 
 export async function watchRealtimeEvents(onEvent: (event: RealtimeEventPayload) => void) {
-  await connectDatabase();
+  await connectDatabaseCore();
   const stream = RealtimeEvent.watch([], { fullDocument: "updateLookup" });
   stream.on("change", (change: unknown) => { void eventPayloadFromChange(change).then((event) => { if (event) onEvent(event); }); });
   return stream;

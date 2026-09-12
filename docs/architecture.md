@@ -1,4 +1,4 @@
-# Application architecture — 1.4.1
+# Application architecture — 1.5.0
 
 Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. This matches the GDS 6.7.0 Next.js reference consumer while retaining current security patches. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
 
@@ -39,7 +39,7 @@ Release 0.9.0 adds immutable `RecommendationPreview` snapshots. The versioned ru
 
 Release 1.0.0 adds durable `Conversation` and `ConversationEvent` collections. Every conversation is unique to a seller and buyer, with an optional linked customer record, unread counters and a neutral zero pending-offer count. Opening a conversation records an activity event. Messages have a sender-scoped client request ID that makes retried sends idempotent, and their ordered timeline supports opaque cursor pagination. Seller membership and buyer relationship checks are applied for every inbox, timeline and message mutation. No attachment storage, notifications or Socket.IO transport exists yet.
 
-Release 1.1.0 adds a durable Atlas `RealtimeEvent` log and expiring `ConversationPresence` records. Every message transaction creates one replayable `message.created` event after its conversation version increases; retries create neither a second message nor a second realtime event. The Vercel Socket.IO endpoint accepts only WebSocket transport, verifies the opaque session at handshake, reauthorizes each room and fanouts the Atlas change stream to local authorized rooms. The browser always reloads its durable HTTP state after a realtime event. `REALTIME_ENABLED` is false until a Vercel two-client lifecycle probe passes; the UI reports disabled/degraded state and HTTP remains authoritative.
+Release 1.1.0 adds a durable Atlas `RealtimeEvent` log and expiring `ConversationPresence` records. Every message transaction creates one replayable `message.created` event after its conversation version increases; retries create neither a second message nor a second realtime event. The Vercel Socket.IO endpoint accepts only WebSocket transport, verifies the opaque session at handshake, reauthorizes each room and fanouts the Atlas change stream to local authorized rooms. The browser always reloads its durable HTTP state after a realtime event. Release 1.5.0 adds the production synthetic probe for Vercel WebSockets, Atlas change-stream fanout, unauthorized subscription denial and reconnect replay. `REALTIME_ENABLED` remains the rollback switch and HTTP timelines remain authoritative if sockets degrade.
 
 Release 1.2.0 adds `Offer` and append-only `OfferEvent` records. Sellers can derive an offer only from a stored eligible recommendation under the selected channel's current consent, active relationship and customer state. Product identity, original price, explanation and purchase evidence are snapshots; the only accepted creation values are a bounded discount and expiry. Buyer decisions use a pending-version compare-and-set inside an Atlas transaction. A decision changes the linked conversation's pending-offer count and records an `offer.updated` realtime event, while accepting explicitly remains a decision/reservation intent rather than payment or fulfillment.
 
@@ -63,4 +63,4 @@ Use pnpm 10.30.3 and the committed lockfile. TypeScript 6.0 and ESLint 9 match t
 
 ## Remaining product work
 
-Public registration, automated legal-deadline escalation, production-approved realtime enablement and real outbound e-mail/inbound replies are not implemented. The existing issue #20 owns external e-mail provider approval. No customer data has been seeded. The break-glass operator token remains documented as a compensating control for outages; normal operator users are individually revocable.
+Public registration, automated legal-deadline escalation and real outbound e-mail/inbound replies are not implemented. The existing issue #20 owns external e-mail provider approval. No customer data has been seeded. The break-glass operator token remains documented as a compensating control for outages; normal operator users are individually revocable.

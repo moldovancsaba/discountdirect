@@ -1,6 +1,6 @@
 # Privacy controller record — 2026-09-12
 
-This record documents the engineering controls for DiscountDirect release 1.4.1. It is not legal advice and does not approve real outbound marketing. Real e-mail/postal dispatch remains blocked until issue #20 selects and verifies a provider, sender domain, unsubscribe, bounce/complaint handling and signed inbound callbacks.
+This record documents the engineering controls for DiscountDirect release 1.5.0. It is not legal advice and does not approve real outbound marketing. Real e-mail/postal dispatch remains blocked until issue #20 selects and verifies a provider, sender domain, unsubscribe, bounce/complaint handling and signed inbound callbacks.
 
 ## Current launch boundary
 

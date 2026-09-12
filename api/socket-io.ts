@@ -1,13 +1,24 @@
 import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { Server } from "socket.io";
-import { resolveSession, USER_SESSION_COOKIE } from "../src/auth/service";
+import { resolveSessionToken, USER_SESSION_COOKIE } from "../src/auth/session-core.ts";
 import { conversationSubscription } from "../src/realtime/contracts";
 import { realtimeEnabled, realtimeConversationAccess, removePresence, replayRealtimeEvents, heartbeatPresence, watchRealtimeEvents } from "../src/realtime/service";
 
 const server = createServer();
 const ioOptions = { path: "/api/socket-io/socket.io", transports: ["websocket"], allowUpgrades: true } as ConstructorParameters<typeof Server>[1];
 const io = new Server(server, ioOptions);
+const instanceId = randomUUID();
+const deploymentId = process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_URL ?? "local";
 let watching = false;
+
+function instanceMeta() {
+  return {
+    instanceId,
+    deploymentId,
+    region: process.env.VERCEL_REGION ?? "local",
+  };
+}
 
 function cookieValue(header: string | undefined, name: string) {
   return header?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1);
@@ -28,7 +39,7 @@ async function beginFanout() {
 
 io.use(async (socket, next) => {
   if (!realtimeEnabled()) return next(new Error("REALTIME_DISABLED"));
-  const user = await resolveSession(cookieValue(socket.request.headers.cookie, USER_SESSION_COOKIE));
+  const user = await resolveSessionToken(cookieValue(socket.request.headers.cookie, USER_SESSION_COOKIE));
   if (!user) return next(new Error("UNAUTHORIZED"));
   socket.data.user = user;
   next();
@@ -36,6 +47,7 @@ io.use(async (socket, next) => {
 
 io.on("connection", (socket) => {
   void beginFanout();
+  socket.emit("realtime.instance", instanceMeta());
   const subscriptions = new Set<string>();
   socket.on("conversation.subscribe", async (input: unknown, acknowledge: (result: unknown) => void) => {
     const requested = conversationSubscription(input);
@@ -46,7 +58,7 @@ io.on("connection", (socket) => {
       socket.join(`conversation:${requested.conversationId}`);
       subscriptions.add(requested.conversationId);
       await heartbeatPresence(socket.data.user.id, requested.conversationId);
-      acknowledge({ ok: true, ...replay });
+      acknowledge({ ok: true, ...replay, meta: instanceMeta() });
     } catch { acknowledge(failure("FORBIDDEN", "Ehhez a beszélgetéshez nincs hozzáférésed.")); }
   });
   socket.on("presence.heartbeat", async (input: unknown, acknowledge?: (result: unknown) => void) => {

@@ -10,6 +10,12 @@ import {
   User,
 } from "./models";
 import {
+  resolveSessionToken,
+  revokeSessionToken,
+  sessionUserAgentHash,
+  USER_SESSION_COOKIE,
+} from "./session-core.ts";
+import {
   createOpaqueToken,
   hashOpaqueToken,
   hashPassword,
@@ -18,20 +24,15 @@ import {
   verifyPassword,
 } from "./crypto";
 
-export const USER_SESSION_COOKIE = "discountdirect-session";
+export { USER_SESSION_COOKIE } from "./session-core.ts";
+export type { AuthenticatedUser } from "./session-core.ts";
+
 const IDLE_MS = 30 * 60 * 1000;
 const ABSOLUTE_MS = 12 * 60 * 60 * 1000;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT = 5;
 const DUMMY_PASSWORD_HASH =
   "scrypt-v1$16384$8$1$ukVOSp36X4iOIqrEHvkHLA$8kj60wNYZRxPQ3rMscdZehJ72kzsRdqmGsD22-ls0882iMuNYSxbA-7MwIi84oMpUxlbhVFR8HQSJS8CA1y7mg";
-
-export type AuthenticatedUser = {
-  id: string;
-  email: string;
-  displayName: string;
-  systemRole: "operator" | null;
-};
 
 export class AuthError extends Error {
   constructor(
@@ -55,7 +56,7 @@ export async function createUserSession(
     lastSeenAt: now,
     idleExpiresAt: nowPlus(IDLE_MS, now),
     absoluteExpiresAt: nowPlus(ABSOLUTE_MS, now),
-    userAgentHash: hashRateLimitKey(userAgent.slice(0, 500)),
+    userAgentHash: sessionUserAgentHash(userAgent),
   });
   return { token, maxAge: Math.floor(ABSOLUTE_MS / 1000) };
 }
@@ -148,39 +149,8 @@ export async function authenticate(
 
 export async function resolveSession(
   token?: string,
-): Promise<AuthenticatedUser | null> {
-  if (!token || token.length > 128) return null;
-  await connectDatabase();
-  const now = new Date();
-  const session = await Session.findOne({
-    tokenHash: hashOpaqueToken(token),
-    revokedAt: null,
-    idleExpiresAt: { $gt: now },
-    absoluteExpiresAt: { $gt: now },
-  }).lean();
-  if (!session) return null;
-  const user = await User.findOne({
-    _id: session.userId,
-    status: "active",
-    authVersion: session.authVersion,
-  }).lean();
-  if (!user) return null;
-  if (now.getTime() - session.lastSeenAt.getTime() > 5 * 60 * 1000) {
-    await Session.updateOne(
-      { _id: session._id, revokedAt: null },
-      { $set: { lastSeenAt: now, idleExpiresAt: nowPlus(IDLE_MS, now) } },
-    );
-  }
-  return {
-    id: user._id.toString(),
-    email: user.emailNormalized,
-    displayName: user.displayName,
-    systemRole:
-      user.systemRole ??
-      (user.ssoStatus === "approved" && user.ssoRole === "admin"
-        ? "operator"
-        : null),
-  };
+) {
+  return resolveSessionToken(token);
 }
 
 export async function currentUser() {
@@ -188,12 +158,7 @@ export async function currentUser() {
 }
 
 export async function revokeSession(token?: string) {
-  if (!token) return;
-  await connectDatabase();
-  await Session.updateOne(
-    { tokenHash: hashOpaqueToken(token), revokedAt: null },
-    { $set: { revokedAt: new Date() } },
-  );
+  await revokeSessionToken(token);
 }
 
 export async function membershipsFor(userId: string) {

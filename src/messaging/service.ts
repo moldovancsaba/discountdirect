@@ -5,11 +5,11 @@ import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
 import { Customer } from "@/purchases/models";
 import { recordRealtimeEvent } from "@/realtime/service";
+import { participant } from "./access.ts";
+import { MessagingError } from "./errors.ts";
 import { Conversation, ConversationEvent } from "./models";
 
-export class MessagingError extends Error {
-  constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID") { super(code); }
-}
+export { MessagingError } from "./errors.ts";
 
 type Cursor = { at: string; id: string };
 
@@ -45,18 +45,6 @@ async function sellerAccess(userId: string, sellerSlug: string) {
   if (!seller) throw new MessagingError("NOT_FOUND");
   if (!await Membership.exists({ sellerId: seller._id, userId, status: "active" })) throw new MessagingError("FORBIDDEN");
   return seller;
-}
-
-export async function participant(userId: string, conversationId: string) {
-  if (!mongoose.isValidObjectId(conversationId)) throw new MessagingError("INVALID");
-  await connectDatabase();
-  const conversation = await Conversation.findById(conversationId).lean();
-  if (!conversation) throw new MessagingError("NOT_FOUND");
-  const sellerMember = await Membership.exists({ sellerId: conversation.sellerId, userId, status: "active" });
-  if (sellerMember) return { conversation, role: "seller" as const };
-  if (conversation.buyerUserId.toString() !== userId) throw new MessagingError("FORBIDDEN");
-  if (!await BuyerRelationship.exists({ sellerId: conversation.sellerId, buyerUserId: userId, status: "active" })) throw new MessagingError("FORBIDDEN");
-  return { conversation, role: "buyer" as const };
 }
 
 function eventOutput(row: any) {

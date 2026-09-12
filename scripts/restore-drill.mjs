@@ -27,7 +27,7 @@ try {
     probeId: randomBytes(12).toString("hex"),
     service: "discountdirect",
     createdAt: new Date(),
-    payload: { purpose: "synthetic restore drill", version: "1.4.1" },
+    payload: { purpose: "synthetic restore drill", version: "1.5.0" },
   };
   const expected = JSON.parse(JSON.stringify(original));
 

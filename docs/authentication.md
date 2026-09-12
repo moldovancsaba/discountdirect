@@ -64,7 +64,7 @@ Operators can revoke access from `/admin`. The revocation controls require a wri
 - Session cookies are HttpOnly, SameSite Strict, Secure in Production and scoped to `/`.
 - Seller and buyer pages query memberships/relationships server-side on every request.
 - Password recovery does not send email. The operator must never claim automatic delivery.
-- The independent `OPERATIONS_TOKEN` remains as a break-glass operator path for database outage diagnosis and readiness probes. Day-to-day operator access should use a provisioned operator account or approved DoneIsBetter SSO admin. Because realtime remains disabled in production, revocation takes effect on the next HTTP request or reconnect; issue #10 owns the production WebSocket disconnect probe before realtime is enabled.
+- The independent `OPERATIONS_TOKEN` remains as a break-glass operator path for database outage diagnosis and readiness probes. Day-to-day operator access should use a provisioned operator account or approved DoneIsBetter SSO admin. Realtime clients re-check the Atlas-backed session on reconnect and conversation subscription; revocation takes effect on the next HTTP request or reconnect.
 
 ## Verification
 
