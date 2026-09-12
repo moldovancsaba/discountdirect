@@ -10,7 +10,12 @@ const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const PRESENCE_MS = 90_000;
 
 export class RealtimeError extends Error {
-  constructor(public code: "DISABLED" | "INVALID" | "FORBIDDEN" | "NOT_FOUND") { super(code); }
+  code: "DISABLED" | "INVALID" | "FORBIDDEN" | "NOT_FOUND";
+
+  constructor(code: "DISABLED" | "INVALID" | "FORBIDDEN" | "NOT_FOUND") {
+    super(code);
+    this.code = code;
+  }
 }
 
 export function realtimeEnabled() {
