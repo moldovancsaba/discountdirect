@@ -8,6 +8,7 @@ Use Node 24 and pnpm 10.30.3. Copy `.env.example` to `.env.local` only if the lo
 pnpm install --frozen-lockfile
 pnpm check
 pnpm db:check
+pnpm db:restore-drill
 pnpm dev
 ```
 
