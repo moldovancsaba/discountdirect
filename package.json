@@ -18,6 +18,7 @@
     "gds:check": "node node_modules/@sovereignsquad/gds-compliance/bin/gds-compliance.js check --manifest ./gds-adoption.json",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm gds:manifest && pnpm gds:check && pnpm build",
     "test:smoke": "node --env-file=.env.local scripts/smoke.mjs",
+    "test:quality-release": "node scripts/quality-audit.mjs",
     "test:auth-integration": "node --experimental-strip-types --env-file=.env.local scripts/verify-auth.ts",
     "db:indexes": "node --experimental-strip-types --env-file=.env.local scripts/create-auth-indexes.ts",
     "auth:provision": "node --experimental-strip-types --env-file=.env.local scripts/provision-user.ts"
