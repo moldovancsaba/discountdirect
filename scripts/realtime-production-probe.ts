@@ -170,8 +170,9 @@ function waitForConnect(socket: Socket, label: string) {
 
 async function connectSocket(label: string, baseUrl: string, cookie: string) {
   const socket = io(baseUrl, {
-    path: "/api/socket-io/socket.io",
+    path: "/api/socket-io",
     transports: ["websocket"],
+    addTrailingSlash: false,
     extraHeaders: { cookie },
     timeout: 15_000,
     reconnection: false,

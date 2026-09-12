@@ -6,7 +6,7 @@ import { conversationSubscription } from "../src/realtime/contracts";
 import { realtimeEnabled, realtimeConversationAccess, removePresence, replayRealtimeEvents, heartbeatPresence, watchRealtimeEvents } from "../src/realtime/service";
 
 const server = createServer();
-const ioOptions = { path: "/api/socket-io/socket.io", transports: ["websocket"], allowUpgrades: true } as ConstructorParameters<typeof Server>[1];
+const ioOptions = { path: "/api/socket-io", transports: ["websocket"], allowUpgrades: true } as ConstructorParameters<typeof Server>[1];
 const io = new Server(server, ioOptions);
 const instanceId = randomUUID();
 const deploymentId = process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_URL ?? "local";

@@ -11,7 +11,7 @@ export function RealtimeThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const [state, setState] = useState<State>("connecting");
   useEffect(() => {
-    const socket = io({ path: "/api/socket-io/socket.io", transports: ["websocket"], reconnectionDelay: 1000, reconnectionDelayMax: 30_000, timeout: 8_000 });
+    const socket = io({ path: "/api/socket-io", transports: ["websocket"], addTrailingSlash: false, reconnectionDelay: 1000, reconnectionDelayMax: 30_000, timeout: 8_000 });
     const subscribe = () => socket.emit("conversation.subscribe", { conversationId }, (result: { error?: { code?: string } }) => setState(result.error?.code === "REALTIME_DISABLED" ? "disabled" : result.error ? "degraded" : "connected"));
     socket.on("connect", subscribe);
     socket.on("connect_error", (error) => setState(error.message === "REALTIME_DISABLED" ? "disabled" : "degraded"));
