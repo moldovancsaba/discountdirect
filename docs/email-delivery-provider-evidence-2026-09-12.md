@@ -6,17 +6,21 @@ Decision: select Resend as the first approved e-mail adapter path, but keep prod
 
 Current production state: no `RESEND_*`, `EMAIL_*`, `MAIL*`, `POSTMARK*`, `MAILGUN*`, `SES*`, `SMTP*` or `WEBHOOK*` provider variables were listed by the production Vercel environment filter on 2026-09-12. Therefore issue #20 is not closable yet: no real outbound message, bounce/complaint callback or live inbound round trip has been verified against production.
 
-Source commit: `b639d6e` (`feat: add provider-gated email delivery`).
+Source commits:
 
-Preview deployment: `dpl_45bxnx5Mts1r5UsoPbg1rMRTSkUB`, Ready at `https://discountdirect-kikhp5net-narimato.vercel.app`, target `preview`.
+- `b639d6e` (`feat: add provider-gated email delivery`).
+- `e431fa2` (`docs: record email delivery preview evidence`).
+- `531bb96` (`test: add email delivery integration probe`).
 
-Preview limitation: the app URL served Vercel Preview protection to unauthenticated route checks and no local bypass secret was configured, so `pnpm test:quality-release` could not verify page HTML against this preview. Vercel build/route collection succeeded and app-level behavior was verified locally/integration against the same source commit.
+Latest Preview deployment: `dpl_6qPvP2Hg94tWm9FWGPuEFChYy25p`, Ready at `https://discountdirect-imdh7tygm-narimato.vercel.app`, target `preview`.
+
+Preview limitation: the app URL serves Vercel Preview protection to unauthenticated route checks and no local bypass secret is configured, so `pnpm test:quality-release` cannot verify page HTML against the preview. Vercel build/route collection succeeded and app-level behavior was verified locally/integration against the same source state.
 
 Verification run:
 
 - `pnpm check`: passed.
 - `pnpm test:auth-integration`: passed against a temporary isolated Atlas database; no provider variables were set, so existing unsupported outbox behavior remained honest.
-- `pnpm test:email-integration`: added after the initial preview evidence; it runs against a disposable Atlas database and local fake Resend endpoint to verify cron send, provider acceptance, signed inbound reply, duplicate rejection, forged webhook rejection, bounce suppression, future-send suppression and signed unsubscribe without contacting real recipients.
+- `pnpm test:email-integration`: passed against a disposable Atlas database and local fake Resend endpoint; it verifies cron send, provider acceptance, signed inbound reply, duplicate rejection, forged webhook rejection, bounce suppression, future-send suppression and signed unsubscribe without contacting real recipients.
 - `pnpm db:indexes`: passed; new delivery suppression and webhook-event indexes are present.
 - `pnpm db:restore-drill`: passed using disposable `dd_restore_d48f146aff`; synthetic probe data was removed.
 - `git diff --check`: passed.
