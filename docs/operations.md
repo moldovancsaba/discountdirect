@@ -31,6 +31,7 @@ The repository's `vercel.json` selects Next.js with frozen-lockfile installation
 
 ## Recovery
 
+- Production alert thresholds, owners and channels are listed in `docs/operations-alerts.md`. The manual monitor command is `pnpm ops:monitor`; it checks the production alias without printing secrets.
 - Atlas unavailable: public liveness remains available; protected readiness returns 503 and the dashboard shows no connection. Check the Vercel URI, database permissions and Atlas network access. Correct the setting and redeploy; retry the dashboard. Do not log the URI or raw driver errors.
 - Operator access unavailable: check OPERATIONS_TOKEN is configured and at least 32 characters. Rotation immediately invalidates old cookies on the new deployment; sign in using the new key.
 - Automation cron unauthorized: check `CRON_SECRET` is configured and that the cron request includes it as a bearer token.
