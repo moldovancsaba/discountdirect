@@ -6,5 +6,11 @@
     "api/socket-io.ts": {
       "maxDuration": 300
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/automations",
+      "schedule": "*/30 * * * *"
+    }
+  ]
 }

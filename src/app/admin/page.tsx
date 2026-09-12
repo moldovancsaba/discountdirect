@@ -4,6 +4,9 @@ import { Shell } from "@/components/shell";
 import { isOperator } from "@/lib/operations";
 import { validSecret } from "@/lib/operator-session";
 import { databaseHealth } from "@/lib/database";
+import { deliverySummary } from "@/delivery/service";
+import { automationSummary } from "@/automations/service";
+import { redemptionSummary } from "@/redemptions/service";
 import { signIn, signOut } from "./actions";
 
 export const metadata: Metadata = { title: "Rendszerállapot", robots: { index: false, follow: false } };
@@ -21,8 +24,15 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
     </AuthShell>
   </Shell>;
 
-  const database = await databaseHealth();
+  const [database, deliveries, automations, redemptions] = await Promise.all([
+    databaseHealth(),
+    deliverySummary(),
+    automationSummary(),
+    redemptionSummary(),
+  ]);
   const checkedAt = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "medium", timeZone: "Europe/Budapest" }).format(new Date());
+  const deliveryTotal = Object.values(deliveries).reduce((sum, value) => sum + value, 0);
+  const couponTotal = Object.values(redemptions).reduce((sum, value) => sum + value, 0);
   return <Shell active="admin">
     <PageHeader
       title="Rendszerállapot"
@@ -33,9 +43,12 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
     <GdsGrid columns={{ base: 1, md: 3 }}>
       <MetricCard label="MongoDB Atlas" value={database.connected ? "Kapcsolódva" : "Nincs kapcsolat"} trend={{ label: database.connected ? "Üzemkész" : "Hiba", tone: database.connected ? "positive" : "negative" }} description="Az adatbázis válasza alapján" icon={<GdsIcon name="Connectivity" decorative />} />
       <MetricCard label="Adatbázis válaszideje" value={database.latencyMs === null ? "Nem elérhető" : `${database.latencyMs} ms`} description="Kapcsolódás és állapotellenőrzés" icon={<GdsIcon name="Time" decorative />} />
+      <MetricCard label="Kézbesítési rekordok" value={String(deliveryTotal)} description={`${deliveries.unsupported ?? 0} nincs szolgáltató · ${deliveries.suppressed ?? 0} letiltott`} icon={<GdsIcon name="Send" decorative />} />
+      <MetricCard label="Aktív automatizmusok" value={String(automations.automations.active ?? 0)} description={`${automations.runs.completed ?? 0} sikeres futás · ${automations.activeLists} aktív lista`} icon={<GdsIcon name="Calendar" decorative />} />
+      <MetricCard label="Kuponok" value={String(couponTotal)} description={`${redemptions.issued ?? 0} kiadva · ${redemptions.redeemed ?? 0} beváltva`} icon={<GdsIcon name="Tag" decorative />} />
       <MetricCard label="Aktív felhasználók" value="Még nincs mérés" description="A jelenlétkövetés a valós idejű funkciókkal érkezik." icon={<GdsIcon name="Users" decorative />} />
     </GdsGrid>
-    <SectionPanel title="Kiadás: 1.2.0" description="GDS 6.7.0, tartós beszélgetések, fokozatos élő frissítés és ajánlati döntések." action={<GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Refresh" decorative />}>Állapot frissítése</GdsButton>}>
+    <SectionPanel title="Kiadás: 1.4.0" description="GDS 6.7.0, tartós kézbesítési napló, automatizált ajánlatlisták, nyomtatható levelek és egyszer használható kuponok." action={<GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Refresh" decorative />}>Állapot frissítése</GdsButton>}>
       <StatusBadge status="success" withIcon>Production</StatusBadge>
     </SectionPanel>
   </Shell>;

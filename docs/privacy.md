@@ -26,7 +26,7 @@ Completing restriction changes the customer record to restricted and withdraws a
 
 ## Delivery gate
 
-Future delivery code must call the server-side marketing eligibility check immediately before creating a delivery. It returns false unless the exact seller and buyer have an active customer record and a subscribed preference for that channel. Queued-delivery cancellation and campaign interaction are completed with issues #12–#14; until then no marketing transport is enabled.
+Delivery code calls the server-side marketing eligibility check immediately before creating a delivery row. It returns false unless the exact seller and buyer have an active customer record and a subscribed preference for that channel. Restriction and erasure workflows cancel queued, processing and retryable delivery work for the buyer. Real external marketing transport remains disabled until issue #20 selects and verifies a provider.
 
 ## API
 

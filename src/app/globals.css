@@ -65,6 +65,26 @@ form {
   overflow-x: auto;
 }
 
+.print-letter {
+  display: grid;
+  gap: var(--mantine-spacing-md);
+  color: var(--gds-vibe-text);
+  max-inline-size: 72ch;
+}
+
+.print-letter table {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+
+.print-letter th,
+.print-letter td {
+  padding: var(--mantine-spacing-xs);
+  border-block-end: 1px solid var(--gds-vibe-border);
+  text-align: start;
+  vertical-align: top;
+}
+
 .skip-link {
   display: block;
   width: fit-content;
@@ -81,5 +101,29 @@ form {
     scroll-behavior: auto;
     transition-duration: var(--gds-motion-duration-instant);
     animation-duration: var(--gds-motion-duration-instant);
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  body :not(.print-letter, .print-letter *) {
+    visibility: hidden;
+  }
+
+  .print-letter,
+  .print-letter * {
+    visibility: visible;
+  }
+
+  .print-letter {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 100%;
+    max-inline-size: none;
+    padding: 24mm;
   }
 }

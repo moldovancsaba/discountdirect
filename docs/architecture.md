@@ -1,4 +1,4 @@
-# Application architecture — 1.3.0
+# Application architecture — 1.4.0
 
 Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. This matches the GDS 6.7.0 Next.js reference consumer while retaining current security patches. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
 
@@ -45,6 +45,8 @@ Release 1.2.0 adds `Offer` and append-only `OfferEvent` records. Sellers can der
 
 Release 1.3.0 adds immutable flash `Campaign` rows, per-offer `CampaignReservation` audit rows and one shared seller/product `CampaignInventoryBalance`. A launch selects the latest eligible preview per currently consented buyer, snapshots product pricing and reasons, and creates one campaign offer per selected buyer in the same transaction. A buyer claim atomically increments the shared balance below current catalog stock, decrements the campaign cap and creates the reservation before accepting the offer. Cancellation releases each outstanding reservation once. Campaigns are an in-app offer and reservation capability only; they do not synchronize external stock or perform delivery, payment or fulfillment.
 
+Release 1.4.0 adds durable `DeliveryOutbox` and `DeliveryEvent` rows for personal offers, flash campaigns, automated lists and printable letters. The outbox records consent suppression and unsupported transport explicitly instead of claiming e-mail or postal delivery. Recurring `OfferAutomation` rows create auditable `OfferAutomationRun` records and buyer-visible `OfferList` snapshots through the same recommendation evidence rules. Accepted offers issue exactly one `RedemptionCoupon`, and seller confirmation changes that code to redeemed in a transaction. Privacy restriction and erasure cancel queued/retryable delivery work.
+
 `GET /api/me` resolves scopes on the server. Seller routes require an active membership for the exact seller slug. Buyer routes require an active relationship for the exact seller slug. Client-supplied roles and seller identifiers never grant access. Cookie-authenticated API mutations compare the request Origin with the effective Vercel host. Login attempts use an Atlas collection, so the five-attempt/15-minute limit applies across function instances.
 
 The account UI supports sign-in, activation, scoped workspace selection and logout. There is no public signup or working email recovery claim. Manual provisioning and recovery are documented in [authentication.md](authentication.md). Administrator MFA and migration away from the emergency operations key remain release gates in issue #4.
@@ -61,4 +63,4 @@ Use pnpm 10.30.3 and the committed lockfile. TypeScript 6.0 and ESLint 9 match t
 
 ## Remaining product work
 
-Public registration, administrator MFA, automated legal-deadline escalation, production-approved realtime enablement, automations, delivery and redemption are not implemented. The existing issues #4–#20 specify those increments. No customer data has been seeded.
+Public registration, administrator MFA, automated legal-deadline escalation, production-approved realtime enablement and real outbound e-mail/inbound replies are not implemented. The existing issue #20 owns external e-mail provider approval. No customer data has been seeded.

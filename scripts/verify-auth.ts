@@ -23,6 +23,9 @@ import { Conversation, ConversationEvent, messagingModels } from "../src/messagi
 import { RealtimeEvent, realtimeModels } from "../src/realtime/models.ts";
 import { Offer, offerModels } from "../src/offers/models.ts";
 import { Campaign, CampaignInventoryBalance, CampaignReservation, campaignModels } from "../src/campaigns/models.ts";
+import { DeliveryOutbox, deliveryModels } from "../src/delivery/models.ts";
+import { OfferAutomation, OfferAutomationRun, OfferList, automationModels } from "../src/automations/models.ts";
+import { RedemptionCoupon, redemptionModels } from "../src/redemptions/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -84,7 +87,7 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels, ...campaignModels])
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels, ...campaignModels, ...deliveryModels, ...automationModels, ...redemptionModels])
     await dataModel.createIndexes();
 
   const password = "Verification password 2026";
@@ -346,7 +349,13 @@ try {
   assert.equal(await Offer.countDocuments({ sellerId: allowedSeller._id }), 1);
   assert.equal((await fetch(`${base}/api/offers`, { headers: { cookie } })).status, 200);
   assert.equal((await post(`/api/offers/${offer.id}/respond`, { expectedVersion: offer.version, decision: "accepted" }, cookie)).status, 200);
+  const issuedCoupon = await RedemptionCoupon.findOne({ offerId: offer.id }).lean();
+  assert.ok(issuedCoupon);
+  assert.match(issuedCoupon.code, /^DD-[A-F0-9]{10}$/);
+  assert.equal((await post("/api/sellers/allowed-seller/redemptions/confirm", { code: issuedCoupon.code }, cookie)).status, 200);
+  assert.equal((await RedemptionCoupon.findById(issuedCoupon._id).lean())?.status, "redeemed");
   assert.equal((await post(`/api/offers/${offer.id}/respond`, { expectedVersion: offer.version, decision: "declined" }, cookie)).status, 409);
+  assert.equal(await DeliveryOutbox.countDocuments({ sellerId: allowedSeller._id, kind: "personal_offer", status: "unsupported" }), 1);
 
   const campaignPath = "/api/sellers/allowed-seller/campaigns/flash";
   const campaignInput = { productId: recommendation.recommendations[0].productId, discountPct: 20, quantity: 1, channel: "email", expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), clientRequestId: "verification-campaign-001" };
@@ -361,6 +370,8 @@ try {
   assert.ok(campaignOffer);
   assert.equal((await post(`/api/offers/${campaignOffer._id}/respond`, { expectedVersion: campaignOffer.version, decision: "accepted" }, cookie)).status, 200);
   assert.equal(await CampaignReservation.countDocuments({ campaignId: campaign.id, status: "reserved" }), 1);
+  assert.equal(await RedemptionCoupon.countDocuments({ offerId: campaignOffer._id, status: "issued" }), 1);
+  assert.equal(await DeliveryOutbox.countDocuments({ sellerId: allowedSeller._id, kind: "flash_campaign", status: "unsupported" }), 1);
   assert.equal((await CampaignInventoryBalance.findOne({ sellerId: allowedSeller._id, productId: campaignInput.productId }).lean())?.reserved, 1);
   assert.equal((await post(`/api/sellers/allowed-seller/campaigns/${campaign.id}/cancel`, {}, cookie)).status, 200);
   assert.equal(await CampaignReservation.countDocuments({ campaignId: campaign.id, status: "released" }), 1);
@@ -411,6 +422,27 @@ try {
   const conversation = (await conversationResponse.json()).conversation;
   assert.equal((await post(conversationsPath, {}, cookie)).status, 201);
   assert.equal(await Conversation.countDocuments({ sellerId: allowedSeller._id, buyerUserId: conversationBuyer._id }), 1);
+  await ChannelPreference.create({ sellerId: allowedSeller._id, buyerUserId: conversationBuyer._id, customerId: conversationCustomer._id, channel: "email", purpose: "marketing", status: "subscribed", noticeVersion: "verification", changedAt: new Date() });
+  const automationPurchasePreview = await post(purchaseImportPath, { schemaVersion: "1", sourceName: "Automation verification", rows: [{ externalBuyerId: "CONVERSATION-CUSTOMER", buyerEmail: conversationBuyer.emailNormalized, buyerName: "Conversation Buyer", orderId: "AUTO-ORDER-1", lineId: "1", productSku: "MISSING-001", productName: "Korábbi termék", purchasedAt: "2026-08-03T10:00:00.000Z", quantity: 1, totalHuf: 2990 }] }, cookie);
+  assert.equal(automationPurchasePreview.status, 201);
+  assert.equal((await post(purchaseImportPath, { action: "apply", batchId: (await automationPurchasePreview.json()).batch._id }, cookie)).status, 200);
+  const automationRecommendationResponse = await post(`/api/sellers/allowed-seller/customers/${conversationCustomer._id}/recommendations`, { channel: "email" }, cookie);
+  assert.equal(automationRecommendationResponse.status, 201);
+  assert.equal((await automationRecommendationResponse.json()).preview.status, "eligible");
+  const automationResponse = await post("/api/sellers/allowed-seller/automations", { customerId: conversationCustomer._id.toString(), channel: "email", cadence: "weekly", productLimit: 3, nextRunAt: new Date(Date.now() - 1000).toISOString(), clientRequestId: "verification-automation-001" }, cookie);
+  assert.equal(automationResponse.status, 201);
+  const automation = (await automationResponse.json()).automation;
+  assert.equal((await post(`/api/sellers/allowed-seller/automations/${automation.id}/run`, {}, cookie)).status, 201);
+  assert.equal(await OfferAutomation.countDocuments({ sellerId: allowedSeller._id }), 1);
+  assert.equal(await OfferAutomationRun.countDocuments({ sellerId: allowedSeller._id, status: "completed" }), 1);
+  assert.equal(await OfferList.countDocuments({ sellerId: allowedSeller._id, buyerUserId: conversationBuyer._id, status: "active" }), 1);
+  assert.equal(await DeliveryOutbox.countDocuments({ sellerId: allowedSeller._id, kind: "automated_list", status: "unsupported" }), 1);
+  const buyerListsApi = await fetch(`${base}/api/buyer/lists`, { headers: { cookie: buyerCookie } });
+  assert.equal(buyerListsApi.status, 200);
+  const buyerLists = (await buyerListsApi.json()).lists;
+  assert.equal(buyerLists.length, 1);
+  assert.equal((await fetch(`${base}/buyer/lists/${buyerLists[0].id}`, { headers: { cookie: buyerCookie } })).status, 200);
+  assert.match(await (await fetch(`${base}/buyer/letters/${buyerLists[0].id}`, { headers: { cookie: buyerCookie } })).text(), /Nyomtatható ajánlatlevél/);
   const messagesPath = `/api/conversations/${conversation.id}/messages`;
   const sent = await post(messagesPath, { clientRequestId: "seller-message-001", body: "Szia, van egy kérdésünk a rendelésedről." }, cookie);
   assert.equal(sent.status, 201);
@@ -488,7 +520,7 @@ try {
     429,
   );
   console.log(
-    "Authentication, catalog, purchase-ledger, privacy, recommendation and conversation integration passed: tenant denial, idempotent imports, consent evidence, request deduplication, export, marketing suppression, reproducible ranking, durable message retries and participant-only timelines.",
+    "Authentication, catalog, purchase-ledger, privacy, recommendation, conversation, delivery, automation and redemption integration passed: tenant denial, idempotent imports, consent evidence, request deduplication, export, marketing suppression, reproducible ranking, durable message retries, participant-only timelines, honest outbox states, buyer lists and single-use coupon redemption.",
   );
 } finally {
   if (mongoose.connection.readyState) {

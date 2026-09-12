@@ -7,6 +7,7 @@ import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { Product } from "@/catalog/models";
 import { ChannelPreference, ConsentEvent } from "@/privacy/models";
 import { PRIVACY_NOTICE_VERSION } from "@/privacy/validation";
+import { cancelBuyerDeliveries } from "@/delivery/service";
 import { Customer, Purchase, PurchaseImportBatch } from "./models";
 import { validatePurchaseInput, type PurchaseInput } from "./validation";
 
@@ -162,6 +163,7 @@ export async function updateCustomerPrivacy(userId: string, sellerSlug: string, 
           await ChannelPreference.updateMany({ sellerId: seller._id, buyerUserId: buyer._id, purpose: "marketing", status: "subscribed" }, { $set: { status: "unsubscribed", noticeVersion: PRIVACY_NOTICE_VERSION, changedAt: now } }, { session });
           await ConsentEvent.create(subscribed.map((row) => ({ sellerId: seller._id, buyerUserId: buyer._id, customerId: customer._id, channel: row.channel, purpose: "marketing", action: "withdrawn", noticeVersion: PRIVACY_NOTICE_VERSION, occurredAt: now, actorUserId: userId })), { session });
         }
+        await cancelBuyerDeliveries(session, seller._id, buyer._id, "CUSTOMER_PRIVACY_RESTRICTED", userId);
       }
     }
     result = { id: customer._id.toString(), privacyStatus: customer.privacyStatus };

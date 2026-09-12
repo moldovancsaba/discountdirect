@@ -10,6 +10,7 @@ import { mayDeliverMarketing } from "@/privacy/service";
 import { RecommendationPreview } from "@/recommendations/models";
 import { recordRealtimeEvent } from "@/realtime/service";
 import { Campaign, CampaignInventoryBalance, CampaignReservation } from "./models";
+import { createDeliveryRecord } from "@/delivery/service";
 
 export class CampaignError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 48 * 60 * 60 * 1000;
@@ -44,6 +45,7 @@ export async function createFlashCampaign(userId: string, sellerSlug: string, in
     const conversations = await Conversation.find({ sellerId: seller._id, buyerUserId: { $in: audience.map((item) => item.buyerUserId) } }).session(session).lean(); const conversationByBuyer = new Map(conversations.map((row: any) => [row.buyerUserId.toString(), row]));
     const offers = audience.map((item) => { const conversation = conversationByBuyer.get(item.buyerUserId.toString()); return { sellerId: seller._id, buyerUserId: item.buyerUserId, customerId: item.customerId, conversationId: conversation?._id ?? null, campaignId, recommendationPreviewId: item.recommendationPreviewId, channel: value.channel, productId: product._id, productSku: product.sku, productName: product.name, productVersion: product.version, reasonCode: item.reasonCode, reasonText: item.reasonText, evidencePurchaseIds: item.evidencePurchaseIds, originalHuf: product.priceHuf, discountPct: value.discountPct, priceHuf, expiresAt: value.expiresAt, clientRequestId: `campaign_${campaignId}_${item.buyerUserId}`, createdByUserId: userId }; });
     const created = await Offer.create(offers, { session }); await OfferEvent.create(created.map((row: any) => ({ offerId: row._id, sellerId: seller._id, type: "created", version: row.version, occurredAt: new Date(), actorUserId: userId })), { session });
+    for (const row of created) await createDeliveryRecord(session, { sellerId: seller._id, buyerUserId: row.buyerUserId, customerId: row.customerId, offerId: row._id, campaignId, kind: "flash_campaign", channel: value.channel, idempotencyKey: `campaign:${campaignId}:${row.buyerUserId}`, contentSnapshot: { productName: row.productName, priceHuf: row.priceHuf, discountPct: row.discountPct, expiresAt: row.expiresAt, campaignId: campaignId.toString() }, createdByUserId: userId });
     for (const conversation of conversations) { const updated = await Conversation.findByIdAndUpdate(conversation._id, { $inc: { pendingOfferCount: 1, version: 1 } }, { new: true, session }); if (updated) await recordRealtimeEvent(session, { sellerId: seller._id, conversationId: updated._id, type: "offer.updated", version: updated.version, occurredAt: new Date() }); }
     result = campaignOutput(campaign.toObject(), created.length);
   }); return result; } catch (error: any) { if (error?.code === 11000) { const existing = await Campaign.findOne({ sellerId: seller._id, createdByUserId: userId, clientRequestId: value.clientRequestId }).lean(); if (existing) return campaignOutput(existing, await Offer.countDocuments({ campaignId: existing._id })); } throw error; }

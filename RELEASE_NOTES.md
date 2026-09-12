@@ -1,5 +1,44 @@
 # Release notes
 
+## 1.4.0 — Delivery automation and redemption
+
+### New features
+
+- Added durable delivery outbox and delivery events for personal offers, flash campaign offers and automated offer lists.
+- Added recurring seller offer-list automations with run ledgers, bounded Vercel cron processing and manual run controls.
+- Added buyer-visible offer lists, printable letter views and linked navigation from buyer workspaces.
+- Added single-use redemption coupons for accepted offers and seller confirmation workflow.
+- Added operations dashboard counters for delivery, automation, active offer lists and redemption states.
+
+### Fixed bugs
+
+- Privacy restriction and erasure now cancel queued/retryable delivery work for the affected buyer instead of only changing preferences.
+- Offer acceptance now creates a stable redemption artifact rather than leaving the accepted decision without a redeemable code.
+
+### Known issues
+
+- Outbox entries remain `TRANSPORT_NOT_CONFIGURED` until an approved e-mail/postal provider is selected and verified in issue #20.
+- Cron requires `CRON_SECRET` in Vercel Production before scheduled automation processing can run.
+- Coupons do not prove payment, external inventory synchronization or fulfillment.
+
+### Future roadmap
+
+Complete external delivery-provider approval, SPF/DKIM/DMARC evidence, signed inbound webhooks, bounce handling and unsubscribe processing in issue #20.
+
+## 1.3.0 — Flash campaigns
+
+### New features
+
+- Added seller-created flash campaigns with immutable product, price, audience, reason and purchase-evidence snapshots.
+- Added campaign-generated personal offers, idempotent campaign creation and consent-checked audience selection.
+- Added atomic DiscountDirect inventory reservations when buyers accept campaign offers.
+- Added campaign cancellation that releases outstanding reservations once.
+
+### Known issues
+
+- Campaigns do not send e-mail or postal messages by themselves.
+- External inventory, payment and fulfillment remain outside this release.
+
 ## 1.2.0 — Immutable offer lifecycle
 
 ### New features

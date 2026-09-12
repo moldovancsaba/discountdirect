@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
 import { Customer, Purchase } from "@/purchases/models";
+import { cancelBuyerDeliveries } from "@/delivery/service";
 import { ChannelPreference, ConsentEvent, PrivacyExport, PrivacyRequest } from "./models";
 import { isAllowedRequestTransition, MARKETING_CHANNELS, PRIVACY_NOTICE_VERSION, validatePreferenceInput, validatePrivacyRequestType, validateResolution } from "./validation";
 
@@ -163,6 +164,7 @@ export async function advancePrivacyRequest(userId: string, sellerSlug: string, 
       if (request.type === "restriction") {
         if (request.customerId) await Customer.updateOne({ _id: request.customerId, sellerId: request.sellerId }, { $set: { privacyStatus: "restricted" } }, { session });
         await withdrawAll(request.sellerId, request.buyerUserId, request.customerId, userId, session);
+        await cancelBuyerDeliveries(session, request.sellerId, request.buyerUserId, "PRIVACY_RESTRICTED", userId);
       }
       if (request.type === "erasure") {
         if (request.customerId) {
@@ -170,6 +172,7 @@ export async function advancePrivacyRequest(userId: string, sellerSlug: string, 
           await Customer.updateOne({ _id: request.customerId, sellerId: request.sellerId }, { $set: { externalBuyerId: anonymousId, emailNormalized: null, displayName: "Törölt vásárló", privacyStatus: "erased", sourceName: "privacy-erasure" } }, { session });
         }
         await withdrawAll(request.sellerId, request.buyerUserId, request.customerId, userId, session);
+        await cancelBuyerDeliveries(session, request.sellerId, request.buyerUserId, "PRIVACY_ERASURE", userId);
         await BuyerRelationship.updateOne({ sellerId: request.sellerId, buyerUserId: request.buyerUserId }, { $set: { status: "revoked" } }, { session });
       }
       request.completedAt = now;
