@@ -5,6 +5,16 @@ const globalDatabase = globalThis as typeof globalThis & {
   discountDirectDatabase?: Cache;
 };
 const cache = (globalDatabase.discountDirectDatabase ??= {});
+const mongoOptions = {
+  dbName: process.env.MONGODB_DB || "discountdirect",
+  maxPoolSize: 5,
+  minPoolSize: 0,
+  serverSelectionTimeoutMS: 5000,
+  connectTimeoutMS: 5000,
+  socketTimeoutMS: 5000,
+  bufferCommands: false,
+  autoIndex: false,
+} as unknown as Parameters<typeof mongoose.connect>[1];
 
 export async function connectDatabaseCore() {
   const uri = process.env.MONGODB_URI;
@@ -13,16 +23,7 @@ export async function connectDatabaseCore() {
   if (mongoose.connection.readyState === 1) return mongoose;
   if (!cache.pending) {
     cache.pending = mongoose
-      .connect(uri, {
-        dbName: process.env.MONGODB_DB || "discountdirect",
-        maxPoolSize: 5,
-        minPoolSize: 0,
-        serverSelectionTimeoutMS: 5000,
-        connectTimeoutMS: 5000,
-        socketTimeoutMS: 5000,
-        bufferCommands: false,
-        autoIndex: false,
-      })
+      .connect(uri, mongoOptions)
       .catch(() => {
         throw new Error("DATABASE_UNAVAILABLE");
       })
