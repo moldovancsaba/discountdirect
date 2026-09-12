@@ -21,7 +21,7 @@ function cursor(value?: string | null) {
   try {
     const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
     if (!parsed || typeof parsed.at !== "string" || !mongoose.isValidObjectId(parsed.id) || Number.isNaN(new Date(parsed.at).getTime())) return null;
-    return { at: new Date(parsed.at), id: new mongoose.Types.ObjectId(parsed.id) };
+    return { at: new Date(parsed.at), id: parsed.id };
   } catch { return null; }
 }
 
@@ -90,6 +90,6 @@ export async function eventPayloadFromChange(change: any) {
 export async function watchRealtimeEvents(onEvent: (event: RealtimeEventPayload) => void) {
   await connectDatabase();
   const stream = RealtimeEvent.watch([], { fullDocument: "updateLookup" });
-  stream.on("change", (change) => { void eventPayloadFromChange(change).then((event) => { if (event) onEvent(event); }); });
+  stream.on("change", (change: unknown) => { void eventPayloadFromChange(change).then((event) => { if (event) onEvent(event); }); });
   return stream;
 }

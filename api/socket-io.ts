@@ -5,7 +5,8 @@ import { conversationSubscription } from "../src/realtime/contracts";
 import { realtimeEnabled, realtimeConversationAccess, removePresence, replayRealtimeEvents, heartbeatPresence, watchRealtimeEvents } from "../src/realtime/service";
 
 const server = createServer();
-const io = new Server(server, { path: "/api/socket-io/socket.io", transports: ["websocket"], allowUpgrades: true });
+const ioOptions = { path: "/api/socket-io/socket.io", transports: ["websocket"], allowUpgrades: true } as ConstructorParameters<typeof Server>[1];
+const io = new Server(server, ioOptions);
 let watching = false;
 
 function cookieValue(header: string | undefined, name: string) {
