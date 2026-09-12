@@ -1,4 +1,4 @@
-# Application architecture — 1.4.0
+# Application architecture — 1.4.1
 
 Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8, TypeScript 6.0.3, Node 24 and Mongoose 9.9.5. This matches the GDS 6.7.0 Next.js reference consumer while retaining current security patches. The existing Vercel project is `narimato/discountdirect` and GitHub main is the release branch.
 
@@ -19,11 +19,11 @@ Use `MONGODB_DB` to select a database, default `discountdirect`. Each future ten
 
 ## Temporary operator access
 
-`OPERATIONS_TOKEN` is a generated, high-entropy, server-only key, minimum 32 characters. Next.js Server Actions handle form origin validation. Token comparison uses fixed-size SHA-256 digests with constant-time comparison. A successful login sets a signed HttpOnly, SameSite=Strict cookie, Secure in production, expiring after one hour. The raw operator key is never stored in the cookie or sent in HTML. Rotating the environment key invalidates all existing sessions. Logout clears this browser's cookie; it does not revoke another copied cookie before expiry. Individual identities, revocable database sessions and role-based access are planned in #4; this operator gate is not buyer/seller authentication. There is no public registration.
+`OPERATIONS_TOKEN` is a generated, high-entropy, server-only break-glass key, minimum 32 characters. Next.js Server Actions handle form origin validation. Token comparison uses fixed-size SHA-256 digests with constant-time comparison. A successful login sets a signed HttpOnly, SameSite=Strict cookie, Secure in production, expiring after one hour. The raw operator key is never stored in the cookie or sent in HTML. Rotating the environment key invalidates existing break-glass sessions. Provisioned operator users and approved DoneIsBetter SSO admins can also access `/admin`; those sessions are Atlas-backed and revocable.
 
 ## Identity access slice
 
-Release 0.3.0 adds Atlas-backed users, sellers, memberships, buyer relationships, activation/recovery tokens, sessions and durable login rate limits. Passwords use versioned Node scrypt parameters and a random salt. Browser sessions store only a random opaque token; Atlas stores its SHA-256 hash. Sessions have a 30-minute idle deadline and a 12-hour absolute deadline. Activation and recovery rotate `authVersion` and revoke all existing sessions in one transaction.
+Release 0.3.0 adds Atlas-backed users, sellers, memberships, buyer relationships, activation/recovery tokens, sessions and durable login rate limits. Passwords use versioned Node scrypt parameters and a random salt. Browser sessions store only a random opaque token; Atlas stores its SHA-256 hash. Sessions have a 30-minute idle deadline and a 12-hour absolute deadline. Activation and recovery rotate `authVersion` and revoke all existing sessions in one transaction. Release 1.4.1 adds audited operator revocation for user sessions, user disable, seller memberships and buyer relationships; revocation increments the affected user's `authVersion` so protected HTTP requests and reconnects fail closed.
 
 Release 0.4.0 adds the same DoneIsBetter OAuth/OIDC integration contract used by the deli.africa sibling project. A signed, HttpOnly, SameSite Lax flow cookie carries the ten-minute state, nonce, PKCE verifier and safe return path. The backend exchanges the authorization code, loads user info and records the client-specific permission state. SSO users are synchronized by stable provider subject, with verified local roles, tenant memberships and buyer relationships remaining authoritative. An approved SSO `admin` role grants the existing operator identity path.
 
@@ -63,4 +63,4 @@ Use pnpm 10.30.3 and the committed lockfile. TypeScript 6.0 and ESLint 9 match t
 
 ## Remaining product work
 
-Public registration, administrator MFA, automated legal-deadline escalation, production-approved realtime enablement and real outbound e-mail/inbound replies are not implemented. The existing issue #20 owns external e-mail provider approval. No customer data has been seeded.
+Public registration, automated legal-deadline escalation, production-approved realtime enablement and real outbound e-mail/inbound replies are not implemented. The existing issue #20 owns external e-mail provider approval. No customer data has been seeded. The break-glass operator token remains documented as a compensating control for outages; normal operator users are individually revocable.

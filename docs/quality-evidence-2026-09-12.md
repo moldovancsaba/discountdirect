@@ -1,6 +1,6 @@
 # Quality evidence — 2026-09-12
 
-Release 1.4.0 was verified against the production alias `https://discountdirect.vercel.app` after rollback and restore.
+Release 1.4.1 was verified against the production alias `https://discountdirect.vercel.app` after rollback, restore and audited access revocation checks.
 
 ## Release checks
 
@@ -20,7 +20,7 @@ Release 1.4.0 was verified against the production alias `https://discountdirect.
 | Sign-in | E-mail/password labels, autocomplete hints and SSO action render on `/sign-in`. | Pass |
 | Operator gate | `/admin` renders only the access form until an operator session exists. | Pass |
 | Protected buyer/seller routes | `/account`, `/buyer/offers`, `/buyer/lists`, `/buyer/redemptions` and `/seller/sample-shop` redirect unauthenticated users to `/sign-in`. | Pass |
-| Liveness | `/api/health/live` returns 200 with service `discountdirect` and version `1.4.0`. | Pass |
+| Liveness | `/api/health/live` returns 200 with service `discountdirect` and version `1.4.1`. | Pass |
 | Readiness | `/api/health/ready` returns 401 without a token and 200 with the operator token. | Pass |
 | Cron | `/api/cron/automations` returns 401 without `CRON_SECRET` and 200 with a bounded result set when authorized. | Pass |
 | Rollback recovery | Vercel rolled back to `dpl_53tW4ENKFk1pjaU3gWA3yg6Bzcsa`, then restored `dpl_C2MwMxdpoZays3KgBqwUpQsBnMS5`; health and readiness passed after restore. | Pass |

@@ -1,5 +1,23 @@
 # Release notes
 
+## 1.4.1 — Access revocation and operations gates
+
+### New features
+
+- Added audited operator controls for revoking user sessions, disabling users, revoking seller memberships and revoking buyer relationships.
+- Added Atlas-backed `AuthAuditEvent` records with operator identity, target and written reason.
+- Added access overview tables to the General Dashboard for users, memberships, buyer relationships and recent revocation events.
+
+### Fixed bugs
+
+- Revocation now increments the affected user's `authVersion`, so protected HTTP requests and reconnects fail closed.
+- User disable now revokes open sessions and unconsumed activation/recovery tokens in the same transaction.
+
+### Known issues
+
+- The break-glass `OPERATIONS_TOKEN` remains available as an outage fallback and readiness-probe credential.
+- Realtime transport remains disabled until issue #10 completes the production WebSocket disconnect probe.
+
 ## 1.4.0 — Delivery automation and redemption
 
 ### New features

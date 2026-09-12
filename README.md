@@ -1,6 +1,6 @@
 # DiscountDirect
 
-Personalized offers and seller–buyer relationships. Delivery automation release **1.4.0**.
+Personalized offers and seller–buyer relationships. Access revocation release **1.4.1**.
 
 - [Application](https://discountdirect.vercel.app)
 - [General Dashboard](https://discountdirect.vercel.app/admin) — requires the operator key from `.env.local`

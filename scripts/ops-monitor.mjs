@@ -34,7 +34,7 @@ const findings = [];
 const live = await readJson("/api/health/live");
 assert.equal(live.response.status, 200, "liveness must return HTTP 200");
 assert.equal(live.body.status, "ok", "liveness status must be ok");
-assert.equal(live.body.version, "1.4.0", "liveness version must match release 1.4.0");
+assert.equal(live.body.version, "1.4.1", "liveness version must match release 1.4.1");
 findings.push({ check: "live", status: "ok", latencyMs: live.latencyMs, version: live.body.version });
 
 const readyDenied = await readJson("/api/health/ready");

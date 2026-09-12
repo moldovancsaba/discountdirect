@@ -55,7 +55,7 @@ APP_URL=https://discountdirect.vercel.app pnpm auth:provision -- --email person@
 
 Recovery refuses missing/inactive accounts, revokes any prior unconsumed recovery link and revokes current sessions. Successful activation/recovery increments the user's authorization version and revokes any remaining sessions again.
 
-To revoke access, set the user, membership or buyer relationship to `disabled`/`revoked` in an audited operator procedure and increment the user's `authVersion`; then revoke that user's open sessions. A purpose-built operator UI and audit record are still required by issue #4 before full production account rollout.
+Operators can revoke access from `/admin`. The revocation controls require a written reason and record an `AuthAuditEvent`. User session revocation increments the user's `authVersion` and marks open sessions revoked. User disable also revokes unconsumed activation/recovery tokens. Seller membership and buyer relationship revocation mark the relationship revoked, increment the affected user's `authVersion` and revoke open sessions.
 
 ## Security boundaries and limitations
 
@@ -64,8 +64,8 @@ To revoke access, set the user, membership or buyer relationship to `disabled`/`
 - Session cookies are HttpOnly, SameSite Strict, Secure in Production and scoped to `/`.
 - Seller and buyer pages query memberships/relationships server-side on every request.
 - Password recovery does not send email. The operator must never claim automatic delivery.
-- Operator MFA, audit UI, session-disconnect notifications and the removal of the emergency shared operations key remain open gates. Do not provision production users until those gates and the privacy gate are approved.
+- The independent `OPERATIONS_TOKEN` remains as a break-glass operator path for database outage diagnosis and readiness probes. Day-to-day operator access should use a provisioned operator account or approved DoneIsBetter SSO admin. Because realtime remains disabled in production, revocation takes effect on the next HTTP request or reconnect; issue #10 owns the production WebSocket disconnect probe before realtime is enabled.
 
 ## Verification
 
-After `pnpm build`, run `pnpm test:auth-integration`. It creates a randomly named `discountdirect_auth_verify_*` database, verifies login, logout/revocation, activation replay rejection, durable rate limiting and cross-tenant denial, and removes its temporary collections. It never writes to the configured production database name.
+After `pnpm build`, run `pnpm test:auth-integration`. It creates a randomly named `discountdirect_auth_verify_*` database, verifies login, audited revocation, logout, activation replay rejection, durable rate limiting and cross-tenant denial, and removes its temporary collections. It never writes to the configured production database name.

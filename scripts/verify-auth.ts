@@ -4,12 +4,15 @@ import { randomBytes } from "node:crypto";
 import mongoose from "mongoose";
 import {
   AccessToken,
+  AuthAuditEvent,
   BuyerRelationship,
   Membership,
   Seller,
+  Session,
   User,
   authModels,
 } from "../src/auth/models.ts";
+import { disableUserByOperator, revokeBuyerRelationshipByOperator, revokeMembershipByOperator, revokeUserSessionsByOperator } from "../src/auth/admin-access.ts";
 import {
   createOpaqueToken,
   hashOpaqueToken,
@@ -149,6 +152,57 @@ try {
       ).status,
     ),
   );
+
+  const actor = { actorKind: "operator_token" as const, actorUserId: null, actorLabel: "verification-operator" };
+  const revocationUser = await User.create({
+    emailNormalized: "revocation.verify@example.test",
+    displayName: "Revocation User",
+    passwordHash: await hashPassword(password),
+    status: "active",
+  });
+  const revocationSessionToken = createOpaqueToken();
+  await Session.create({ tokenHash: hashOpaqueToken(revocationSessionToken), userId: revocationUser._id, authVersion: revocationUser.authVersion, lastSeenAt: new Date(), idleExpiresAt: new Date(Date.now() + 60_000), absoluteExpiresAt: new Date(Date.now() + 120_000), userAgentHash: "verification-agent" });
+  await revokeUserSessionsByOperator(actor, revocationUser._id.toString(), "Verification session revocation");
+  assert.equal((await User.findById(revocationUser._id).lean())?.authVersion, revocationUser.authVersion + 1);
+  assert.ok((await Session.findOne({ userId: revocationUser._id }).lean())?.revokedAt);
+  assert.equal(await AuthAuditEvent.countDocuments({ targetUserId: revocationUser._id, action: "user_sessions_revoked" }), 1);
+
+  const disabledUser = await User.create({
+    emailNormalized: "disabled.verify@example.test",
+    displayName: "Disabled User",
+    passwordHash: await hashPassword(password),
+    status: "active",
+  });
+  const disabledToken = createOpaqueToken();
+  await AccessToken.create({ tokenHash: hashOpaqueToken(disabledToken), userId: disabledUser._id, purpose: "recovery", expiresAt: new Date(Date.now() + 60_000), createdBy: "verification" });
+  await disableUserByOperator(actor, disabledUser._id.toString(), "Verification user disable");
+  assert.equal((await User.findById(disabledUser._id).lean())?.status, "disabled");
+  assert.ok((await AccessToken.findOne({ userId: disabledUser._id }).lean())?.revokedAt);
+  assert.equal(await AuthAuditEvent.countDocuments({ targetUserId: disabledUser._id, action: "user_disabled" }), 1);
+
+  const membershipUser = await User.create({
+    emailNormalized: "membership.verify@example.test",
+    displayName: "Membership User",
+    passwordHash: await hashPassword(password),
+    status: "active",
+  });
+  const membership = await Membership.create({ sellerId: allowedSeller._id, userId: membershipUser._id, role: "staff", status: "active" });
+  await Session.create({ tokenHash: hashOpaqueToken(createOpaqueToken()), userId: membershipUser._id, authVersion: membershipUser.authVersion, lastSeenAt: new Date(), idleExpiresAt: new Date(Date.now() + 60_000), absoluteExpiresAt: new Date(Date.now() + 120_000), userAgentHash: "verification-agent" });
+  await revokeMembershipByOperator(actor, membership._id.toString(), "Verification membership revocation");
+  assert.equal((await Membership.findById(membership._id).lean())?.status, "revoked");
+  assert.ok((await Session.findOne({ userId: membershipUser._id }).lean())?.revokedAt);
+  assert.equal(await AuthAuditEvent.countDocuments({ targetMembershipId: membership._id, action: "membership_revoked" }), 1);
+
+  const relationshipUser = await User.create({
+    emailNormalized: "relationship.verify@example.test",
+    displayName: "Relationship User",
+    passwordHash: await hashPassword(password),
+    status: "active",
+  });
+  const relationship = await BuyerRelationship.create({ sellerId: allowedSeller._id, buyerUserId: relationshipUser._id, status: "active" });
+  await revokeBuyerRelationshipByOperator(actor, relationship._id.toString(), "Verification relationship revocation");
+  assert.equal((await BuyerRelationship.findById(relationship._id).lean())?.status, "revoked");
+  assert.equal(await AuthAuditEvent.countDocuments({ targetBuyerRelationshipId: relationship._id, action: "buyer_relationship_revoked" }), 1);
 
   const productPath = "/api/sellers/allowed-seller/products";
   const productInput = {
@@ -520,7 +574,7 @@ try {
     429,
   );
   console.log(
-    "Authentication, catalog, purchase-ledger, privacy, recommendation, conversation, delivery, automation and redemption integration passed: tenant denial, idempotent imports, consent evidence, request deduplication, export, marketing suppression, reproducible ranking, durable message retries, participant-only timelines, honest outbox states, buyer lists and single-use coupon redemption.",
+    "Authentication, catalog, purchase-ledger, privacy, recommendation, conversation, delivery, automation and redemption integration passed: tenant denial, audited access revocation, idempotent imports, consent evidence, request deduplication, export, marketing suppression, reproducible ranking, durable message retries, participant-only timelines, honest outbox states, buyer lists and single-use coupon redemption.",
   );
 } finally {
   if (mongoose.connection.readyState) {

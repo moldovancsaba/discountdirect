@@ -116,6 +116,27 @@ const loginRateLimitSchema = new Schema(
 );
 loginRateLimitSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+const authAuditEventSchema = new Schema(
+  {
+    actorKind: { type: String, enum: ["operator_user", "operator_token", "system"], required: true, index: true },
+    actorUserId: { type: Schema.Types.ObjectId, default: null, ref: "User", index: true },
+    actorLabel: { type: String, required: true, maxlength: 160 },
+    action: {
+      type: String,
+      enum: ["user_sessions_revoked", "user_disabled", "membership_revoked", "buyer_relationship_revoked"],
+      required: true,
+      index: true,
+    },
+    targetUserId: { type: Schema.Types.ObjectId, default: null, ref: "User", index: true },
+    targetMembershipId: { type: Schema.Types.ObjectId, default: null, ref: "Membership", index: true },
+    targetBuyerRelationshipId: { type: Schema.Types.ObjectId, default: null, ref: "BuyerRelationship", index: true },
+    reason: { type: String, required: true, maxlength: 240 },
+    occurredAt: { type: Date, required: true, default: Date.now, index: true },
+  },
+  { timestamps: { createdAt: true, updatedAt: false }, versionKey: false, collection: "auth_audit_events" },
+);
+authAuditEventSchema.index({ occurredAt: -1, _id: -1 });
+
 export type UserRecord = InferSchemaType<typeof userSchema>;
 export const User = models.User || model("User", userSchema);
 export const Seller = models.Seller || model("Seller", sellerSchema);
@@ -129,6 +150,8 @@ export const AccessToken =
   models.AccessToken || model("AccessToken", accessTokenSchema);
 export const LoginRateLimit =
   models.LoginRateLimit || model("LoginRateLimit", loginRateLimitSchema);
+export const AuthAuditEvent =
+  models.AuthAuditEvent || model("AuthAuditEvent", authAuditEventSchema);
 
 export const authModels = [
   User,
@@ -138,4 +161,5 @@ export const authModels = [
   Session,
   AccessToken,
   LoginRateLimit,
+  AuthAuditEvent,
 ];

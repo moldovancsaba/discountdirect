@@ -67,8 +67,8 @@ checks.push("protected buyer/seller/account routes redirect unauthenticated user
   assert.equal(response.status, 200);
   assert.equal(body.status, "ok");
   assert.equal(body.service, "discountdirect");
-  assert.equal(body.version, "1.4.0");
-  checks.push("public liveness reports release 1.4.0");
+  assert.equal(body.version, "1.4.1");
+  checks.push("public liveness reports release 1.4.1");
 }
 
 {

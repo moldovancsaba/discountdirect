@@ -38,7 +38,7 @@ export function Shell({ children, active = "home" }: { children: React.ReactNode
           component="a"
           href="https://github.com/moldovancsaba/discountdirect/issues"
           label="Fejlesztési terv"
-          description="1.4.0 · GDS"
+          description="1.4.1 · GDS"
           icon={<GdsIcon name="Launch" decorative />}
         />
       </SidebarNavSection>
@@ -60,7 +60,7 @@ export function Shell({ children, active = "home" }: { children: React.ReactNode
         </GdsCluster>
       }
       sidebar={nav}
-      footer={<span className="gds-release">Mint circuit · 1.4.0</span>}
+      footer={<span className="gds-release">Mint circuit · 1.4.1</span>}
       mobileNavigationLabel="Navigáció megnyitása"
       desktopNavigationLabel="Oldalsáv váltása"
       sidebarStorageKey="discountdirect-sidebar"

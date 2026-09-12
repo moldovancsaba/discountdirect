@@ -1,6 +1,6 @@
 # Operations alerts
 
-Release 1.4.0 uses the General Dashboard, Vercel deployment state and a Codex heartbeat monitor for production health. Alerts must never include secrets, buyer content, raw e-mail addresses, activation links or request bodies.
+Release 1.4.1 uses the General Dashboard, Vercel deployment state and a Codex heartbeat monitor for production health. Alerts must never include secrets, buyer content, raw e-mail addresses, activation links or request bodies.
 
 Active Codex heartbeat: `discountdirect-production-health-monitor`. It runs every 30 minutes and stays quiet while checks remain healthy.
 
@@ -26,7 +26,7 @@ The command checks production liveness, unauthorized readiness, authorized readi
 
 | Signal | Alert when | Recovery |
 | --- | --- | --- |
-| Liveness | `/api/health/live` is not HTTP 200, status is not `ok`, or version is not `1.4.0`. | Inspect the current Vercel deployment. If the latest deployment is faulty, roll back to the latest verified Ready deployment and open a GitHub issue with the deployment ID. |
+| Liveness | `/api/health/live` is not HTTP 200, status is not `ok`, or version is not `1.4.1`. | Inspect the current Vercel deployment. If the latest deployment is faulty, roll back to the latest verified Ready deployment and open a GitHub issue with the deployment ID. |
 | Readiness authorization | `/api/health/ready` without a token is not HTTP 401. | Treat as an access-control regression. Roll back if production behavior changed, then inspect `src/app/api/health/ready/route.ts`. |
 | Database readiness | Authenticated `/api/health/ready` is not HTTP 200 or `database.connected` is false. | Check Vercel `MONGODB_URI`, Atlas user/database/network posture, then rerun `pnpm db:check`. Do not print the URI. |
 | Cron authorization | `/api/cron/automations` without a token is not HTTP 401. | Treat as an access-control regression and roll back if production behavior changed. |
