@@ -6,11 +6,29 @@ import { conversationSubscription } from "../src/realtime/contracts.ts";
 import { realtimeEnabled, realtimeConversationAccess, removePresence, replayRealtimeEvents, heartbeatPresence, watchRealtimeEvents } from "../src/realtime/service.ts";
 
 const server = createServer();
-const ioOptions = { path: "/api/socket-io", transports: ["websocket"], allowUpgrades: true } as ConstructorParameters<typeof Server>[1];
+const ioOptions = { path: "/socket.io", transports: ["websocket"], allowUpgrades: true, addTrailingSlash: false } as ConstructorParameters<typeof Server>[1];
 const io = new Server(server, ioOptions);
 const instanceId = randomUUID();
 const deploymentId = process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_URL ?? "local";
 let watching = false;
+
+function normalizeSocketPath(request: { url?: string }) {
+  if (!request.url) return;
+  if (request.url.startsWith("/api/socket-io/socket.io")) {
+    request.url = request.url.replace("/api/socket-io/socket.io", "/socket.io");
+    return;
+  }
+  if (request.url.startsWith("/api/socket-io")) {
+    request.url = request.url.replace("/api/socket-io", "/socket.io");
+    return;
+  }
+  if (request.url === "/" || request.url.startsWith("/?")) {
+    request.url = `/socket.io${request.url.slice(1)}`;
+  }
+}
+
+server.prependListener("request", normalizeSocketPath);
+server.prependListener("upgrade", normalizeSocketPath);
 
 function instanceMeta() {
   return {
@@ -39,10 +57,14 @@ async function beginFanout() {
 
 io.use(async (socket, next) => {
   if (!realtimeEnabled()) return next(new Error("REALTIME_DISABLED"));
-  const user = await resolveSessionToken(cookieValue(socket.request.headers.cookie, USER_SESSION_COOKIE));
+  const user = await resolveSessionToken(cookieValue(socket.request.headers.cookie, USER_SESSION_COOKIE)).catch(() => null);
   if (!user) return next(new Error("UNAUTHORIZED"));
   socket.data.user = user;
   next();
+});
+
+io.engine.on("connection_error", (error) => {
+  console.warn("realtime connection error", { code: error.code, message: error.message });
 });
 
 io.on("connection", (socket) => {
