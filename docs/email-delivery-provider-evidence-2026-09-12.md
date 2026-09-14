@@ -4,7 +4,7 @@
 
 Decision: select Resend as the first approved e-mail adapter path, but keep production sending disabled until sender-domain DNS, webhook configuration and staged-recipient controls are installed in the connected Vercel project.
 
-Current production state: production sending is still disabled. On 2026-09-14, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_FROM` and `RESEND_REPLY_DOMAIN` were added to the connected Vercel Production environment, using `direct.haho.ai` as the Resend sender/reply subdomain and `DiscountDirect <offers@direct.haho.ai>` as the sender identity. `EMAIL_DELIVERY_PROVIDER`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET` and `EMAIL_STAGED_RECIPIENTS` are intentionally not configured yet, so the adapter remains off and no live outbound message can be sent.
+Current production state: production sending is still disabled. On 2026-09-14, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_FROM`, `RESEND_REPLY_DOMAIN` and `EMAIL_STAGED_RECIPIENTS` were added to the connected Vercel Production environment, using `direct.haho.ai` as the Resend sender/reply subdomain and `DiscountDirect <offers@direct.haho.ai>` as the sender identity. `EMAIL_DELIVERY_PROVIDER`, `RESEND_API_KEY` and `RESEND_WEBHOOK_SECRET` are intentionally not configured yet, so the adapter remains off and no live outbound message can be sent.
 
 DNS check on 2026-09-14: public `MX` and `TXT` lookups for `direct.haho.ai` and `_dmarc.direct.haho.ai` returned no records from the local resolver. Treat sender-domain verification, receiving DNS and DMARC evidence as incomplete until Resend shows the domain verified and the public records resolve.
 
@@ -62,7 +62,7 @@ Set values only in approved secret stores:
 
 - `EMAIL_DELIVERY_PROVIDER=resend` (not set until activation)
 - `EMAIL_PUBLIC_BASE_URL=https://discountdirect.vercel.app` (Production configured 2026-09-14)
-- `EMAIL_STAGED_RECIPIENTS`
+- `EMAIL_STAGED_RECIPIENTS` (Production configured 2026-09-14; value kept in Vercel only)
 - `EMAIL_UNSUBSCRIBE_SECRET` (Production configured 2026-09-14)
 - `RESEND_API_KEY`
 - `RESEND_FROM=DiscountDirect <offers@direct.haho.ai>` (Production configured 2026-09-14)
