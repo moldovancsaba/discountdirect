@@ -4,13 +4,18 @@
 
 Decision: select Resend as the first approved e-mail adapter path, but keep production sending disabled until sender-domain DNS, webhook configuration and staged-recipient controls are installed in the connected Vercel project.
 
-Current production state: no `RESEND_*`, `EMAIL_*`, `MAIL*`, `POSTMARK*`, `MAILGUN*`, `SES*`, `SMTP*` or `WEBHOOK*` provider variables were listed by the production Vercel environment filter on 2026-09-12. Therefore issue #20 is not closable yet: no real outbound message, bounce/complaint callback or live inbound round trip has been verified against production.
+Current production state: production sending is still disabled. On 2026-09-14, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_FROM` and `RESEND_REPLY_DOMAIN` were added to the connected Vercel Production environment, using `direct.haho.ai` as the Resend sender/reply subdomain and `DiscountDirect <offers@direct.haho.ai>` as the sender identity. `EMAIL_DELIVERY_PROVIDER`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET` and `EMAIL_STAGED_RECIPIENTS` are intentionally not configured yet, so the adapter remains off and no live outbound message can be sent.
+
+DNS check on 2026-09-14: public `MX` and `TXT` lookups for `direct.haho.ai` and `_dmarc.direct.haho.ai` returned no records from the local resolver. Treat sender-domain verification, receiving DNS and DMARC evidence as incomplete until Resend shows the domain verified and the public records resolve.
+
+Therefore issue #20 is not closable yet: no real outbound message, bounce/complaint callback or live inbound round trip has been verified against production.
 
 Source commits:
 
 - `b639d6e` (`feat: add provider-gated email delivery`).
 - `e431fa2` (`docs: record email delivery preview evidence`).
 - `531bb96` (`test: add email delivery integration probe`).
+- `b97ffb0` (`chore: ignore macos metadata files`) was the current main commit when the first safe Vercel production mailing variables were added on 2026-09-14.
 
 Latest Preview deployment: `dpl_6qPvP2Hg94tWm9FWGPuEFChYy25p`, Ready at `https://discountdirect-imdh7tygm-narimato.vercel.app`, target `preview`.
 
@@ -55,13 +60,13 @@ Official Resend documentation reviewed:
 
 Set values only in approved secret stores:
 
-- `EMAIL_DELIVERY_PROVIDER=resend`
-- `EMAIL_PUBLIC_BASE_URL=https://discountdirect.vercel.app`
+- `EMAIL_DELIVERY_PROVIDER=resend` (not set until activation)
+- `EMAIL_PUBLIC_BASE_URL=https://discountdirect.vercel.app` (Production configured 2026-09-14)
 - `EMAIL_STAGED_RECIPIENTS`
-- `EMAIL_UNSUBSCRIBE_SECRET`
+- `EMAIL_UNSUBSCRIBE_SECRET` (Production configured 2026-09-14)
 - `RESEND_API_KEY`
-- `RESEND_FROM`
-- `RESEND_REPLY_DOMAIN`
+- `RESEND_FROM=DiscountDirect <offers@direct.haho.ai>` (Production configured 2026-09-14)
+- `RESEND_REPLY_DOMAIN=direct.haho.ai` (Production configured 2026-09-14)
 - `RESEND_WEBHOOK_SECRET`
 
 `RESEND_API_BASE_URL` is present only for isolated local verification against a fake Resend endpoint. Leave it unset in Preview and Production so the adapter uses Resend's official API.
