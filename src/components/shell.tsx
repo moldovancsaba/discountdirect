@@ -13,12 +13,15 @@ import {
 
 const navigation = [
   { href: "/", label: "Áttekintés", icon: "Home", key: "home" },
+  { href: "/experience", label: "Eredeti élmény", icon: "Connectivity", key: "experience" },
   { href: "/admin", label: "Rendszerállapot", icon: "Analytics", key: "admin" },
   { href: "/account", label: "Saját munkatér", icon: "Profile", key: "account" },
   { href: "/sign-in", label: "Bejelentkezés", icon: "Login", key: "sign-in" },
 ] as const;
 
-export function Shell({ children, active = "home" }: { children: React.ReactNode; active?: "home" | "admin" | "account" | "sign-in" }) {
+type NavigationKey = (typeof navigation)[number]["key"];
+
+export function Shell({ children, active = "home" }: { children: React.ReactNode; active?: NavigationKey }) {
   const nav = (
     <SidebarNav ariaLabel="Fő navigáció">
       <SidebarNavSection label="Munkaterület">

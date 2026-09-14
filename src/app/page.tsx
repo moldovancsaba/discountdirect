@@ -14,8 +14,8 @@ export default function Home() {
       <EditorialHero
         eyebrow="Az első lépés"
         title="Stabil alapok. Személyesebb kereskedelem."
-        description="A termékkatalógus, a vásárlói főkönyv, a hozzájárulás-kezelés és a bizonyíték-alapú ajánlási előnézet már működik."
-        actions={[{ label: "Bejelentkezés", href: "/sign-in", variant: "primary" }]}
+        description="A termékkatalógus, a vásárlói főkönyv, a hozzájárulás-kezelés és a bizonyíték-alapú ajánlási előnézet mellé most elérhető az eredeti beszélgetés-alapú termékélmény is."
+        actions={[{ label: "Eredeti élmény megnyitása", href: "/experience", variant: "primary" }, { label: "Bejelentkezés", href: "/sign-in", variant: "secondary" }]}
         meta={[{ id: "theme", label: "GDS 6.7.0 · Mint circuit", icon: <GdsIcon name="Theme" decorative /> }]}
         media={<GdsIcon name="Connectivity" size="xl" decorative />}
         mediaAlt="Kapcsolatok és ajánlatok összekapcsolása"
