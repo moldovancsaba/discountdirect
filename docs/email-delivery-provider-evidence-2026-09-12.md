@@ -4,11 +4,11 @@
 
 Decision: select Resend as the first approved e-mail adapter path, but keep production sending disabled until sender-domain DNS, webhook configuration and staged-recipient controls are installed in the connected Vercel project.
 
-Current production state: production sending is still disabled. On 2026-09-14, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_FROM`, `RESEND_REPLY_DOMAIN` and `EMAIL_STAGED_RECIPIENTS` were added to the connected Vercel Production environment, using `direct.haho.ai` as the Resend sender/reply subdomain and `DiscountDirect <offers@direct.haho.ai>` as the sender identity. `EMAIL_DELIVERY_PROVIDER`, `RESEND_API_KEY` and `RESEND_WEBHOOK_SECRET` are intentionally not configured yet, so the adapter remains off and no live outbound message can be sent.
+Current production state: production e-mail delivery is enabled for the staged recipient only. On 2026-09-14, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_FROM`, `RESEND_REPLY_DOMAIN`, `EMAIL_STAGED_RECIPIENTS`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET` and `EMAIL_DELIVERY_PROVIDER=resend` were configured in the connected Vercel Production environment, using `direct.haho.ai` as the Resend sender/reply subdomain and `DiscountDirect <offers@direct.haho.ai>` as the sender identity. The staged recipient value and provider secrets remain in Vercel only.
 
-DNS check on 2026-09-14: public `MX` and `TXT` lookups for `direct.haho.ai` and `_dmarc.direct.haho.ai` returned no records from the local resolver. Treat sender-domain verification, receiving DNS and DMARC evidence as incomplete until Resend shows the domain verified and the public records resolve.
+DNS/provider check on 2026-09-14: local public `MX` and `TXT` lookups for `direct.haho.ai` and `_dmarc.direct.haho.ai` returned no records from the local resolver, but the Resend API reported `direct.haho.ai` as `verified` in region `eu-west-1`.
 
-Therefore issue #20 is not closable yet: no real outbound message, bounce/complaint callback or live inbound round trip has been verified against production.
+Therefore issue #20 is not closable yet: the first live staged outbound message has been accepted by Resend, but a live inbound reply, bounce/complaint callback and final production evidence note still need to be completed before closure.
 
 Source commits:
 
@@ -16,6 +16,7 @@ Source commits:
 - `e431fa2` (`docs: record email delivery preview evidence`).
 - `531bb96` (`test: add email delivery integration probe`).
 - `b97ffb0` (`chore: ignore macos metadata files`) was the current main commit when the first safe Vercel production mailing variables were added on 2026-09-14.
+- `7ac724f` (`docs: record staged email recipient setup`) was the current main commit when the staged production send was accepted by Resend on 2026-09-14.
 
 Latest Preview deployment: `dpl_6qPvP2Hg94tWm9FWGPuEFChYy25p`, Ready at `https://discountdirect-imdh7tygm-narimato.vercel.app`, target `preview`.
 
@@ -30,6 +31,9 @@ Verification run:
 - `pnpm db:restore-drill`: passed using disposable `dd_restore_d48f146aff`; synthetic probe data was removed.
 - `git diff --check`: passed.
 - `SMOKE_BASE_URL=https://discountdirect-kikhp5net-narimato.vercel.app pnpm test:quality-release`: blocked by Vercel Preview protection before app HTML was returned.
+- `pnpm ops:monitor`: passed after the Resend provider values were configured.
+- `pnpm test:quality-release`: passed against `https://discountdirect.vercel.app` after the Resend provider values were configured.
+- Live staged production delivery `6aa7d0ed8a6ea3358ab58e04`: production cron processed one queued delivery, Resend accepted the send with provider message ID `35e0305a-57ef-4743-b411-c87798b6a9a1`, and the outbox row moved to `sent` with `RESEND_ACCEPTED` at `2026-09-14T10:48:15.242Z`.
 
 ## Provider fit
 
@@ -60,14 +64,14 @@ Official Resend documentation reviewed:
 
 Set values only in approved secret stores:
 
-- `EMAIL_DELIVERY_PROVIDER=resend` (not set until activation)
+- `EMAIL_DELIVERY_PROVIDER=resend` (Production configured 2026-09-14)
 - `EMAIL_PUBLIC_BASE_URL=https://discountdirect.vercel.app` (Production configured 2026-09-14)
 - `EMAIL_STAGED_RECIPIENTS` (Production configured 2026-09-14; value kept in Vercel only)
 - `EMAIL_UNSUBSCRIBE_SECRET` (Production configured 2026-09-14)
-- `RESEND_API_KEY`
+- `RESEND_API_KEY` (Production configured 2026-09-14; value kept in Vercel only)
 - `RESEND_FROM=DiscountDirect <offers@direct.haho.ai>` (Production configured 2026-09-14)
 - `RESEND_REPLY_DOMAIN=direct.haho.ai` (Production configured 2026-09-14)
-- `RESEND_WEBHOOK_SECRET`
+- `RESEND_WEBHOOK_SECRET` (Production configured 2026-09-14; value kept in Vercel only)
 
 `RESEND_API_BASE_URL` is present only for isolated local verification against a fake Resend endpoint. Leave it unset in Preview and Production so the adapter uses Resend's official API.
 
