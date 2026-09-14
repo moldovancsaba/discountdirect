@@ -6,9 +6,9 @@ Decision: select Resend as the first approved e-mail adapter path, but keep prod
 
 Current production state: production e-mail delivery is enabled for the staged recipient only. On 2026-09-14, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_FROM`, `RESEND_REPLY_DOMAIN`, `EMAIL_STAGED_RECIPIENTS`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET` and `EMAIL_DELIVERY_PROVIDER=resend` were configured in the connected Vercel Production environment, using `direct.haho.ai` as the Resend sender/reply subdomain and `DiscountDirect <offers@direct.haho.ai>` as the sender identity. The staged recipient value and provider secrets remain in Vercel only.
 
-DNS/provider check on 2026-09-14: local public `MX` and `TXT` lookups for `direct.haho.ai` and `_dmarc.direct.haho.ai` returned no records from the local resolver, but the Resend API reported `direct.haho.ai` as `verified` in region `eu-west-1`.
+DNS/provider check on 2026-09-14: the Resend API reported `direct.haho.ai` as `verified` in region `eu-west-1`, with domain capabilities `sending=enabled` and `receiving=disabled`. Public DNS shows the Resend sending DKIM/SPF records, but no inbound `MX` record for `direct.haho.ai` and no DMARC record at `_dmarc.direct.haho.ai`.
 
-Therefore issue #20 is not closable yet: the first live staged outbound message has been accepted by Resend, but a live inbound reply, bounce/complaint callback and final production evidence note still need to be completed before closure.
+Therefore issue #20 is not closable yet: the first live staged outbound message has been accepted by Resend, but a live inbound reply, bounce/complaint callback and final production evidence note still need to be completed before closure. The first staged-recipient reply attempt did not create a `DeliveryWebhookEvent` or buyer `ConversationEvent` because receiving is still disabled for the domain.
 
 Source commits:
 
@@ -34,6 +34,7 @@ Verification run:
 - `pnpm ops:monitor`: passed after the Resend provider values were configured.
 - `pnpm test:quality-release`: passed against `https://discountdirect.vercel.app` after the Resend provider values were configured.
 - Live staged production delivery `6aa7d0ed8a6ea3358ab58e04`: production cron processed one queued delivery, Resend accepted the send with provider message ID `35e0305a-57ef-4743-b411-c87798b6a9a1`, and the outbox row moved to `sent` with `RESEND_ACCEPTED` at `2026-09-14T10:48:15.242Z`.
+- Inbound check after the staged recipient replied: no `email.received` webhook row and no buyer conversation message were present. Resend domain details showed receiving disabled, and `/events` returned no recent provider event sample.
 
 ## Provider fit
 
@@ -86,7 +87,7 @@ Set values only in approved secret stores:
 5. Store the variables above in Vercel Preview first; keep `EMAIL_STAGED_RECIPIENTS` limited to synthetic recipients.
 6. Run `pnpm check` and `pnpm test:email-integration` locally before deploying; the latter uses a disposable database and local fake Resend endpoint.
 7. Deploy an exact-commit Preview, create a synthetic buyer with active consent, enqueue one personal offer, run the authorized delivery cron and verify a Resend-accepted provider message ID.
-8. Send a controlled reply to `reply+{deliveryId}@{RESEND_REPLY_DOMAIN}` and verify one buyer `ConversationEvent` appears in the correct conversation.
+8. Enable receiving for `direct.haho.ai` in Resend, publish the receiving `MX` record shown by Resend, confirm receiving is verified, then send a controlled reply to `reply+{deliveryId}@{RESEND_REPLY_DOMAIN}` and verify one buyer `ConversationEvent` appears in the correct conversation.
 9. Trigger Resend bounce/complaint test events or approved test recipients and verify future outbox rows become `suppressed`.
 10. Repeat the same evidence in Production only after the owner approves sender reputation rollout and staged-recipient expansion.
 
