@@ -22,6 +22,8 @@
 
 > Implementation update, 2026-09-09: offer release 1.2.0 adds seller-created immutable recommendation snapshots, server-calculated HUF discounting, retry-safe creation, server-governed expiry and atomic buyer accept/decline decisions. Offers do not claim payment, stock reservation, delivery or fulfillment; those workflows remain in their own later slices.
 
+> Implementation update, 2026-09-14: roadmap issue #20 enables the staged Resend production e-mail path with verified outbound acceptance, receiving MX, signed inbound webhook handling and a real reply mapped back into the correct DiscountDirect conversation. Expansion beyond staged recipients, postal distribution, payment processing, ecommerce connectors and AI scoring remain separately scoped follow-ups.
+
 Planning release: 0.1.0 — 2026-09-08. This release documents and creates the implementation backlog; it does not claim the application or Atlas connection has been implemented.
 
 ## Product definition
@@ -75,7 +77,7 @@ The token map explicitly describes naming alignment with GDS 6.5.0, not GDS cons
 3. **Conversation-to-offer loop (#9–#11):** durable messaging, Vercel Socket.IO, individual offers and buyer decisions.
 4. **Campaigns and channel surfaces (#12–#16):** flash reservation, outbox, recurring runs, buyer views, print/coupon redemption.
 5. **Operations and release (#17–#19):** General Dashboard, complete verification, documented production rollout.
-6. **Later (#20):** actual email and inbound replies once an authorized delivery arrangement is selected. Postal distribution, payment processing, ecommerce connectors and AI scoring require separately scoped follow-ups; no extra service is silently introduced.
+6. **Roadmap closeout (#20):** actual staged email and inbound replies after an authorized delivery arrangement is selected. Postal distribution, payment processing, ecommerce connectors, AI scoring and broader recipient rollout require separately scoped follow-ups; no extra service is silently introduced.
 
 Dependencies in each issue control readiness, even if several items share a phase. The foundation trio starts in Todo; dependent work starts in Backlog; external email starts in Roadmap. No application issue is marked Done by this planning exercise.
 
@@ -126,7 +128,7 @@ Expected variable names: MONGODB_URI, MONGODB_DB_NAME, APP_URL, session configur
 
 GDS: scoped registry in .npmrc using environment interpolation; package read access available at build time in Vercel Preview and Production. No token in source, logs or NEXT_PUBLIC variables. Verify package access across organizations rather than assuming GitHub Actions' default token can read private packages.
 
-Actual email is a decision gate. Until an approved mechanism exists, email/newsletter surfaces are previews and outbox channel state is unsupported; the application must not claim sent. Printed letters may be rendered for an authorized operator; physical posting is not automated or certified by rendering a letter.
+Actual e-mail uses the approved Resend path behind staged-recipient controls. Outbox rows may claim `sent` only after provider acceptance is stored. Printed letters may be rendered for an authorized operator; physical posting is not automated or certified by rendering a letter.
 
 ## Quality and operational definition of done
 
@@ -181,11 +183,11 @@ No application code has been changed; prototype production gaps are specified fo
 
 ### Known Issues
 
-Atlas integration and GDS build credentials are not yet verified. Vercel framework is not set. Application features are not implemented. Email/postal transport is not configured. Project #61 is created, linked and populated; its eight status columns and 20 active issue placements have been verified.
+Historical planning status at release 0.1.0: Atlas integration and GDS build credentials were not yet verified, Vercel framework was not set, application features were not implemented and email/postal transport was not configured. Current implementation status is recorded in the update notes above and in the issue evidence comments.
 
 ### Future Roadmap
 
-Execute #1–#19 in dependency order; resolve #20 before claiming external email support; scope future postal fulfillment, payments and commerce imports separately.
+All 20 original implementation issues are complete or in final closeout. Scope future postal fulfillment, payments, commerce imports, AI scoring and broader e-mail rollout separately.
 
 ## Planning verification record
 

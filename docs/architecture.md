@@ -63,4 +63,4 @@ Use pnpm 10.30.3 and the committed lockfile. TypeScript 6.0 and ESLint 9 match t
 
 ## Remaining product work
 
-Public registration, automated legal-deadline escalation and production real outbound e-mail/inbound replies are not enabled. Issue #20 now has the Resend adapter code and runbook, but it remains open until sender-domain DNS, Vercel provider variables and controlled production round-trip evidence are attached. No customer data has been seeded. The break-glass operator token remains documented as a compensating control for outages; normal operator users are individually revocable.
+Public registration, automated legal-deadline escalation, broad customer email rollout, postal dispatch, payment processing and ecommerce connectors remain outside this release. Issue #20 enabled the staged Resend outbound and inbound reply path for approved recipients only; the controlled production round trip is recorded in the email delivery evidence runbook. No customer data has been seeded. The break-glass operator token remains documented as a compensating control for outages; normal operator users are individually revocable.

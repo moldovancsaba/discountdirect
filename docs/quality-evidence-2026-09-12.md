@@ -43,4 +43,4 @@ Release 1.5.0 was verified against the production alias `https://discountdirect.
 
 ## Recovery and limits
 
-No real customer delivery was triggered during verification. Production delivery rows remain honest outbox states until issue #20's Resend/DNS/Vercel activation checklist is verified. Realtime is enabled for release 1.5.0 after the Vercel WebSocket production probe passed with synthetic users.
+No real customer delivery was triggered during release 1.5.0 verification. Issue #20 later verified the staged Resend/DNS/Vercel activation checklist with controlled recipient evidence; production delivery rows remain honest outbox states and only move to sent after provider acceptance. Realtime is enabled for release 1.5.0 after the Vercel WebSocket production probe passed with synthetic users.

@@ -1,11 +1,11 @@
 # Privacy controller record — 2026-09-12
 
-This record documents the engineering controls for DiscountDirect release 1.5.0. It is not legal advice and does not approve real outbound marketing. Issue #20 now has a Resend adapter path, but real e-mail/postal dispatch remains blocked until sender-domain DNS, Vercel provider variables, unsubscribe, bounce/complaint handling and signed inbound callbacks are verified with controlled production evidence.
+This record documents the engineering controls for DiscountDirect release 1.5.0. It is not legal advice and does not approve broad real-customer marketing. Issue #20 enables a staged Resend e-mail path for approved recipients only; live outbound acceptance and a signed inbound reply callback are verified in controlled production evidence. Postal dispatch and expansion beyond staged recipients remain blocked until controller approval.
 
 ## Current launch boundary
 
-- Allowed: synthetic verification, authenticated seller/buyer/operator workflows, in-app offers, in-app conversations, in-app offer lists, printable buyer letters and redemption coupons.
-- Not allowed: real outbound e-mail to customers, postal dispatch, live provider webhook activation, purchased contact lists or importing real customer data without controller approval.
+- Allowed: synthetic verification, staged Resend e-mail verification to approved recipients, authenticated seller/buyer/operator workflows, in-app offers, in-app conversations, in-app offer lists, printable buyer letters and redemption coupons.
+- Not allowed: broad outbound e-mail to customers, postal dispatch, purchased contact lists or importing real customer data without controller approval.
 - Delivery rows are audit/outbox records. They must remain `unsupported`, `suppressed`, `queued`, `retryable`, `cancelled` or another truthful state; they must not be relabeled as sent without external-provider evidence.
 
 ## Notice and consent
@@ -40,7 +40,7 @@ Only one open request of each type exists per seller-buyer pair. Repeated or con
 - MongoDB Atlas stores application records.
 - DoneIsBetter SSO provides authentication identity data.
 - GitHub stores source, issues and project-board evidence.
-- Resend is the selected e-mail adapter path for issue #20, but is not production-active until DNS/webhook/staged-recipient evidence is approved.
+- Resend is the selected e-mail adapter path for issue #20 and is production-active only behind staged-recipient controls.
 
 Current infrastructure uses Vercel dynamic egress to Atlas and server-only secrets. Static egress or Secure Compute remains a hardening option before real marketing launch.
 

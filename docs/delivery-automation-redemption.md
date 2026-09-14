@@ -1,6 +1,6 @@
 # Delivery, automations and redemption
 
-Release 1.4.0 adds a durable in-app delivery backbone without claiming real e-mail or postal dispatch. The issue #20 implementation adds a provider-gated Resend e-mail path, signed inbound reply webhook, unsubscribe handling and suppression records; production sending remains disabled until the Vercel/Resend/DNS checklist in [email-delivery-provider-evidence-2026-09-12.md](email-delivery-provider-evidence-2026-09-12.md) is complete.
+Release 1.4.0 adds a durable in-app delivery backbone without claiming postal dispatch. The issue #20 implementation adds a provider-gated Resend e-mail path, signed inbound reply webhook, unsubscribe handling and suppression records; production e-mail is enabled only for staged recipients until owner-approved rollout expands it. Evidence is recorded in [email-delivery-provider-evidence-2026-09-12.md](email-delivery-provider-evidence-2026-09-12.md).
 
 ## Delivery outbox
 
@@ -10,7 +10,7 @@ The outbox is intentionally honest. `queued` means a configured background worke
 
 ## Resend e-mail adapter
 
-Set `EMAIL_DELIVERY_PROVIDER=resend` only after the sender domain, SPF/DKIM/DMARC posture, receiving route and webhook endpoint are approved. The worker runs at `/api/cron/deliveries`, requires `CRON_SECRET`, re-checks current consent and suppressions, and sends with the row idempotency key. Replies use `reply+{deliveryId}@{RESEND_REPLY_DOMAIN}`. Resend webhooks post to `/api/email/inbound`; the route verifies the raw-body signature, rejects stale or duplicate events, maps valid inbound replies to the existing conversation, and rejects attachments.
+`EMAIL_DELIVERY_PROVIDER=resend` is configured in Production behind `EMAIL_STAGED_RECIPIENTS`. The worker runs at `/api/cron/deliveries`, requires `CRON_SECRET`, re-checks current consent and suppressions, and sends with the row idempotency key. Replies use `reply+{deliveryId}@{RESEND_REPLY_DOMAIN}`. Resend webhooks post to `/api/email/inbound`; the route verifies the raw-body signature, rejects stale or duplicate events, maps valid inbound replies to the existing conversation, and rejects attachments.
 
 Unsubscribe links use `/api/email/unsubscribe?deliveryId=...&token=...`. A valid link creates a seller-scoped suppression without requiring a browser session. The suppression check runs before enqueue and again immediately before send.
 
