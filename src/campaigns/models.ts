@@ -35,6 +35,28 @@ const campaignSchema = new Schema({
 campaignSchema.index({ sellerId: 1, createdByUserId: 1, clientRequestId: 1 }, { unique: true });
 campaignSchema.index({ sellerId: 1, status: 1, expiresAt: 1, _id: -1 });
 
+const campaignPreviewSchema = new Schema({
+  sellerId: { type: Schema.Types.ObjectId, required: true, ref: "Seller", index: true },
+  kind: { type: String, enum: ["flash"], required: true, default: "flash" },
+  productId: { type: Schema.Types.ObjectId, required: true, ref: "Product", index: true },
+  productSku: { type: String, required: true, maxlength: 64 },
+  productName: { type: String, required: true, maxlength: 160 },
+  productVersion: { type: Number, required: true },
+  originalHuf: { type: Number, required: true, min: 1 },
+  discountPct: { type: Number, required: true, min: 0, max: 100 },
+  priceHuf: { type: Number, required: true, min: 0 },
+  channel: { type: String, enum: ["email", "postal"], required: true },
+  quantity: { type: Number, required: true, min: 1, max: 1000 },
+  expiresAt: { type: Date, required: true, index: true },
+  status: { type: String, enum: ["ready", "launched", "expired"], default: "ready", index: true },
+  audienceSnapshot: { type: [audienceSchema], required: true },
+  inputHash: { type: String, required: true, maxlength: 64 },
+  createdByUserId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
+  launchedCampaignId: { type: Schema.Types.ObjectId, default: null, ref: "Campaign" },
+  launchedAt: { type: Date, default: null },
+}, { ...timestamps, collection: "campaign_previews" });
+campaignPreviewSchema.index({ sellerId: 1, createdAt: -1, _id: -1 });
+
 const reservationSchema = new Schema({
   campaignId: { type: Schema.Types.ObjectId, required: true, ref: "Campaign", index: true },
   offerId: { type: Schema.Types.ObjectId, required: true, ref: "Offer", unique: true },
@@ -56,6 +78,7 @@ const inventoryBalanceSchema = new Schema({
 inventoryBalanceSchema.index({ sellerId: 1, productId: 1 }, { unique: true });
 
 export const Campaign = models.Campaign || model("Campaign", campaignSchema);
+export const CampaignPreview = models.CampaignPreview || model("CampaignPreview", campaignPreviewSchema);
 export const CampaignReservation = models.CampaignReservation || model("CampaignReservation", reservationSchema);
 export const CampaignInventoryBalance = models.CampaignInventoryBalance || model("CampaignInventoryBalance", inventoryBalanceSchema);
-export const campaignModels = [Campaign, CampaignReservation, CampaignInventoryBalance];
+export const campaignModels = [Campaign, CampaignPreview, CampaignReservation, CampaignInventoryBalance];

@@ -3,6 +3,7 @@ import "server-only";
 import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
+import { Offer } from "@/offers/models";
 import { Customer } from "@/purchases/models";
 import { recordRealtimeEvent } from "@/realtime/service";
 import { participant } from "./access.ts";
@@ -47,8 +48,44 @@ async function sellerAccess(userId: string, sellerSlug: string) {
   return seller;
 }
 
-function eventOutput(row: any) {
-  return { id: row._id.toString(), kind: row.kind, senderRole: row.senderRole, body: row.body ?? null, activityType: row.activityType ?? null, createdAt: row.createdAt, clientRequestId: row.clientRequestId ?? null };
+function offerOutput(row: any) {
+  return {
+    id: row._id.toString(),
+    product: { id: row.productId.toString(), sku: row.productSku, name: row.productName, version: row.productVersion },
+    reason: { code: row.reasonCode, text: row.reasonText, evidencePurchaseIds: row.evidencePurchaseIds.map((id: any) => id.toString()) },
+    campaignId: row.campaignId ? row.campaignId.toString() : null,
+    channel: row.channel,
+    originalHuf: row.originalHuf,
+    discountPct: row.discountPct,
+    priceHuf: row.priceHuf,
+    status: row.status,
+    expiresAt: row.expiresAt,
+    decidedAt: row.decidedAt ?? null,
+    version: row.version,
+    createdAt: row.createdAt,
+  };
+}
+
+function eventOutput(row: any, offer: any = null) {
+  return {
+    id: row._id.toString(),
+    kind: row.kind,
+    senderRole: row.senderRole,
+    body: row.body ?? null,
+    activityType: row.activityType ?? null,
+    offerEventType: row.offerEventType ?? null,
+    offer: offer ? offerOutput(offer) : null,
+    createdAt: row.createdAt,
+    clientRequestId: row.clientRequestId ?? null,
+  };
+}
+
+async function timelineOutput(rows: any[]) {
+  const offerIds = rows.filter((row) => row.offerId).map((row) => row.offerId);
+  if (!offerIds.length) return rows.map((row) => eventOutput(row));
+  const offers = await Offer.find({ _id: { $in: offerIds } }).lean();
+  const byId = new Map(offers.map((offer: any) => [offer._id.toString(), offer]));
+  return rows.map((row) => eventOutput(row, row.offerId ? byId.get(row.offerId.toString()) : null));
 }
 
 async function conversationOutput(row: any) {
@@ -119,7 +156,7 @@ export async function conversationTimeline(userId: string, conversationId: strin
   const page = rows.slice(0, 50);
   if (access.role === "seller") await Conversation.updateOne({ _id: access.conversation._id }, { $set: { sellerUnreadCount: 0 } });
   else await Conversation.updateOne({ _id: access.conversation._id }, { $set: { buyerUnreadCount: 0 } });
-  return { conversation: await conversationOutput(access.conversation), role: access.role, events: page.reverse().map(eventOutput), nextCursor: rows.length > 50 ? encodeCursor(page[page.length - 1]) : null };
+  return { conversation: await conversationOutput(access.conversation), role: access.role, events: await timelineOutput(page.reverse()), nextCursor: rows.length > 50 ? encodeCursor(page[page.length - 1]) : null };
 }
 
 export async function sendConversationMessage(userId: string, conversationId: string, clientRequestId: unknown, body: unknown) {

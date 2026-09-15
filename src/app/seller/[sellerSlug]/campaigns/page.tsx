@@ -2,10 +2,60 @@ import { redirect } from "next/navigation";
 import { BannerNotice, Button as GdsButton, EmptyState, GdsGrid, GdsIcon, ListingCard, NumberInput, PageHeader, SectionPanel, Select as GdsSelect, StatusBadge } from "@discountdirect/gds-client";
 import { currentUser } from "@/auth/service";
 import { listProducts } from "@/catalog/service";
-import { listCampaigns } from "@/campaigns/service";
+import { getCampaignPreview, listCampaigns } from "@/campaigns/service";
 import { Shell } from "@/components/shell";
-import { cancelCampaignAction, createFlashCampaignAction } from "./actions";
+import { cancelCampaignAction, launchFlashCampaignAction, previewFlashCampaignAction } from "./actions";
+
 export const dynamic = "force-dynamic";
 const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
 const date = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Budapest" });
-export default async function CampaignsPage({ params, searchParams }: { params: Promise<{ sellerSlug: string }>; searchParams: Promise<{ saved?: string; error?: string }> }) { const user = await currentUser(); if (!user) redirect("/sign-in"); const { sellerSlug } = await params; let catalog; let data; try { [catalog, data] = await Promise.all([listProducts(user.id, sellerSlug, true), listCampaigns(user.id, sellerSlug)]); } catch { redirect("/account?error=forbidden"); } const query = await searchParams; const products = catalog.products.filter((product) => product.active && product.stock > 0); return <Shell active="account"><PageHeader eyebrow="Eladói munkatér" title="Villámkampányok" description="A kampány egy változatlan közönség- és árpillanatképet hoz létre. Foglalás csak elfogadáskor történik, közös készletkorláttal." actions={<GdsButton component="a" href={`/seller/${sellerSlug}`} variant="default">Katalógus</GdsButton>} />{query.saved ? <BannerNotice variant="compact" severity="success" message={query.saved === "cancelled" ? "A kampány lezárult, a foglalások felszabadultak." : "A villámkampány és személyes ajánlatai létrejöttek."} /> : null}{query.error ? <BannerNotice variant="compact" severity="error" message="A kampány nem indítható. Ellenőrizd a készletet, időablakot és elérhető, hozzájáruló címzetteket." /> : null}<SectionPanel title="Új villámkampány" description="E-mailes vagy postai, hozzájáruló vásárlóknak. A külső készletek nem szinkronizáltak; az itt látható készlet csak a DiscountDirect nyilvántartása.">{products.length ? <form className="catalog-form" action={createFlashCampaignAction.bind(null, sellerSlug)}><GdsSelect name="productId" label="Termék" required data={products.map((product) => ({ value: product.id, label: `${product.name} · ${product.stock} db · ${money.format(product.priceHuf)}` }))} /><NumberInput name="discountPct" label="Kedvezmény (%)" required min={0} max={100} step={1} allowDecimal={false} defaultValue={15} /><NumberInput name="quantity" label="Legfeljebb foglalható darab" required min={1} max={1000} step={1} allowDecimal={false} defaultValue={1} /><GdsSelect name="channel" label="Csatorna" required data={[{ value: "email", label: "E-mail" }, { value: "postal", label: "Postai" }]} /><GdsSelect name="expiresAt" label="Időablak" required data={[{ value: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), label: "6 óra" }, { value: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), label: "24 óra" }, { value: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), label: "48 óra" }]} /><GdsButton type="submit" leftSection={<GdsIcon name="Send" decorative />}>Kampány indítása</GdsButton></form> : <EmptyState title="Nincs kampányolható termék" description="Aktív, pozitív készletű termék szükséges." />}</SectionPanel><SectionPanel title="Korábbi kampányok" description="A fennmaradó mennyiség a még foglalható kampánykeret. A fizetés és teljesítés külön folyamat.">{!data.campaigns.length ? <EmptyState title="Még nincs kampány" description="Indítsd el az első, hozzájáruláson alapuló villámkampányt." /> : <GdsGrid columns={{ base: 1, md: 2 }}>{data.campaigns.map((campaign) => <ListingCard key={campaign.id} title={campaign.product.name} description={`${campaign.audienceSize} címzett · ${campaign.channel === "email" ? "E-mail" : "Postai"} · lejár: ${date.format(new Date(campaign.expiresAt))}`} price={money.format(campaign.priceHuf)} mediaSeed={campaign.id} mediaOverlay={campaign.status} metadata={[{ id: "discount", label: "Kedvezmény", value: `${campaign.discountPct}%` }, { id: "remaining", label: "Hátralévő keret", value: `${campaign.remaining} / ${campaign.quantity} db` }]} primaryAction={campaign.status === "active" ? <form action={cancelCampaignAction.bind(null, sellerSlug, campaign.id)}><GdsButton type="submit" color="red" variant="default">Kampány leállítása</GdsButton></form> : <StatusBadge status="info">{campaign.status}</StatusBadge>} />)}</GdsGrid>}</SectionPanel></Shell>; }
+const channelLabel: Record<string, string> = { email: "E-mail", postal: "Postai" };
+type PreviewAudienceItem = { buyerUserId: string; customerId: string; recommendationPreviewId: string; reasonCode: string; reasonText: string; evidencePurchaseIds: string[] };
+
+export default async function CampaignsPage({ params, searchParams }: { params: Promise<{ sellerSlug: string }>; searchParams: Promise<{ preview?: string; saved?: string; error?: string }> }) {
+  const user = await currentUser();
+  if (!user) redirect("/sign-in");
+  const { sellerSlug } = await params;
+  let catalog;
+  let data;
+  try { [catalog, data] = await Promise.all([listProducts(user.id, sellerSlug, true), listCampaigns(user.id, sellerSlug)]); } catch { redirect("/account?error=forbidden"); }
+  const query = await searchParams;
+  const products = catalog.products.filter((product) => product.active && product.stock > 0);
+  let preview: Awaited<ReturnType<typeof getCampaignPreview>> | null = null;
+  if (query.preview) { try { preview = await getCampaignPreview(user.id, sellerSlug, query.preview); } catch { preview = null; } }
+
+  return <Shell active="account">
+    <PageHeader eyebrow="Eladói munkatér" title="Villámkampányok" description="A kampány először közönség- és árpillanatképet készít. Indítás csak az előnézet jóváhagyása után hoz létre ajánlatokat." actions={<GdsButton component="a" href={`/seller/${sellerSlug}`} variant="default">Katalógus</GdsButton>} />
+    {query.saved ? <BannerNotice variant="compact" severity="success" message={query.saved === "cancelled" ? "A kampány lezárult, a foglalások felszabadultak." : "A villámkampány és személyes ajánlatai létrejöttek."} /> : null}
+    {query.error ? <BannerNotice variant="compact" severity="error" message="A kampány nem indítható. Ellenőrizd a készletet, időablakot és elérhető, hozzájáruló címzetteket." /> : null}
+
+    <SectionPanel title="Villámkampány előnézete" description="Az előnézet még nem küld ajánlatot. A célközönség a meglévő, jogosult ajánlási előnézetekből és csatornahozzájárulásból áll.">
+      {products.length ? <form className="catalog-form" action={previewFlashCampaignAction.bind(null, sellerSlug)}>
+        <GdsSelect name="productId" label="Termék" required data={products.map((product) => ({ value: product.id, label: `${product.name} · ${product.stock} db · ${money.format(product.priceHuf)}` }))} />
+        <NumberInput name="discountPct" label="Kedvezmény (%)" required min={0} max={100} step={1} allowDecimal={false} defaultValue={15} />
+        <NumberInput name="quantity" label="Legfeljebb foglalható darab" required min={1} max={1000} step={1} allowDecimal={false} defaultValue={1} />
+        <GdsSelect name="channel" label="Kimenő csatorna" required data={[{ value: "email", label: "E-mail" }, { value: "postal", label: "Postai" }]} />
+        <GdsSelect name="expiresAt" label="Időablak" required data={[{ value: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), label: "6 óra" }, { value: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), label: "24 óra" }, { value: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), label: "48 óra" }]} />
+        <GdsButton type="submit" leftSection={<GdsIcon name="Preview" decorative />}>Előnézet készítése</GdsButton>
+      </form> : <EmptyState title="Nincs kampányolható termék" description="Aktív, pozitív készletű termék szükséges." />}
+    </SectionPanel>
+
+    {preview ? <SectionPanel title="Jóváhagyásra váró előnézet" description="Indítás után minden címzetthez ajánlat, alkalmazáson belüli rekord és kimenő csatornarekord jön létre." action={preview.status === "ready" ? <form action={launchFlashCampaignAction.bind(null, sellerSlug, preview.id)}><GdsButton type="submit" leftSection={<GdsIcon name="Send" decorative />}>Kampány indítása</GdsButton></form> : <StatusBadge status="neutral">{preview.status}</StatusBadge>}>
+      <ListingCard
+        title={preview.product.name}
+        description={`${preview.audienceSize} jogosult címzett · ${channelLabel[preview.channel] ?? preview.channel} · lejár: ${date.format(new Date(preview.expiresAt))}`}
+        price={money.format(preview.priceHuf)}
+        mediaSeed={preview.id}
+        mediaOverlay={`${preview.discountPct}% kedvezmény`}
+        metadata={[{ id: "original", label: "Eredeti ár", value: money.format(preview.originalHuf) }, { id: "quantity", label: "Foglalási keret", value: `${preview.quantity} db` }, { id: "status", label: "Állapot", value: preview.status }]}
+      />
+      <GdsGrid columns={{ base: 1, md: 2 }}>
+        {preview.audience.slice(0, 6).map((item: PreviewAudienceItem) => <ListingCard key={`${item.buyerUserId}-${item.recommendationPreviewId}`} title={item.reasonCode} description={item.reasonText} mediaSeed={item.customerId} mediaOverlay={`${item.evidencePurchaseIds.length} bizonyíték`} metadata={[{ id: "customer", label: "Vásárló", value: item.customerId }, { id: "preview", label: "Ajánlási előnézet", value: item.recommendationPreviewId }]} />)}
+      </GdsGrid>
+    </SectionPanel> : null}
+
+    <SectionPanel title="Korábbi kampányok" description="A fennmaradó mennyiség a még foglalható kampánykeret. A fizetés és teljesítés külön folyamat.">
+      {!data.campaigns.length ? <EmptyState title="Még nincs kampány" description="Készíts előnézetet, majd indítsd el az első hozzájáruláson alapuló villámkampányt." /> : <GdsGrid columns={{ base: 1, md: 2 }}>{data.campaigns.map((campaign) => <ListingCard key={campaign.id} title={campaign.product.name} description={`${campaign.audienceSize} címzett · ${channelLabel[campaign.channel] ?? campaign.channel} · lejár: ${date.format(new Date(campaign.expiresAt))}`} price={money.format(campaign.priceHuf)} mediaSeed={campaign.id} mediaOverlay={campaign.status} metadata={[{ id: "discount", label: "Kedvezmény", value: `${campaign.discountPct}%` }, { id: "remaining", label: "Hátralévő keret", value: `${campaign.remaining} / ${campaign.quantity} db` }]} primaryAction={campaign.status === "active" ? <form action={cancelCampaignAction.bind(null, sellerSlug, campaign.id)}><GdsButton type="submit" color="red" variant="default">Kampány leállítása</GdsButton></form> : <StatusBadge status="info">{campaign.status}</StatusBadge>} />)}</GdsGrid>}
+    </SectionPanel>
+  </Shell>;
+}

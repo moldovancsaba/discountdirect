@@ -31,7 +31,8 @@ export class DeliveryError extends Error {
   }
 }
 
-type DeliveryChannel = "email" | "postal";
+type OutboundDeliveryChannel = "email" | "postal";
+type DeliveryChannel = "in_app" | OutboundDeliveryChannel;
 type DeliveryKind = "personal_offer" | "flash_campaign" | "automated_list" | "printable_letter";
 type DeliveryStatus = "queued" | "processing" | "sent" | "unsupported" | "suppressed" | "retryable_failed" | "cancelled" | "bounced" | "complained";
 type SuppressionReason = "unsubscribe" | "objection" | "hard_bounce" | "complaint" | "provider_suppression";
@@ -42,6 +43,7 @@ const WORKER_ID = `delivery-${process.pid}-${randomUUID()}`;
 const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
 
 function transportState(channel: DeliveryChannel) {
+  if (channel === "in_app") return { status: "sent" as const, reasonCode: "IN_APP_THREAD_AVAILABLE" };
   if (channel === "email") {
     const config = emailTransportReadiness();
     return config.enabled ? { status: "queued" as const, reasonCode: "READY_FOR_RESEND" } : { status: "unsupported" as const, reasonCode: config.reasonCode };
@@ -86,7 +88,7 @@ function suppressionCode(reason: string) {
   return `SUPPRESSED_${reason.toUpperCase()}`;
 }
 
-async function activeSuppression(sellerId: unknown, buyerUserId: unknown, channel: DeliveryChannel, session?: mongoose.ClientSession) {
+async function activeSuppression(sellerId: unknown, buyerUserId: unknown, channel: OutboundDeliveryChannel, session?: mongoose.ClientSession) {
   const query = DeliverySuppression.findOne({
     buyerUserId,
     channel,
@@ -120,13 +122,19 @@ export async function createDeliveryRecord(session: mongoose.ClientSession, inpu
   contentSnapshot: Record<string, unknown>;
   createdByUserId: unknown;
 }) {
-  const allowed = await mayDeliverMarketing(String(input.sellerId), String(input.buyerUserId), input.channel);
-  const suppression = allowed ? await activeSuppression(input.sellerId, input.buyerUserId, input.channel, session) : null;
-  const state = !allowed
-    ? { status: "suppressed" as const, reasonCode: "NO_CURRENT_CHANNEL_CONSENT" }
-    : suppression
-      ? { status: "suppressed" as const, reasonCode: suppressionCode(String(suppression.reason)) }
-      : transportState(input.channel);
+  let state: { status: DeliveryStatus; reasonCode: string };
+  if (input.channel === "in_app") {
+    state = transportState(input.channel);
+  } else {
+    const channel = input.channel;
+    const allowed = await mayDeliverMarketing(String(input.sellerId), String(input.buyerUserId), channel);
+    const suppression = allowed ? await activeSuppression(input.sellerId, input.buyerUserId, channel, session) : null;
+    state = !allowed
+      ? { status: "suppressed", reasonCode: "NO_CURRENT_CHANNEL_CONSENT" }
+      : suppression
+        ? { status: "suppressed", reasonCode: suppressionCode(String(suppression.reason)) }
+        : transportState(channel);
+  }
   const now = new Date();
   const [row] = await DeliveryOutbox.create([{
     sellerId: input.sellerId,
@@ -144,8 +152,9 @@ export async function createDeliveryRecord(session: mongoose.ClientSession, inpu
     createdByUserId: input.createdByUserId,
     status: state.status,
     reasonCode: state.reasonCode,
+    sentAt: state.status === "sent" ? now : null,
     nextAttemptAt: state.status === "queued" ? now : null,
-    completedAt: ["unsupported", "suppressed"].includes(state.status) ? now : null,
+    completedAt: ["sent", "unsupported", "suppressed"].includes(state.status) ? now : null,
   }], { session });
   await recordEvent(session, { deliveryId: row._id, sellerId: input.sellerId, status: row.status, reasonCode: row.reasonCode, occurredAt: now, actorUserId: input.createdByUserId });
   return row;
@@ -190,21 +199,57 @@ function htmlEscape(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function composeEmail(row: any, seller: any, buyer: any, config: EmailTransportConfig) {
+function renderOfferEmail(row: any, seller: any, buyer: any, optOutUrl: string) {
   const snapshot = row.contentSnapshot ?? {};
   const productName = typeof snapshot.productName === "string" ? snapshot.productName : "személyes ajánlat";
   const discountPct = Number.isFinite(Number(snapshot.discountPct)) ? `${Number(snapshot.discountPct)}% kedvezmény` : "egyedi kedvezmény";
-  const price = Number.isFinite(Number(snapshot.priceHuf)) ? money.format(Number(snapshot.priceHuf)) : "az ajanlatban szereplo ar";
-  const optOutUrl = unsubscribeUrl(row._id.toString(), config);
-  const subject = `${seller.name}: uj DiscountDirect ajanlat`;
+  const price = Number.isFinite(Number(snapshot.priceHuf)) ? money.format(Number(snapshot.priceHuf)) : "az ajánlatban szereplő ár";
+  const expiresAt = snapshot.expiresAt ? new Date(String(snapshot.expiresAt)) : null;
+  const subject = row.kind === "flash_campaign" ? `${seller.name}: villámkampány ajánlat` : `${seller.name}: új személyes ajánlat`;
   const text = [
     `Kedves ${buyer.displayName}!`,
-    `${seller.name} uj ajanlatot kuldott: ${productName}, ${discountPct}, ${price}.`,
-    "Valaszolj erre az e-mailre, es a valaszod a DiscountDirect beszelgetesbe kerul.",
-    `Leiratkozas: ${optOutUrl}`,
+    `${seller.name} ajánlatot küldött: ${productName}, ${discountPct}, ${price}.`,
+    expiresAt && Number.isFinite(expiresAt.getTime()) ? `Érvényes: ${expiresAt.toLocaleString("hu-HU", { timeZone: "Europe/Budapest" })}.` : "",
+    "Válaszolj erre az e-mailre, és a válaszod a DiscountDirect beszélgetésbe kerül.",
+    `Leiratkozás: ${optOutUrl}`,
   ].join("\n\n");
-  const html = `<p>Kedves ${htmlEscape(buyer.displayName)}!</p><p>${htmlEscape(seller.name)} uj ajanlatot kuldott: <strong>${htmlEscape(productName)}</strong>, ${htmlEscape(discountPct)}, ${htmlEscape(price)}.</p><p>Valaszolj erre az e-mailre, es a valaszod a DiscountDirect beszelgetesbe kerul.</p><p><a href="${htmlEscape(optOutUrl)}">Leiratkozas</a></p>`;
+  const expiry = expiresAt && Number.isFinite(expiresAt.getTime()) ? `<p>Érvényes: ${htmlEscape(expiresAt.toLocaleString("hu-HU", { timeZone: "Europe/Budapest" }))}.</p>` : "";
+  const html = `<p>Kedves ${htmlEscape(buyer.displayName)}!</p><p>${htmlEscape(seller.name)} ajánlatot küldött: <strong>${htmlEscape(productName)}</strong>, ${htmlEscape(discountPct)}, ${htmlEscape(price)}.</p>${expiry}<p>Válaszolj erre az e-mailre, és a válaszod a DiscountDirect beszélgetésbe kerül.</p><p><a href="${htmlEscape(optOutUrl)}">Leiratkozás</a></p>`;
   return { subject, text, html };
+}
+
+function renderListEmail(row: any, seller: any, buyer: any, optOutUrl: string) {
+  const snapshot = row.contentSnapshot ?? {};
+  const title = typeof snapshot.title === "string" ? snapshot.title : "Személyre szabott ajánlatlista";
+  const productCount = Number.isFinite(Number(snapshot.productCount)) ? Number(snapshot.productCount) : 0;
+  const products = Array.isArray(snapshot.products) ? snapshot.products.slice(0, 10) : [];
+  const availableUntil = snapshot.availableUntil ? new Date(String(snapshot.availableUntil)) : null;
+  const lines = products.map((item: any) => {
+    const name = typeof item.productName === "string" ? item.productName : "Ajánlott termék";
+    const price = Number.isFinite(Number(item.priceHuf)) ? money.format(Number(item.priceHuf)) : "";
+    const reason = typeof item.reasonText === "string" ? item.reasonText : "";
+    return `- ${name}${price ? `, ${price}` : ""}${reason ? ` (${reason})` : ""}`;
+  });
+  const subject = `${seller.name}: ${title}`;
+  const text = [
+    `Kedves ${buyer.displayName}!`,
+    `${seller.name} ${productCount} termékből álló ajánlatlistát készített neked.`,
+    availableUntil && Number.isFinite(availableUntil.getTime()) ? `Elérhető: ${availableUntil.toLocaleString("hu-HU", { timeZone: "Europe/Budapest" })}.` : "",
+    lines.length ? lines.join("\n") : "A lista részletei a DiscountDirect vásárlói felületen érhetők el.",
+    `Leiratkozás: ${optOutUrl}`,
+  ].join("\n\n");
+  const htmlProducts = lines.length ? `<ul>${products.map((item: any) => `<li><strong>${htmlEscape(typeof item.productName === "string" ? item.productName : "Ajánlott termék")}</strong>${Number.isFinite(Number(item.priceHuf)) ? `, ${htmlEscape(money.format(Number(item.priceHuf)))}` : ""}${typeof item.reasonText === "string" ? `<br />${htmlEscape(item.reasonText)}` : ""}</li>`).join("")}</ul>` : "<p>A lista részletei a DiscountDirect vásárlói felületen érhetők el.</p>";
+  const availability = availableUntil && Number.isFinite(availableUntil.getTime()) ? `<p>Elérhető: ${htmlEscape(availableUntil.toLocaleString("hu-HU", { timeZone: "Europe/Budapest" }))}.</p>` : "";
+  const html = `<p>Kedves ${htmlEscape(buyer.displayName)}!</p><p>${htmlEscape(seller.name)} ${productCount} termékből álló ajánlatlistát készített neked.</p>${availability}${htmlProducts}<p><a href="${htmlEscape(optOutUrl)}">Leiratkozás</a></p>`;
+  return { subject, text, html };
+}
+
+function composeEmail(row: any, seller: any, buyer: any, config: EmailTransportConfig) {
+  const optOutUrl = unsubscribeUrl(row._id.toString(), config);
+  if (row.kind === "automated_list") return renderListEmail(row, seller, buyer, optOutUrl);
+  const content = renderOfferEmail(row, seller, buyer, optOutUrl);
+  if (row.kind === "printable_letter") return { ...content, subject: `${seller.name}: nyomtatható ajánlatlevél` };
+  return content;
 }
 
 function retryAt(attemptCount: number) {
@@ -423,5 +468,11 @@ export async function suppressDeliveryBuyer(deliveryId: string, token: string) {
 export async function deliverySummary() {
   await connectDatabase();
   const rows = await DeliveryOutbox.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]);
+  return Object.fromEntries(rows.map((row: { _id: string; count: number }) => [row._id, row.count])) as Record<string, number>;
+}
+
+export async function deliveryChannelSummary() {
+  await connectDatabase();
+  const rows = await DeliveryOutbox.aggregate([{ $group: { _id: "$channel", count: { $sum: 1 } } }]);
   return Object.fromEntries(rows.map((row: { _id: string; count: number }) => [row._id, row.count])) as Record<string, number>;
 }
