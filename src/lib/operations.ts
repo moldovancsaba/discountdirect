@@ -1,11 +1,10 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { resolveSession, USER_SESSION_COOKIE } from "@/auth/service";
-import { SESSION_COOKIE, verifySession } from "./operator-session";
 
 export type OperatorActor = {
   authorized: boolean;
-  actorKind: "operator_user" | "operator_token";
+  actorKind: "operator_user";
   actorUserId: string | null;
   actorLabel: string;
 };
@@ -19,14 +18,10 @@ export async function operatorIdentity(): Promise<OperatorActor> {
       if (user?.systemRole === "operator")
         return { authorized: true, actorKind: "operator_user", actorUserId: user.id, actorLabel: user.email };
     } catch {
-      // Keep the independent emergency operator gate available during a database outage.
+      return { authorized: false, actorKind: "operator_user", actorUserId: null, actorLabel: "session-unavailable" };
     }
   }
-  const emergency = verifySession(
-    cookieStore.get(SESSION_COOKIE)?.value,
-    process.env.OPERATIONS_TOKEN,
-  );
-  return { authorized: emergency, actorKind: "operator_token", actorUserId: null, actorLabel: "operations-token" };
+  return { authorized: false, actorKind: "operator_user", actorUserId: null, actorLabel: "unauthenticated" };
 }
 
 export async function isOperator() {

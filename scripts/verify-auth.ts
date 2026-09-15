@@ -16,7 +16,6 @@ import { disableUserByOperator, revokeBuyerRelationshipByOperator, revokeMembers
 import {
   createOpaqueToken,
   hashOpaqueToken,
-  hashPassword,
 } from "../src/auth/crypto.ts";
 import { catalogModels, Product } from "../src/catalog/models.ts";
 import { Customer, Purchase, purchaseModels } from "../src/purchases/models.ts";
@@ -62,12 +61,18 @@ async function waitUntilReady() {
   );
 }
 
-function cookieFrom(response: Response) {
-  const value = response.headers
-    .get("set-cookie")
-    ?.match(/discountdirect-session=([^;]+)/)?.[1];
-  assert.ok(value, "session cookie is missing");
-  return `discountdirect-session=${value}`;
+async function sessionCookieFor(user: { _id: unknown; authVersion: number }) {
+  const token = createOpaqueToken();
+  await Session.create({
+    tokenHash: hashOpaqueToken(token),
+    userId: user._id,
+    authVersion: user.authVersion,
+    lastSeenAt: new Date(),
+    idleExpiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    absoluteExpiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+    userAgentHash: "verification-agent",
+  });
+  return `discountdirect-session=${token}`;
 }
 
 async function post(path: string, body: unknown, cookie?: string) {
@@ -93,11 +98,13 @@ try {
   for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels, ...campaignModels, ...deliveryModels, ...automationModels, ...redemptionModels])
     await dataModel.createIndexes();
 
-  const password = "Verification password 2026";
   const user = await User.create({
     emailNormalized: "seller.verify@example.test",
     displayName: "Verification Seller",
-    passwordHash: await hashPassword(password),
+    ssoUserId: "sso-verification-seller",
+    ssoRole: "user",
+    ssoStatus: "approved",
+    lastSsoLoginAt: new Date(),
     status: "active",
   });
   const [allowedSeller, foreignSeller] = await Seller.create([
@@ -116,12 +123,7 @@ try {
     status: "active",
   });
 
-  const login = await post("/api/auth/session", {
-    email: "SELLER.verify@example.test",
-    password,
-  });
-  assert.equal(login.status, 201);
-  const cookie = cookieFrom(login);
+  const cookie = await sessionCookieFor(user);
   const me = await fetch(`${base}/api/me`, { headers: { cookie } });
   assert.equal(me.status, 200);
   const profile = await me.json();
@@ -153,11 +155,14 @@ try {
     ),
   );
 
-  const actor = { actorKind: "operator_token" as const, actorUserId: null, actorLabel: "verification-operator" };
+  const actor = { actorKind: "operator_user" as const, actorUserId: null, actorLabel: "verification-operator" };
   const revocationUser = await User.create({
     emailNormalized: "revocation.verify@example.test",
     displayName: "Revocation User",
-    passwordHash: await hashPassword(password),
+    ssoUserId: "sso-revocation-user",
+    ssoRole: "user",
+    ssoStatus: "approved",
+    lastSsoLoginAt: new Date(),
     status: "active",
   });
   const revocationSessionToken = createOpaqueToken();
@@ -170,7 +175,10 @@ try {
   const disabledUser = await User.create({
     emailNormalized: "disabled.verify@example.test",
     displayName: "Disabled User",
-    passwordHash: await hashPassword(password),
+    ssoUserId: "sso-disabled-user",
+    ssoRole: "user",
+    ssoStatus: "approved",
+    lastSsoLoginAt: new Date(),
     status: "active",
   });
   const disabledToken = createOpaqueToken();
@@ -183,7 +191,10 @@ try {
   const membershipUser = await User.create({
     emailNormalized: "membership.verify@example.test",
     displayName: "Membership User",
-    passwordHash: await hashPassword(password),
+    ssoUserId: "sso-membership-user",
+    ssoRole: "user",
+    ssoStatus: "approved",
+    lastSsoLoginAt: new Date(),
     status: "active",
   });
   const membership = await Membership.create({ sellerId: allowedSeller._id, userId: membershipUser._id, role: "staff", status: "active" });
@@ -196,7 +207,10 @@ try {
   const relationshipUser = await User.create({
     emailNormalized: "relationship.verify@example.test",
     displayName: "Relationship User",
-    passwordHash: await hashPassword(password),
+    ssoUserId: "sso-relationship-user",
+    ssoRole: "user",
+    ssoStatus: "approved",
+    lastSsoLoginAt: new Date(),
     status: "active",
   });
   const relationship = await BuyerRelationship.create({ sellerId: allowedSeller._id, buyerUserId: relationshipUser._id, status: "active" });
@@ -458,18 +472,18 @@ try {
   assert.equal(await ChannelPreference.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id, status: "subscribed" }), 0);
   assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 409);
 
-  const buyerPassword = "Conversation buyer password 2026";
   const conversationBuyer = await User.create({
     emailNormalized: "conversation.buyer@example.test",
     displayName: "Conversation Buyer",
-    passwordHash: await hashPassword(buyerPassword),
+    ssoUserId: "sso-conversation-buyer",
+    ssoRole: "user",
+    ssoStatus: "approved",
+    lastSsoLoginAt: new Date(),
     status: "active",
   });
   await BuyerRelationship.create({ sellerId: allowedSeller._id, buyerUserId: conversationBuyer._id, status: "active" });
   const conversationCustomer = await Customer.create({ sellerId: allowedSeller._id, externalBuyerId: "CONVERSATION-CUSTOMER", emailNormalized: conversationBuyer.emailNormalized, displayName: "Conversation Buyer", sourceName: "Verification" });
-  const buyerLogin = await post("/api/auth/session", { email: conversationBuyer.emailNormalized, password: buyerPassword });
-  assert.equal(buyerLogin.status, 201);
-  const buyerCookie = cookieFrom(buyerLogin);
+  const buyerCookie = await sessionCookieFor(conversationBuyer);
   const conversationsPath = `/api/sellers/allowed-seller/customers/${conversationCustomer._id}/conversations`;
   const conversationResponse = await post(conversationsPath, {}, cookie);
   assert.equal(conversationResponse.status, 201);
@@ -519,28 +533,15 @@ try {
   assert.equal((await fetch(`${base}${messagesPath}`, { headers: { cookie: "discountdirect-session=invalid" } })).status, 401);
   assert.equal((await fetch(`${base}${messagesPath}`, { headers: { cookie } })).status, 200);
 
-  const activationToken = createOpaqueToken();
-  const pending = await User.create({
-    emailNormalized: "pending.verify@example.test",
-    displayName: "Pending User",
-    status: "pending",
-  });
-  await AccessToken.create({
-    tokenHash: hashOpaqueToken(activationToken),
-    userId: pending._id,
-    purpose: "activation",
-    expiresAt: new Date(Date.now() + 60_000),
-    createdBy: "verification",
-  });
   assert.equal(
-    (await post("/api/auth/activate", { token: activationToken, password }))
+    (await post("/api/auth/session", { email: user.emailNormalized, password: "No local password" }))
       .status,
-    200,
+    410,
   );
   assert.equal(
-    (await post("/api/auth/activate", { token: activationToken, password }))
+    (await post("/api/auth/activate", { token: createOpaqueToken(), password: "No local password" }))
       .status,
-    400,
+    410,
   );
 
   const logout = await fetch(`${base}/api/auth/session`, {
@@ -553,28 +554,8 @@ try {
     401,
   );
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    assert.equal(
-      (
-        await post("/api/auth/session", {
-          email: user.emailNormalized,
-          password: "Wrong password value",
-        })
-      ).status,
-      401,
-    );
-  }
-  assert.equal(
-    (
-      await post("/api/auth/session", {
-        email: user.emailNormalized,
-        password: "Wrong password value",
-      })
-    ).status,
-    429,
-  );
   console.log(
-    "Authentication, catalog, purchase-ledger, privacy, recommendation, conversation, delivery, automation and redemption integration passed: tenant denial, audited access revocation, idempotent imports, consent evidence, request deduplication, export, marketing suppression, reproducible ranking, durable message retries, participant-only timelines, honest outbox states, buyer lists and single-use coupon redemption.",
+    "SSO-only authentication, catalog, purchase-ledger, privacy, recommendation, conversation, delivery, automation and redemption integration passed: tenant denial, audited access revocation, idempotent imports, consent evidence, request deduplication, export, marketing suppression, reproducible ranking, durable message retries, participant-only timelines, honest outbox states, buyer lists and single-use coupon redemption.",
   );
 } finally {
   if (mongoose.connection.readyState) {

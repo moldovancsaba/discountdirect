@@ -50,7 +50,7 @@
 
 ### Known issues
 
-- The break-glass `OPERATIONS_TOKEN` remains available as an outage fallback and readiness-probe credential.
+- Human operator access is SSO-only; `OPERATIONS_TOKEN` remains only as a readiness-probe credential.
 - Realtime transport is released in 1.5.0 after the production WebSocket probe.
 
 ## 1.4.0 — Delivery automation and redemption
@@ -276,7 +276,7 @@ Add purchase-history import and seller-buyer ledgers in #6, then privacy prefere
 ### Known issues
 
 - GDS remains deferred by user instruction after the GitHub Packages billing-limit failure.
-- The emergency operations key remains available during database outages until the remaining #4 controls are complete.
+- Human operator access is SSO-only; emergency key login is no longer rendered.
 - Full production login verification requires an approved human SSO account; automated checks cover redirect construction, PKCE and flow-cookie integrity without storing credentials.
 
 ### Future roadmap
@@ -303,7 +303,7 @@ Complete MFA, audit/revocation controls and realtime disconnect handling in #4, 
 ### Known issues
 
 - GDS remains deferred by user instruction after the GitHub Packages billing-limit failure.
-- Operator MFA, full audit/revocation controls and removal of the emergency operations key remain open in #4. Production users should not be provisioned until those gates and privacy review are complete.
+- Superseded by later releases: human operator access is now SSO-only with audited revocation controls.
 - Recovery links require an owner-approved manual handoff until delivery issue #20 is implemented.
 - Product data, messaging, offers and realtime session-disconnect notifications are not implemented.
 

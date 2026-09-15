@@ -1,17 +1,11 @@
 import mongoose from "mongoose";
 import {
-  AccessToken,
   BuyerRelationship,
   Membership,
   Seller,
-  Session,
   User,
 } from "../src/auth/models.ts";
-import {
-  createOpaqueToken,
-  hashOpaqueToken,
-  normalizeEmail,
-} from "../src/auth/crypto.ts";
+import { normalizeEmail } from "../src/auth/crypto.ts";
 
 function option(name: string) {
   const index = process.argv.indexOf(`--${name}`);
@@ -23,7 +17,6 @@ const displayName = option("name")?.trim();
 const role = option("role");
 const sellerSlug = option("seller-slug")?.trim().toLowerCase();
 const sellerName = option("seller-name")?.trim();
-const purpose = option("purpose") === "recovery" ? "recovery" : "activation";
 const createdBy = option("created-by")?.trim();
 if (
   !displayName ||
@@ -46,20 +39,13 @@ await mongoose.connect(uri, {
 });
 try {
   let user = await User.findOne({ emailNormalized: email });
-  if (purpose === "recovery" && (!user || user.status !== "active")) {
-    throw new Error("Recovery requires an existing active user");
-  }
   if (!user)
     user = await User.create({
       emailNormalized: email,
       displayName,
       status: "pending",
-      systemRole: role === "operator" ? "operator" : null,
+      systemRole: null,
     });
-  else if (role === "operator" && user.systemRole !== "operator")
-    throw new Error(
-      "Refusing to elevate an existing user; review and update the user explicitly",
-    );
   let seller;
   if (sellerSlug) {
     seller = await Seller.findOne({ slug: sellerSlug });
@@ -82,32 +68,11 @@ try {
         { upsert: true },
       );
   }
-  const now = new Date();
-  await AccessToken.updateMany(
-    { userId: user._id, purpose, consumedAt: null, revokedAt: null },
-    { $set: { revokedAt: now } },
-  );
-  if (purpose === "recovery")
-    await Session.updateMany(
-      { userId: user._id, revokedAt: null },
-      { $set: { revokedAt: now } },
-    );
-  const token = createOpaqueToken();
-  await AccessToken.create({
-    tokenHash: hashOpaqueToken(token),
-    userId: user._id,
-    purpose,
-    expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
-    createdBy,
-  });
-  const appUrl = (process.env.APP_URL || "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  );
-  console.log(
-    `${purpose === "recovery" ? "Recovery" : "Activation"} link (shown once; expires in one hour):`,
-  );
-  console.log(`${appUrl}/activate?token=${token}`);
+  console.log("SSO account shell prepared:");
+  console.log(`- user: ${user.emailNormalized}`);
+  console.log(`- role: ${role}`);
+  console.log(`- createdBy: ${createdBy}`);
+  console.log("No DiscountDirect password or activation link was created. The user must sign in with DoneIsBetter SSO.");
 } finally {
   await mongoose.disconnect();
 }

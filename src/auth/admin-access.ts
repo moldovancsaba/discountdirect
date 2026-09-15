@@ -17,7 +17,7 @@ type AuditAction =
   | "buyer_relationship_revoked";
 
 export type OperatorActorInput = {
-  actorKind: "operator_user" | "operator_token";
+  actorKind: "operator_user";
   actorUserId: string | null;
   actorLabel: string;
 };
@@ -142,10 +142,11 @@ export async function adminAccessOverview() {
         status: user.status,
         systemRole:
           user.systemRole ??
-          (user.ssoStatus === "approved" && user.ssoRole === "admin"
+          (user.ssoStatus === "approved" && (user.ssoRole === "admin" || user.ssoRole === "operator")
             ? "operator"
             : null),
         ssoStatus: user.ssoStatus,
+        ssoRole: user.ssoRole,
         authVersion: user.authVersion,
         activeSessions: session?.count ?? 0,
         lastSeenAt: session?.lastSeenAt ?? null,
