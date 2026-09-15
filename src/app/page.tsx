@@ -1,29 +1,67 @@
-import { BannerNotice, EditorialHero, FeatureBand, GdsIcon, PageHeader, SectionPanel, StatusBadge } from "@discountdirect/gds-client";
+import { Button as GdsButton, GdsIcon, StatusBadge } from "@discountdirect/gds-client";
+import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 
-const steps = [
-  { id: "understand", title: "Ismerd meg a vásárlóidat", description: "Termékek és vásárlási előzmények egy helyen, a saját ügyfélkapcsolataidhoz kötve.", stepLabel: "01", icon: <GdsIcon name="Users" decorative /> },
-  { id: "recommend", title: "Ajánlj személyesen", description: "Érthető ajánlások, amelyek megmutatják, miért lehet releváns egy termék.", stepLabel: "02", icon: <GdsIcon name="Discount" decorative /> },
-  { id: "continue", title: "Folytasd a beszélgetést", description: "Ajánlatok és válaszok egy közös történetben, követhető döntésekkel.", stepLabel: "03", icon: <GdsIcon name="Message" decorative /> },
-];
+const workAreas = [
+  {
+    title: "Eladói munka",
+    description: "Katalógus, vásárlói főkönyv, ajánlási előnézet, kampány, automatizmus.",
+    href: "/account",
+    icon: "Users",
+  },
+  {
+    title: "Vásárlói munka",
+    description: "Ajánlatok, ajánlatlisták, beszélgetések, kuponok és csatornaállapotok.",
+    href: "/buyer",
+    icon: "Tag",
+  },
+  {
+    title: "Üzemeltetés",
+    description: "Felhasználók, munkamenetek, hozzáférések, kézbesítés és rendszerállapot.",
+    href: "/admin",
+    icon: "Analytics",
+  },
+] as const;
 
-export default function Home() {
+export default async function Home() {
+  const user = await currentUser().catch(() => null);
   return (
     <Shell>
-      <PageHeader title="Minden jó ajánlat egy kapcsolattal kezdődik." description="A DiscountDirect összeköti a vásárlási előzményeket, a személyes ajánlatokat és a tartós beszélgetéseket." eyebrow="Áttekintés" actions={<StatusBadge status="success" withIcon>1.5.0 · Mint circuit</StatusBadge>} />
-      <EditorialHero
-        eyebrow="Az első lépés"
-        title="Stabil alapok. Személyesebb kereskedelem."
-        description="A termékkatalógus, a vásárlói főkönyv, a hozzájárulás-kezelés és a bizonyíték-alapú ajánlási előnézet mellé most elérhető az eredeti beszélgetés-alapú termékélmény is."
-        actions={[{ label: "Eredeti élmény megnyitása", href: "/experience", variant: "primary" }, { label: "Bejelentkezés", href: "/sign-in", variant: "secondary" }]}
-        meta={[{ id: "theme", label: "GDS 6.7.0 · Mint circuit", icon: <GdsIcon name="Theme" decorative /> }]}
-        media={<GdsIcon name="Connectivity" size="xl" decorative />}
-        mediaAlt="Kapcsolatok és ajánlatok összekapcsolása"
-      />
-      <SectionPanel title="A következő fejezetek" description="A fejlesztési terv következő termékfolyamatai." divided={false}>
-        <FeatureBand items={steps} columns={3} variant="process" />
-      </SectionPanel>
-      <BannerNotice variant="compact" severity="info" message="A funkciók kis, ellenőrizhető kiadásokban érkeznek; a vásárlói adatok nem kerülnek nyilvános felületre." />
+      <section className="workspace-header">
+        <div>
+          <p className="workspace-eyebrow">DiscountDirect</p>
+          <h1>Munkaasztal</h1>
+          <p>Belépés után csak azok a műveletek látszanak, amelyekhez van jogosultságod.</p>
+        </div>
+        <div className="workspace-actions">
+          {user ? <StatusBadge status="success" withIcon>{user.email}</StatusBadge> : null}
+          <GdsButton component="a" href={user ? "/account" : "/sign-in"} leftSection={<GdsIcon name="Login" decorative />}>
+            {user ? "Munkatér megnyitása" : "Bejelentkezés SSO-val"}
+          </GdsButton>
+        </div>
+      </section>
+      <section className="workspace-grid">
+        {workAreas.map((area) => (
+          <a className="workspace-tile" href={area.href} key={area.title}>
+            <GdsIcon name={area.icon} decorative />
+            <span>
+              <strong>{area.title}</strong>
+              <small>{area.description}</small>
+            </span>
+          </a>
+        ))}
+      </section>
+      <section className="workspace-panel">
+        <div className="workspace-panel-head">
+          <h2>Aktív üzleti folyamatok</h2>
+          <StatusBadge status="info">SSO-val védve</StatusBadge>
+        </div>
+        <div className="workflow-list">
+          <div><strong>Katalógus és vásárlói főkönyv</strong><span>Termékek, vásárlások, hozzájárulások és adatkezelési kérelmek.</span></div>
+          <div><strong>Ajánlat és kampány</strong><span>Bizonyíték-alapú ajánlási előnézetből induló személyes vagy villám ajánlat.</span></div>
+          <div><strong>Beszélgetés és beváltás</strong><span>Üzenetfolyam, ajánlatdöntés, kuponkód és eladói megerősítés.</span></div>
+        </div>
+      </section>
     </Shell>
   );
 }

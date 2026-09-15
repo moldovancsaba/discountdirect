@@ -20,7 +20,7 @@ export default async function PreferencesPage({ params, searchParams }: { params
   const email = privacy.preferences.find((item) => item.channel === "email")!;
   const postal = privacy.preferences.find((item) => item.channel === "postal")!;
   const marketingDisabled = !["active", "not_linked"].includes(privacy.customerStatus);
-  return <Shell active="account">
+  return <Shell active="buyer">
     <PageHeader
       title="Adatkezelés és kapcsolattartás"
       description={`${privacy.seller.name} külön kezeli a hozzájárulásaidat. A módosítás azonnal érvényes a későbbi marketingküldésekre.`}

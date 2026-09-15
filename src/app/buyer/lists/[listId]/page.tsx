@@ -15,7 +15,7 @@ export default async function BuyerListPage({ params }: { params: Promise<{ list
   const { listId } = await params;
   let list;
   try { list = await buyerOfferList(user.id, listId); } catch { redirect("/buyer/lists"); }
-  return <Shell active="account">
+  return <Shell active="buyer">
     <PageHeader title={list.title} description={`Elérhető: ${date.format(new Date(list.availableUntil))}. A termékek nem foglalások és nem kézbesítési igazolások.`} eyebrow="Ajánlatlista" actions={<div className="button-row"><GdsButton component="a" href="/buyer/lists" variant="default" leftSection={<GdsIcon name="Back" decorative />}>Listák</GdsButton><GdsButton component="a" href={`/buyer/letters/${list.id}`} variant="default" leftSection={<GdsIcon name="Print" decorative />}>Nyomtatható levél</GdsButton><StatusBadge status={list.status === "active" ? "success" : "neutral"}>{list.status}</StatusBadge></div>} />
     <SectionPanel title="Ajánlott termékek" description="Minden indoklás a vásárlási előzményekből származó bizonyítékokra hivatkozik.">
       <GdsGrid columns={{ base: 1, md: 2 }}>

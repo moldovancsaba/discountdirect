@@ -15,7 +15,7 @@ export default async function BuyerLetterPage({ params }: { params: Promise<{ li
   const { listId } = await params;
   let list;
   try { list = await buyerOfferList(user.id, listId); } catch { redirect("/buyer/lists"); }
-  return <Shell active="account">
+  return <Shell active="buyer">
     <PageHeader title="Nyomtatható ajánlatlevél" description="A levél a DiscountDirect-lista nyomtatható nézete. A fizikai postázást ez nem igazolja." eyebrow={date.format(new Date(list.createdAt))} actions={<GdsButton component="a" href={`/buyer/lists/${list.id}`} variant="default">Lista megnyitása</GdsButton>} />
     <SectionPanel title="Levél" description="Nyomtatáskor csak az alábbi levéltartalom marad látható.">
       <article className="print-letter">

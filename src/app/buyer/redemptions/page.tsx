@@ -12,7 +12,7 @@ export default async function BuyerRedemptionsPage() {
   const user = await currentUser();
   if (!user) redirect("/sign-in");
   const { coupons } = await buyerCoupons(user.id);
-  return <Shell active="account">
+  return <Shell active="buyer">
     <PageHeader title="Kuponjaim" description="Elfogadott ajánlatokhoz tartozó egyszer használható kódok. A kód beváltása külön eladói megerősítést igényel." eyebrow="Vásárlói felület" actions={<StatusBadge status="info">{coupons.length} kupon</StatusBadge>} />
     <SectionPanel title="Elérhető és korábbi kuponok" description="A lejárt vagy beváltott kupon megmarad az előzmények között.">
       {!coupons.length ? <EmptyState title="Még nincs kupon" description="Kupon akkor jön létre, ha elfogadsz egy ajánlatot." /> : <GdsGrid columns={{ base: 1, md: 2 }}>

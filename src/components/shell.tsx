@@ -12,10 +12,10 @@ import {
 } from "@sovereignsquad/gds-core/client";
 
 const navigation = [
-  { href: "/", label: "Áttekintés", icon: "Home", key: "home" },
-  { href: "/experience", label: "Eredeti élmény", icon: "Connectivity", key: "experience" },
-  { href: "/admin", label: "Rendszerállapot", icon: "Analytics", key: "admin" },
+  { href: "/", label: "Kezdőlap", icon: "Home", key: "home" },
   { href: "/account", label: "Saját munkatér", icon: "Profile", key: "account" },
+  { href: "/buyer", label: "Vásárlói műveletek", icon: "Tag", key: "buyer" },
+  { href: "/admin", label: "Üzemeltetés", icon: "Analytics", key: "admin" },
   { href: "/sign-in", label: "Bejelentkezés", icon: "Login", key: "sign-in" },
 ] as const;
 
@@ -36,13 +36,13 @@ export function Shell({ children, active = "home" }: { children: React.ReactNode
           />
         ))}
       </SidebarNavSection>
-      <SidebarNavSection label="Kiadás" pushToBottom>
+      <SidebarNavSection label="Rendszer" pushToBottom>
         <SidebarNavItem
-          component="a"
-          href="https://github.com/moldovancsaba/discountdirect/issues"
-          label="Fejlesztési terv"
-          description="1.5.0 · GDS"
-          icon={<GdsIcon name="Launch" decorative />}
+          component={Link}
+          href="/account"
+          label="Profil és jogosultság"
+          icon={<GdsIcon name="Settings" decorative />}
+          active={active === "account"}
         />
       </SidebarNavSection>
     </SidebarNav>
@@ -57,13 +57,13 @@ export function Shell({ children, active = "home" }: { children: React.ReactNode
             <span>discountdirect</span>
           </Link>
           <GdsCluster>
-            <span className="gds-header-context">Kapcsolatokból lehetőség</span>
+            <span className="gds-header-context">Ajánlatok, kapcsolatok, kuponok</span>
             <ThemeToggle />
           </GdsCluster>
         </GdsCluster>
       }
       sidebar={nav}
-      footer={<span className="gds-release">Mint circuit · 1.5.0</span>}
+      footer={<span className="gds-footer-label">DiscountDirect</span>}
       mobileNavigationLabel="Navigáció megnyitása"
       desktopNavigationLabel="Oldalsáv váltása"
       sidebarStorageKey="discountdirect-sidebar"

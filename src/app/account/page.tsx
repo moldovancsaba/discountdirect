@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BannerNotice, Button as GdsButton, GdsGrid, GdsIcon, ListingCard, PageHeader, SectionPanel, SimpleDataTable, StatusBadge } from "@discountdirect/gds-client";
+import { BannerNotice, Button as GdsButton, GdsIcon, PageHeader, SectionPanel, StatusBadge } from "@discountdirect/gds-client";
 import { buyerRelationshipsFor, currentUser, membershipsFor } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { signOutUser } from "./actions";
@@ -18,48 +18,45 @@ export default async function AccountPage() {
   const [memberships, relationships] = await Promise.all([membershipsFor(user.id), buyerRelationshipsFor(user.id)]);
   return <Shell active="account">
     <PageHeader
-      title={`Üdv, ${user.displayName}!`}
-      description="Csak azok a munkaterületek jelennek meg, amelyekhez aktív, szerveroldalon ellenőrzött kapcsolatod van."
-      eyebrow="Saját fiók"
+      title="Saját munkatér"
+      description="SSO-identitás, eladói hozzáférések, vásárlói kapcsolatok és operátori jogosultság."
+      eyebrow={user.displayName}
       actions={<form action={signOutUser}><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Logout" decorative />}>Kijelentkezés</GdsButton></form>}
     />
-    <SectionPanel title="SSO profil" description="A belépett felhasználó DoneIsBetter SSO-ból szinkronizált adatai.">
-      <div className="table-wrap"><SimpleDataTable rows={[{
-        email: user.email,
-        name: user.displayName,
-        ssoRole: user.ssoRole ?? "user",
-        ssoStatus: <StatusBadge status={user.ssoStatus === "approved" ? "success" : "warning"}>{user.ssoStatus ?? "unknown"}</StatusBadge>,
-        systemRole: user.systemRole ?? "-",
-        lastLogin: formatDate(user.lastSsoLoginAt),
-      }]} columns={[{ key: "email", header: "E-mail" }, { key: "name", header: "Név" }, { key: "ssoRole", header: "SSO szerep" }, { key: "ssoStatus", header: "SSO státusz" }, { key: "systemRole", header: "Rendszerszerep" }, { key: "lastLogin", header: "Utolsó SSO belépés" }]} /></div>
+    <SectionPanel title="SSO profil" description="A DiscountDirect ezt az identitást kapta a DoneIsBetter SSO-tól.">
+      <div className="profile-grid">
+        <div><strong>E-mail</strong><span>{user.email}</span></div>
+        <div><strong>Név</strong><span>{user.displayName}</span></div>
+        <div><strong>SSO szerep</strong><span>{user.ssoRole ?? "user"}</span></div>
+        <div><strong>SSO státusz</strong><span><StatusBadge status={user.ssoStatus === "approved" ? "success" : "warning"}>{user.ssoStatus ?? "unknown"}</StatusBadge></span></div>
+        <div><strong>Rendszerszerep</strong><span>{user.systemRole ?? "-"}</span></div>
+        <div><strong>Utolsó SSO belépés</strong><span>{formatDate(user.lastSsoLoginAt)}</span></div>
+      </div>
     </SectionPanel>
-    <GdsGrid columns={{ base: 1, md: 3 }}>
-      {memberships.map((membership) => <ListingCard
-        key={membership.id}
-        title={membership.name}
-        description={`Eladói szerepkör: ${membership.role === "owner" ? "tulajdonos" : "munkatárs"}`}
-        mediaSeed={`seller-${membership.id}`}
-        mediaOverlay="Eladó"
-        metadata={[{ id: "access", label: "Hozzáférés", value: "Aktív" }]}
-        primaryAction={<GdsButton component="a" href={`/seller/${membership.slug}`} leftSection={<GdsIcon name="Launch" decorative />}>Munkaterület megnyitása</GdsButton>}
-      />)}
-      {relationships.map((relationship) => <ListingCard
-        key={relationship.id}
-        title={relationship.name}
-        description="A kereskedőhöz tartozó saját ajánlatok és vásárlási előzmények helye."
-        mediaSeed={`buyer-${relationship.id}`}
-        mediaOverlay="Vásárló"
-        metadata={[{ id: "relationship", label: "Kapcsolat", value: "Aktív" }]}
-        primaryAction={<div className="button-row"><GdsButton component="a" href="/buyer" leftSection={<GdsIcon name="Launch" decorative />}>Csatornaközpont</GdsButton><GdsButton component="a" href={`/buyer/${relationship.slug}`} variant="default" leftSection={<GdsIcon name="History" decorative />}>Kapcsolat</GdsButton><GdsButton component="a" href="/buyer/conversations" variant="default" leftSection={<GdsIcon name="Message" decorative />}>Üzenetek</GdsButton><GdsButton component="a" href="/buyer/offers" variant="default" leftSection={<GdsIcon name="Tag" decorative />}>Ajánlatok</GdsButton><GdsButton component="a" href="/buyer/lists" variant="default" leftSection={<GdsIcon name="Preview" decorative />}>Listák</GdsButton></div>}
-      />)}
-      {user.systemRole === "operator" ? <ListingCard
-        title="Rendszerállapot"
-        description="Az üzemeltetői állapot és a MongoDB Atlas kapcsolat ellenőrzése."
-        mediaSeed="discountdirect-operations"
-        mediaOverlay="Üzemeltető"
-        primaryAction={<GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Analytics" decorative />}>Állapot megnyitása</GdsButton>}
-      /> : null}
-    </GdsGrid>
+    <SectionPanel title="Eladói hozzáférések" description={`${memberships.length} aktív eladói munkatér.`}>
+      <div className="action-list">
+        {memberships.map((membership) => <div className="action-list-row" key={membership.id}>
+          <span><strong>{membership.name}</strong><p>{membership.role === "owner" ? "Tulajdonos" : "Munkatárs"} · {membership.sellerStatus}</p></span>
+          <GdsButton component="a" href={`/seller/${membership.slug}`} leftSection={<GdsIcon name="Launch" decorative />}>Megnyitás</GdsButton>
+        </div>)}
+        {!memberships.length ? <BannerNotice variant="compact" severity="info" message="Nincs aktív eladói hozzáférés." /> : null}
+      </div>
+    </SectionPanel>
+    <SectionPanel title="Vásárlói kapcsolatok" description={`${relationships.length} aktív vásárlói kapcsolat.`}>
+      <div className="action-list">
+        {relationships.map((relationship) => <div className="action-list-row" key={relationship.id}>
+          <span><strong>{relationship.name}</strong><p>{relationship.sellerStatus}</p></span>
+          <div className="button-row"><GdsButton component="a" href="/buyer" leftSection={<GdsIcon name="Launch" decorative />}>Központ</GdsButton><GdsButton component="a" href={`/buyer/${relationship.slug}`} variant="default" leftSection={<GdsIcon name="History" decorative />}>Kapcsolat</GdsButton></div>
+        </div>)}
+        {!relationships.length ? <BannerNotice variant="compact" severity="info" message="Nincs aktív vásárlói kapcsolat." /> : null}
+      </div>
+    </SectionPanel>
+    {user.systemRole === "operator" ? <SectionPanel title="Üzemeltetés" description="Felhasználói hozzáférések, munkamenetek és rendszerállapot.">
+      <div className="action-list-row">
+        <span><strong>Operátori felület</strong><p>Csak jóváhagyott SSO admin/operator szereppel érhető el.</p></span>
+        <GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Analytics" decorative />}>Megnyitás</GdsButton>
+      </div>
+    </SectionPanel> : null}
     {!memberships.length && !relationships.length && !user.systemRole ? <BannerNotice title="Nincs hozzárendelt munkaterület" severity="info" message="A fiók aktív, de még nincs hozzárendelt munkaterület. Kérd az üzemeltető segítségét." /> : null}
   </Shell>;
 }
