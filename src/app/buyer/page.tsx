@@ -21,7 +21,7 @@ export default async function BuyerHubPage() {
   const activeLists = lists.lists.filter((list) => list.status === "active");
   const issuedCoupons = coupons.coupons.filter((coupon) => coupon.status === "issued");
 
-  return <Shell active="account">
+  return <Shell active="buyer">
     <PageHeader title="Vásárlói csatornaközpont" description="Egy helyen láthatók az alkalmazáson belüli ajánlatok, üzenetek, ajánlatlisták, kuponok és kézbesítési állapotok." eyebrow="Vásárlói felület" actions={<div className="button-row"><GdsButton component="a" href="/buyer/conversations" variant="default" leftSection={<GdsIcon name="Message" decorative />}>Üzenetek</GdsButton><GdsButton component="a" href="/buyer/offers" variant="default" leftSection={<GdsIcon name="Tag" decorative />}>Ajánlatok</GdsButton><GdsButton component="a" href="/buyer/lists" variant="default" leftSection={<GdsIcon name="List" decorative />}>Listák</GdsButton></div>} />
     <GdsGrid columns={{ base: 1, md: 3 }}>
       <ListingCard title="Függő ajánlatok" description="Elfogadható vagy elutasítható személyes és kampányajánlatok." mediaSeed="buyer-pending-offers" mediaOverlay="Ajánlat" metadata={[{ id: "count", label: "Darab", value: pendingOffers.length }]} primaryAction={<GdsButton component="a" href="/buyer/offers" leftSection={<GdsIcon name="Tag" decorative />}>Megnyitás</GdsButton>} />

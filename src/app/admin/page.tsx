@@ -9,7 +9,7 @@ import { redemptionSummary } from "@/redemptions/service";
 import { adminAccessOverview } from "@/auth/admin-access";
 import { disableUserAction, revokeBuyerRelationshipAction, revokeMembershipAction, revokeUserSessionsAction, signOut } from "./actions";
 
-export const metadata: Metadata = { title: "Rendszerállapot", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Üzemeltetés", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 const savedMessages: Record<string, string> = {
   "sessions-revoked": "A felhasználó aktív munkamenetei visszavonva.",
@@ -31,9 +31,8 @@ function ReasonAction({ id, action, label, tone = "default" }: { id: string; act
 }
 export default async function Admin({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string }> }) {
   const user = await currentUser().catch(() => null);
-  const authorized = user?.systemRole === "operator";
   const { error, saved } = await searchParams;
-  if (!authorized) return <Shell active="admin">
+  if (!user || user.systemRole !== "operator") return <Shell active="admin">
     <AuthShell title="Üzemeltetői hozzáférés" description="Jóváhagyott DoneIsBetter SSO admin jogosultság szükséges." intent="sign-in" brand={<GdsIcon name="Lock" size="lg" decorative />} error={error ? "Az operátori művelet nem engedélyezett." : user ? "A bejelentkezett SSO-fiók nem operátor." : undefined} helper="A munkamenet 30 perc tétlenség vagy legfeljebb 12 óra után lejár.">
       <GdsButton component="a" href="/api/auth/login?returnTo=/admin" fullWidth leftSection={<GdsIcon name="Login" decorative />}>Bejelentkezés DoneIsBetter SSO-val</GdsButton>
     </AuthShell>
@@ -51,12 +50,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
   const deliveryTotal = Object.values(deliveries).reduce((sum, value) => sum + value, 0);
   const couponTotal = Object.values(redemptions).reduce((sum, value) => sum + value, 0);
   return <Shell active="admin">
-    <PageHeader
-      title="Rendszerállapot"
-      description={`Élő ellenőrzés · ${checkedAt}`}
-      eyebrow="Üzemeltetés"
-      actions={<form action={signOut}><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Logout" decorative />}>Kilépés</GdsButton></form>}
-    />
+    <PageHeader title="Üzemeltetés" description={`Élő rendszeradatok · ${checkedAt}`} eyebrow={user.email} actions={<form action={signOut}><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Logout" decorative />}>Kilépés</GdsButton></form>} />
     {saved && savedMessages[saved] ? <BannerNotice severity="success" variant="compact" message={savedMessages[saved]} /> : null}
     {error ? <BannerNotice severity="error" variant="compact" message="A hozzáférési művelet nem hajtható végre. Ellenőrizd az indokot és a cél azonosítóját." /> : null}
     <GdsGrid columns={{ base: 1, md: 3 }}>
@@ -66,11 +60,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
       <MetricCard label="Csatorna footprint" value={String(deliveryChannels.in_app ?? 0)} description={`${deliveryChannels.email ?? 0} e-mail · ${deliveryChannels.postal ?? 0} postai`} icon={<GdsIcon name="Connectivity" decorative />} />
       <MetricCard label="Aktív automatizmusok" value={String(automations.automations.active ?? 0)} description={`${automations.runs.completed ?? 0} sikeres futás · ${automations.activeLists} aktív lista`} icon={<GdsIcon name="Calendar" decorative />} />
       <MetricCard label="Kuponok" value={String(couponTotal)} description={`${redemptions.issued ?? 0} kiadva · ${redemptions.redeemed ?? 0} beváltva`} icon={<GdsIcon name="Tag" decorative />} />
-      <MetricCard label="Aktív felhasználók" value="Még nincs mérés" description="A jelenlétkövetés a valós idejű funkciókkal érkezik." icon={<GdsIcon name="Users" decorative />} />
     </GdsGrid>
-    <SectionPanel title="Kiadás: 1.5.0" description="Beszélgetésbe ágyazott ajánlatok, előnézetből indított kampányok és automatizmusok, csatorna szerinti kézbesítési lábnyom és auditált hozzáférés." action={<GdsButton component="a" href="/admin" leftSection={<GdsIcon name="Refresh" decorative />}>Állapot frissítése</GdsButton>}>
-      <StatusBadge status="success" withIcon>Production</StatusBadge>
-    </SectionPanel>
     <SectionPanel title="Hozzáférések és munkamenetek" description="Operátori revokációs felület auditnaplóval. A műveletek növelik az authVersion értéket és visszavonják a nyitott munkameneteket.">
       <div className="table-wrap"><SimpleDataTable rows={access.users.map((user) => ({
         user: `${user.displayName} · ${user.email}`,

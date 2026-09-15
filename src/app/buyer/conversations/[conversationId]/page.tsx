@@ -45,7 +45,7 @@ export default async function BuyerConversationPage({ params, searchParams }: { 
   try { result = await conversationTimeline(user.id, conversationId); if (result.role !== "buyer") redirect("/account?error=forbidden"); } catch { redirect("/account?error=forbidden"); }
   const query = await searchParams;
   const returnTo = `/buyer/conversations/${conversationId}`;
-  return <Shell active="account">
+  return <Shell active="buyer">
     <PageHeader title={result.conversation.seller.name} description="A saját, eladóhoz kötött beszélgetési idővonalad." eyebrow="Üzenetváltás" actions={<GdsButton component="a" href="/buyer/conversations" variant="default">Összes üzenet</GdsButton>} />
     {query.saved === "message" ? <BannerNotice severity="success" variant="compact" message="Az üzenet rögzítve." /> : null}
     {query.saved === "offer" ? <BannerNotice severity="success" variant="compact" message="Az ajánlati döntés rögzítve. Elfogadáskor kupon is létrejön." /> : null}

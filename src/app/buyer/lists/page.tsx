@@ -12,7 +12,7 @@ export default async function BuyerListsPage() {
   const user = await currentUser();
   if (!user) redirect("/sign-in");
   const { lists } = await buyerOfferLists(user.id);
-  return <Shell active="account">
+  return <Shell active="buyer">
     <PageHeader title="Ajánlatlistáim" description="Személyre szabott, időzített listák. Ezek nem kézbesítési vagy vásárlási igazolások." eyebrow="Vásárlói felület" actions={<div className="button-row"><GdsButton component="a" href="/buyer/offers" variant="default" leftSection={<GdsIcon name="Tag" decorative />}>Ajánlatok</GdsButton><GdsButton component="a" href="/buyer/redemptions" variant="default" leftSection={<GdsIcon name="Tag" decorative />}>Kuponok</GdsButton><StatusBadge status="info">{lists.length} lista</StatusBadge></div>} />
     <SectionPanel title="Elérhető listák" description="A lista termékei az elkészítéskori ajánlási bizonyítékokat és árakat őrzik.">
       {!lists.length ? <EmptyState title="Még nincs ajánlatlista" description="Az eladó által indított automatizmusok eredményei itt jelennek meg." /> : <GdsGrid columns={{ base: 1, md: 2 }}>
