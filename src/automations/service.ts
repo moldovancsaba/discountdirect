@@ -6,7 +6,7 @@ import { connectDatabase } from "@/lib/database";
 import { createDeliveryRecord } from "@/delivery/service";
 import { Customer } from "@/purchases/models";
 import { createRecommendationPreview } from "@/recommendations/service";
-import { OfferAutomation, OfferAutomationRun, OfferList } from "./models";
+import { OfferAutomation, OfferAutomationPreview, OfferAutomationRun, OfferList } from "./models";
 
 export class AutomationError extends Error {
   constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT") { super(code); }
@@ -37,6 +37,34 @@ function outputAutomation(row: any) {
     productLimit: row.productLimit,
     version: row.version,
     createdAt: row.createdAt,
+  };
+}
+
+function outputAutomationPreview(row: any) {
+  return {
+    id: row._id.toString(),
+    customerId: row.customerId.toString(),
+    buyerUserId: row.buyerUserId.toString(),
+    channel: row.channel,
+    cadence: row.cadence,
+    nextRunAt: row.nextRunAt,
+    productLimit: row.productLimit,
+    status: row.status,
+    recommendationPreviewId: row.recommendationPreviewId?.toString?.() ?? null,
+    exclusionReasons: row.exclusionReasons ?? [],
+    products: row.products.map((item: any) => ({
+      productId: item.productId.toString(),
+      productVersion: item.productVersion,
+      productSku: item.productSku,
+      productName: item.productName,
+      priceHuf: item.priceHuf,
+      reasonCode: item.reasonCode,
+      reasonText: item.reasonText,
+      evidencePurchaseIds: item.evidencePurchaseIds.map((id: any) => id.toString()),
+    })),
+    scheduledAutomationId: row.scheduledAutomationId?.toString?.() ?? null,
+    createdAt: row.createdAt,
+    scheduledAt: row.scheduledAt ?? null,
   };
 }
 
@@ -89,13 +117,20 @@ async function sellerAccess(userId: string, sellerSlug: string) {
   return seller;
 }
 
+function previewInput(input: unknown) {
+  if (!input || typeof input !== "object") throw new AutomationError("INVALID");
+  const value = input as Record<string, unknown>;
+  if (!mongoose.isValidObjectId(value.customerId) || !["email", "postal"].includes(String(value.channel)) || !["weekly", "fortnightly", "monthly"].includes(String(value.cadence)) || !Number.isInteger(value.productLimit) || Number(value.productLimit) < 1 || Number(value.productLimit) > 10 || typeof value.nextRunAt !== "string") throw new AutomationError("INVALID");
+  const nextRunAt = new Date(value.nextRunAt);
+  if (Number.isNaN(nextRunAt.getTime()) || nextRunAt.getTime() > Date.now() + MAX_INITIAL_DAYS * 24 * 60 * 60 * 1000) throw new AutomationError("INVALID");
+  return { customerId: String(value.customerId), channel: String(value.channel) as Channel, cadence: String(value.cadence) as Cadence, productLimit: Number(value.productLimit), nextRunAt };
+}
+
 function createInput(input: unknown) {
   if (!input || typeof input !== "object") throw new AutomationError("INVALID");
   const value = input as Record<string, unknown>;
-  if (!mongoose.isValidObjectId(value.customerId) || !["email", "postal"].includes(String(value.channel)) || !["weekly", "fortnightly", "monthly"].includes(String(value.cadence)) || !Number.isInteger(value.productLimit) || Number(value.productLimit) < 1 || Number(value.productLimit) > 10 || typeof value.clientRequestId !== "string" || !/^[A-Za-z0-9_-]{8,120}$/.test(value.clientRequestId) || typeof value.nextRunAt !== "string") throw new AutomationError("INVALID");
-  const nextRunAt = new Date(value.nextRunAt);
-  if (Number.isNaN(nextRunAt.getTime()) || nextRunAt.getTime() > Date.now() + MAX_INITIAL_DAYS * 24 * 60 * 60 * 1000) throw new AutomationError("INVALID");
-  return { customerId: String(value.customerId), channel: String(value.channel) as Channel, cadence: String(value.cadence) as Cadence, productLimit: Number(value.productLimit), clientRequestId: value.clientRequestId, nextRunAt };
+  if (typeof value.clientRequestId !== "string" || !/^[A-Za-z0-9_-]{8,120}$/.test(value.clientRequestId)) throw new AutomationError("INVALID");
+  return { ...previewInput(input), clientRequestId: value.clientRequestId };
 }
 
 async function automationCustomer(sellerId: unknown, customerId: string) {
@@ -104,6 +139,57 @@ async function automationCustomer(sellerId: unknown, customerId: string) {
   const buyer = await User.findOne({ emailNormalized: customer.emailNormalized, status: "active" }).lean();
   if (!buyer || !await BuyerRelationship.exists({ sellerId, buyerUserId: buyer._id, status: "active" })) throw new AutomationError("FORBIDDEN");
   return { customer, buyer };
+}
+
+export async function createAutomationPreview(userId: string, sellerSlug: string, input: unknown) {
+  const value = previewInput(input);
+  const seller = await sellerAccess(userId, sellerSlug);
+  const { customer, buyer } = await automationCustomer(seller._id, value.customerId);
+  const recommendation = await createRecommendationPreview(userId, sellerSlug, customer._id.toString(), value.channel);
+  const products = recommendation.status === "eligible" ? recommendation.recommendations.slice(0, value.productLimit) : [];
+  const status = products.length ? "ready" : "blocked";
+  const [row] = await OfferAutomationPreview.create([{
+    sellerId: seller._id,
+    customerId: customer._id,
+    buyerUserId: buyer._id,
+    channel: value.channel,
+    cadence: value.cadence,
+    nextRunAt: value.nextRunAt,
+    productLimit: value.productLimit,
+    status,
+    recommendationPreviewId: recommendation.id,
+    exclusionReasons: recommendation.status === "eligible" ? [] : recommendation.exclusionReasons.length ? recommendation.exclusionReasons : ["NO_RECOMMENDATIONS"],
+    products: products.map((item: any) => ({ productId: item.productId, productVersion: item.productVersion, productSku: item.productSku, productName: item.productName, priceHuf: item.priceHuf, reasonCode: item.reasonCode, reasonText: item.reasonText, evidencePurchaseIds: item.evidencePurchaseIds })),
+    createdByUserId: userId,
+  }]);
+  return outputAutomationPreview(row.toObject());
+}
+
+export async function getAutomationPreview(userId: string, sellerSlug: string, previewId: string) {
+  const seller = await sellerAccess(userId, sellerSlug);
+  if (!mongoose.isValidObjectId(previewId)) throw new AutomationError("NOT_FOUND");
+  const row = await OfferAutomationPreview.findOne({ _id: previewId, sellerId: seller._id }).lean();
+  if (!row) throw new AutomationError("NOT_FOUND");
+  return outputAutomationPreview(row);
+}
+
+export async function scheduleAutomationPreview(userId: string, sellerSlug: string, previewId: string, clientRequestId: unknown) {
+  if (!mongoose.isValidObjectId(previewId) || typeof clientRequestId !== "string" || !/^[A-Za-z0-9_-]{8,120}$/.test(clientRequestId)) throw new AutomationError("INVALID");
+  const seller = await sellerAccess(userId, sellerSlug);
+  const existing = await OfferAutomation.findOne({ sellerId: seller._id, createdByUserId: userId, clientRequestId }).lean();
+  if (existing) return outputAutomation(existing);
+  const preview = await OfferAutomationPreview.findOne({ _id: previewId, sellerId: seller._id }).lean();
+  if (!preview) throw new AutomationError("NOT_FOUND");
+  if (preview.scheduledAutomationId) { const row = await OfferAutomation.findById(preview.scheduledAutomationId).lean(); if (row) return outputAutomation(row); }
+  if (preview.status !== "ready") throw new AutomationError("CONFLICT");
+  const database = await connectDatabase();
+  let result: any;
+  await database.connection.transaction(async (session) => {
+    const [row] = await OfferAutomation.create([{ sellerId: seller._id, customerId: preview.customerId, buyerUserId: preview.buyerUserId, channel: preview.channel, cadence: preview.cadence, nextRunAt: preview.nextRunAt, productLimit: preview.productLimit, clientRequestId, createdByUserId: userId }], { session });
+    await OfferAutomationPreview.updateOne({ _id: preview._id, status: "ready" }, { $set: { status: "scheduled", scheduledAutomationId: row._id, scheduledAt: new Date() } }, { session });
+    result = outputAutomation(row.toObject());
+  });
+  return result;
 }
 
 export async function createAutomation(userId: string, sellerSlug: string, input: unknown) {
@@ -174,7 +260,9 @@ async function runAutomation(automation: any, actorUserId: string, sellerSlug?: 
     if (products.length) {
       const [created] = await OfferList.create([{ sellerId: automation.sellerId, buyerUserId: automation.buyerUserId, customerId: automation.customerId, automationId: automation._id, automationRunId: run._id, recommendationPreviewId: preview.id, channel: automation.channel, title: "Személyre szabott ajánlatlista", products: products.map((item: any) => ({ productId: item.productId, productVersion: item.productVersion, productSku: item.productSku, productName: item.productName, priceHuf: item.priceHuf, reasonCode: item.reasonCode, reasonText: item.reasonText, evidencePurchaseIds: item.evidencePurchaseIds })), availableUntil: addCadence(now, automation.cadence), createdByUserId: actorUserId }], { session });
       offerList = created;
-      delivery = await createDeliveryRecord(session, { sellerId: automation.sellerId, buyerUserId: automation.buyerUserId, customerId: automation.customerId, automationId: automation._id, automationRunId: run._id, offerListId: created._id, kind: "automated_list", channel: automation.channel, idempotencyKey: `automation:${automation._id}:${run._id}`, contentSnapshot: { title: created.title, productCount: products.length, availableUntil: created.availableUntil }, createdByUserId: actorUserId });
+      const contentSnapshot = { title: created.title, productCount: products.length, availableUntil: created.availableUntil, products: products.map((item: any) => ({ productName: item.productName, priceHuf: item.priceHuf, reasonText: item.reasonText })) };
+      await createDeliveryRecord(session, { sellerId: automation.sellerId, buyerUserId: automation.buyerUserId, customerId: automation.customerId, automationId: automation._id, automationRunId: run._id, offerListId: created._id, kind: "automated_list", channel: "in_app", idempotencyKey: `automation:${automation._id}:${run._id}:in_app`, contentSnapshot, createdByUserId: actorUserId });
+      delivery = await createDeliveryRecord(session, { sellerId: automation.sellerId, buyerUserId: automation.buyerUserId, customerId: automation.customerId, automationId: automation._id, automationRunId: run._id, offerListId: created._id, kind: "automated_list", channel: automation.channel, idempotencyKey: `automation:${automation._id}:${run._id}:${automation.channel}`, contentSnapshot, createdByUserId: actorUserId });
       run.offerListId = created._id;
       run.deliveryId = delivery._id;
       await run.save({ session });

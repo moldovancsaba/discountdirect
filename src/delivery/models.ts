@@ -15,7 +15,7 @@ const deliveryOutboxSchema = new Schema(
     automationRunId: { type: Schema.Types.ObjectId, default: null, ref: "OfferAutomationRun", index: true },
     offerListId: { type: Schema.Types.ObjectId, default: null, ref: "OfferList", index: true },
     kind: { type: String, enum: ["personal_offer", "flash_campaign", "automated_list", "printable_letter"], required: true },
-    channel: { type: String, enum: ["email", "postal"], required: true },
+    channel: { type: String, enum: ["in_app", "email", "postal"], required: true },
     status: { type: String, enum: deliveryStatuses, required: true, index: true },
     reasonCode: { type: String, required: true, maxlength: 120 },
     idempotencyKey: { type: String, required: true, maxlength: 180 },

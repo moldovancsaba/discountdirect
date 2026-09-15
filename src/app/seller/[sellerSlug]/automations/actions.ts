@@ -1,7 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/auth/service";
-import { createAutomation, runAutomationNow, setAutomationStatus } from "@/automations/service";
+import { createAutomationPreview, runAutomationNow, scheduleAutomationPreview, setAutomationStatus } from "@/automations/service";
 
 async function identity() {
   const user = await currentUser();
@@ -9,20 +9,31 @@ async function identity() {
   return user;
 }
 
-export async function createAutomationAction(sellerSlug: string, form: FormData) {
+export async function previewAutomationAction(sellerSlug: string, form: FormData) {
   const user = await identity();
-  let target = `/seller/${sellerSlug}/automations?saved=created`;
+  let target = `/seller/${sellerSlug}/automations?error=INVALID`;
   try {
-    await createAutomation(user.id, sellerSlug, {
+    const preview = await createAutomationPreview(user.id, sellerSlug, {
       customerId: form.get("customerId"),
       channel: form.get("channel"),
       cadence: form.get("cadence"),
       productLimit: Number(form.get("productLimit")),
       nextRunAt: form.get("nextRunAt"),
-      clientRequestId: crypto.randomUUID().replaceAll("-", ""),
     });
+    target = `/seller/${sellerSlug}/automations?preview=${preview.id}`;
   } catch (error) {
     target = `/seller/${sellerSlug}/automations?error=${encodeURIComponent(error instanceof Error ? error.message : "INVALID")}`;
+  }
+  redirect(target);
+}
+
+export async function scheduleAutomationAction(sellerSlug: string, previewId: string) {
+  const user = await identity();
+  let target = `/seller/${sellerSlug}/automations?saved=created`;
+  try {
+    await scheduleAutomationPreview(user.id, sellerSlug, previewId, crypto.randomUUID().replaceAll("-", ""));
+  } catch (error) {
+    target = `/seller/${sellerSlug}/automations?preview=${previewId}&error=${encodeURIComponent(error instanceof Error ? error.message : "INVALID")}`;
   }
   redirect(target);
 }
