@@ -118,7 +118,7 @@ loginRateLimitSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const authAuditEventSchema = new Schema(
   {
-    actorKind: { type: String, enum: ["operator_user", "operator_token", "system"], required: true, index: true },
+    actorKind: { type: String, enum: ["operator_user", "system"], required: true, index: true },
     actorUserId: { type: Schema.Types.ObjectId, default: null, ref: "User", index: true },
     actorLabel: { type: String, required: true, maxlength: 160 },
     action: {

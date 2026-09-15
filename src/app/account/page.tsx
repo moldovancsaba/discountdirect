@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BannerNotice, Button as GdsButton, GdsGrid, GdsIcon, ListingCard, PageHeader } from "@discountdirect/gds-client";
+import { BannerNotice, Button as GdsButton, GdsGrid, GdsIcon, ListingCard, PageHeader, SectionPanel, SimpleDataTable, StatusBadge } from "@discountdirect/gds-client";
 import { buyerRelationshipsFor, currentUser, membershipsFor } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { signOutUser } from "./actions";
 
 export const metadata: Metadata = { title: "Saját munkaterület", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
+
+function formatDate(value: Date | null) {
+  return value ? new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Budapest" }).format(new Date(value)) : "-";
+}
+
 export default async function AccountPage() {
   const user = await currentUser();
   if (!user) redirect("/sign-in");
@@ -18,6 +23,16 @@ export default async function AccountPage() {
       eyebrow="Saját fiók"
       actions={<form action={signOutUser}><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Logout" decorative />}>Kijelentkezés</GdsButton></form>}
     />
+    <SectionPanel title="SSO profil" description="A belépett felhasználó DoneIsBetter SSO-ból szinkronizált adatai.">
+      <div className="table-wrap"><SimpleDataTable rows={[{
+        email: user.email,
+        name: user.displayName,
+        ssoRole: user.ssoRole ?? "user",
+        ssoStatus: <StatusBadge status={user.ssoStatus === "approved" ? "success" : "warning"}>{user.ssoStatus ?? "unknown"}</StatusBadge>,
+        systemRole: user.systemRole ?? "-",
+        lastLogin: formatDate(user.lastSsoLoginAt),
+      }]} columns={[{ key: "email", header: "E-mail" }, { key: "name", header: "Név" }, { key: "ssoRole", header: "SSO szerep" }, { key: "ssoStatus", header: "SSO státusz" }, { key: "systemRole", header: "Rendszerszerep" }, { key: "lastLogin", header: "Utolsó SSO belépés" }]} /></div>
+    </SectionPanel>
     <GdsGrid columns={{ base: 1, md: 3 }}>
       {memberships.map((membership) => <ListingCard
         key={membership.id}

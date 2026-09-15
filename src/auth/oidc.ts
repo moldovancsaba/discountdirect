@@ -64,12 +64,15 @@ async function syncSsoUser(input: {
   if (!user) user = await User.findOne({ emailNormalized: email });
   if (user?.status === "disabled") throw new SsoError("ACCOUNT_DISABLED");
   if (user?.ssoUserId && user.ssoUserId !== input.subject) throw new SsoError("INVALID_CALLBACK");
+  if (input.permissionStatus !== "approved") throw new SsoError("ACCESS_DENIED");
+  const isOperator = input.permissionRole === "admin" || input.permissionRole === "operator";
   const values = {
     ssoUserId: input.subject,
     emailNormalized: email,
     displayName: input.name.slice(0, 120),
     ssoRole: input.permissionRole,
     ssoStatus: input.permissionStatus,
+    systemRole: isOperator ? "operator" : null,
     lastSsoLoginAt: new Date(),
     status: "active",
   };
@@ -131,10 +134,10 @@ export async function completeSsoCallback(input: {
   const permission = permissionResponse.ok
     ? ((await permissionResponse.json()) as { status?: unknown; role?: unknown })
     : null;
-  const permissionStatus = typeof permission?.status === "string" ? permission.status : "unknown";
+  const permissionStatus = typeof permission?.status === "string" ? permission.status.trim().toLowerCase() : "unknown";
   const permissionRole = typeof permission?.role === "string"
-    ? permission.role
-    : typeof identity.role === "string" ? identity.role : "user";
+    ? permission.role.trim().toLowerCase()
+    : typeof identity.role === "string" ? identity.role.trim().toLowerCase() : "user";
   const user = await syncSsoUser({
     subject: identity.sub,
     email: identity.email,

@@ -10,6 +10,10 @@ export type AuthenticatedUser = {
   email: string;
   displayName: string;
   systemRole: "operator" | null;
+  ssoUserId: string | null;
+  ssoRole: string | null;
+  ssoStatus: string | null;
+  lastSsoLoginAt: Date | null;
 };
 
 function nowPlus(milliseconds: number, now = new Date()) {
@@ -47,9 +51,13 @@ export async function resolveSessionToken(
     displayName: user.displayName,
     systemRole:
       user.systemRole ??
-      (user.ssoStatus === "approved" && user.ssoRole === "admin"
+      (user.ssoStatus === "approved" && (user.ssoRole === "admin" || user.ssoRole === "operator")
         ? "operator"
         : null),
+    ssoUserId: user.ssoUserId ?? null,
+    ssoRole: user.ssoRole ?? null,
+    ssoStatus: user.ssoStatus ?? null,
+    lastSsoLoginAt: user.lastSsoLoginAt ?? null,
   };
 }
 

@@ -44,15 +44,17 @@ const checks = [];
 {
   const { response, body } = await text("/sign-in");
   assert.equal(response.status, 200);
-  includesAll(body, ["E-mail-cím", "Jelszó", "Bejelentkezés DoneIsBetter SSO-val", "type=\"email\"", "type=\"password\"", "autoComplete=\"username\"", "autoComplete=\"current-password\""]);
-  checks.push("sign-in form exposes labels and autocomplete hints");
+  includesAll(body, ["Bejelentkezés", "Bejelentkezés DoneIsBetter SSO-val"]);
+  assert.doesNotMatch(body, /type="password"|type="email"|E-mail-cím|Jelszó/);
+  checks.push("sign-in exposes only DoneIsBetter SSO");
 }
 
 {
   const { response, body } = await text("/admin");
   assert.equal(response.status, 200);
-  includesAll(body, ["Üzemeltetői hozzáférés", "Hozzáférési kulcs", "type=\"password\"", "autoComplete=\"current-password\""]);
-  checks.push("operator gate renders without exposing protected metrics");
+  includesAll(body, ["Üzemeltetői hozzáférés", "Bejelentkezés DoneIsBetter SSO-val"]);
+  assert.doesNotMatch(body, /Hozzáférési kulcs|type="password"|autoComplete="current-password"/);
+  checks.push("operator gate renders SSO-only without exposing protected metrics");
 }
 
 for (const path of ["/account", "/buyer/offers", "/buyer/lists", "/buyer/redemptions", "/seller/sample-shop"]) {

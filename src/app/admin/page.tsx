@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
-import { AuthShell, BannerNotice, Button as GdsButton, GdsGrid, GdsIcon, MetricCard, PageHeader, PasswordInput, SectionPanel, SimpleDataTable, StatusBadge, TextInput } from "@discountdirect/gds-client";
+import { AuthShell, BannerNotice, Button as GdsButton, GdsGrid, GdsIcon, MetricCard, PageHeader, SectionPanel, SimpleDataTable, StatusBadge, TextInput } from "@discountdirect/gds-client";
+import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
-import { isOperator } from "@/lib/operations";
-import { validSecret } from "@/lib/operator-session";
 import { databaseHealth } from "@/lib/database";
 import { deliveryChannelSummary, deliverySummary } from "@/delivery/service";
 import { automationSummary } from "@/automations/service";
 import { redemptionSummary } from "@/redemptions/service";
 import { adminAccessOverview } from "@/auth/admin-access";
-import { disableUserAction, revokeBuyerRelationshipAction, revokeMembershipAction, revokeUserSessionsAction, signIn, signOut } from "./actions";
+import { disableUserAction, revokeBuyerRelationshipAction, revokeMembershipAction, revokeUserSessionsAction, signOut } from "./actions";
 
 export const metadata: Metadata = { title: "Rendszerállapot", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -31,15 +30,12 @@ function ReasonAction({ id, action, label, tone = "default" }: { id: string; act
   </form>;
 }
 export default async function Admin({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string }> }) {
-  const authorized = await isOperator();
-  const configured = validSecret(process.env.OPERATIONS_TOKEN);
+  const user = await currentUser().catch(() => null);
+  const authorized = user?.systemRole === "operator";
   const { error, saved } = await searchParams;
   if (!authorized) return <Shell active="admin">
-    <AuthShell title="Üzemeltetői hozzáférés" description="Védett áttekintés az alkalmazás működéséről." intent="sign-in" brand={<GdsIcon name="Lock" size="lg" decorative />} error={error ? "A hozzáférési kulcs nem megfelelő." : undefined} helper="A munkamenet egy óra után lejár.">
-      {configured ? <form action={signIn}>
-        <PasswordInput name="token" label="Hozzáférési kulcs" autoComplete="current-password" required maxLength={1024} />
-        <GdsButton type="submit" fullWidth leftSection={<GdsIcon name="Login" decorative />}>Biztonságos belépés</GdsButton>
-      </form> : <BannerNotice title="Beállítás folyamatban" severity="warning" message="Az üzemeltetői hozzáférés még nincs beállítva." />}
+    <AuthShell title="Üzemeltetői hozzáférés" description="Jóváhagyott DoneIsBetter SSO admin jogosultság szükséges." intent="sign-in" brand={<GdsIcon name="Lock" size="lg" decorative />} error={error ? "Az operátori művelet nem engedélyezett." : user ? "A bejelentkezett SSO-fiók nem operátor." : undefined} helper="A munkamenet 30 perc tétlenség vagy legfeljebb 12 óra után lejár.">
+      <GdsButton component="a" href="/api/auth/login?returnTo=/admin" fullWidth leftSection={<GdsIcon name="Login" decorative />}>Bejelentkezés DoneIsBetter SSO-val</GdsButton>
     </AuthShell>
   </Shell>;
 
@@ -80,11 +76,12 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
         user: `${user.displayName} · ${user.email}`,
         status: <StatusBadge status={statusTone[user.status] ?? "neutral"}>{user.status}</StatusBadge>,
         role: user.systemRole ?? "—",
+        sso: `${user.ssoRole ?? "user"} · ${user.ssoStatus ?? "unknown"}`,
         sessions: String(user.activeSessions),
         lastSeen: user.lastSeenAt ? new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Budapest" }).format(new Date(user.lastSeenAt)) : "—",
         revoke: <ReasonAction id={user.id} action={revokeUserSessionsAction} label="Munkamenetek visszavonása" />,
         disable: user.status !== "disabled" ? <ReasonAction id={user.id} action={disableUserAction} label="Felhasználó tiltása" tone="red" /> : "—",
-      }))} columns={[{ key: "user", header: "Felhasználó" }, { key: "status", header: "Állapot" }, { key: "role", header: "Rendszerszerep" }, { key: "sessions", header: "Aktív session" }, { key: "lastSeen", header: "Utolsó aktivitás" }, { key: "revoke", header: "Session revokáció" }, { key: "disable", header: "Felhasználó tiltása" }]} /></div>
+      }))} columns={[{ key: "user", header: "Felhasználó" }, { key: "status", header: "Állapot" }, { key: "role", header: "Rendszerszerep" }, { key: "sso", header: "SSO" }, { key: "sessions", header: "Aktív session" }, { key: "lastSeen", header: "Utolsó aktivitás" }, { key: "revoke", header: "Session revokáció" }, { key: "disable", header: "Felhasználó tiltása" }]} /></div>
     </SectionPanel>
     <SectionPanel title="Eladói hozzáférések" description="Tagság visszavonásakor a felhasználó nyitott munkamenetei is megszűnnek.">
       <div className="table-wrap"><SimpleDataTable rows={access.memberships.map((membership) => ({
