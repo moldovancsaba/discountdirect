@@ -38,6 +38,7 @@
     "@sovereignsquad/gds-theme": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-theme-6.7.0.tgz",
     "@tabler/icons-react": "3.46.0",
     "@upstash/redis": "1.38.4",
+    "@vercel/blob": "2.8.0",
     "@vercel/functions": "3.9.6",
     "dayjs": "1.11.18",
     "mongoose": "9.9.5",

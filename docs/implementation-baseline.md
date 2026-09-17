@@ -20,7 +20,7 @@ contracts materially change.
 | Realtime | Socket.IO endpoint on Vercel plus durable Atlas `RealtimeEvent` replay and HTTP fallback |
 | Jobs | Vercel Cron invokes `/api/cron/automations` every 30 minutes and `/api/cron/deliveries` every 15 minutes |
 | E-mail | Resend adapter for outbound mail, signed inbound replies, suppressions and unsubscribe handling |
-| Current storage gaps | Upstash Redis client/key policy exists, but staging/production Redis is not configured or wired into campaign/frequency flows yet; no Vercel Blob yet; no separate reporting projection yet |
+| Current storage gaps | Upstash Redis and Vercel Blob client/key-policy foundations exist, but staging/production stores are not configured or wired into business flows yet; no separate reporting projection yet |
 
 ## Deployment and environment
 
@@ -33,6 +33,7 @@ recognized environment variables are:
 | Database | `MONGODB_URI`, `MONGODB_DB` |
 | App/runtime | `APP_URL`, `REALTIME_ENABLED` |
 | Redis | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
+| Blob | `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, or Vercel OIDC with `BLOB_STORE_ID` |
 | SSO | `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET`, `SSO_ORIGIN`, `SSO_REDIRECT1_URI`, `SSO_REDIRECT2_URI` |
 | Operations | `OPERATIONS_TOKEN`, `CRON_SECRET` |
 | E-mail | `EMAIL_DELIVERY_PROVIDER`, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_STAGED_RECIPIENTS`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_API_KEY`, `RESEND_API_BASE_URL`, `RESEND_FROM`, `RESEND_REPLY_DOMAIN`, `RESEND_WEBHOOK_SECRET` |
@@ -128,8 +129,10 @@ These gaps are intentional inventory facts, not regressions:
   foundation. Frequency caps, rate limits, flash counters and short-lived
   idempotency locks are not yet wired into the business flows or verified
   against staging Redis.
-- Vercel Blob is not installed yet; privacy exports are database-backed and
-  postal/PDF artifact storage is not in place.
+- Vercel Blob has a private artifact key convention, retention policy and signed
+  read-url foundation. Privacy exports are still database-backed and postal/PDF
+  artifact persistence is not yet wired into business flows or verified against
+  staging Blob.
 - The e-commerce handoff/write-back path is not implemented: no Shoprenter,
   UNAS, WooCommerce or Shopify connector, cart token, checkout URL, order
   write-back or stock webhook.
