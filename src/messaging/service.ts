@@ -90,7 +90,9 @@ async function timelineOutput(rows: any[]) {
 
 async function conversationOutput(row: any) {
   const [seller, buyer, customer] = await Promise.all([
-    Seller.findById(row.sellerId).lean(), User.findById(row.buyerUserId).lean(), row.customerId ? Customer.findById(row.customerId).lean() : null,
+    Seller.findById(row.sellerId).lean(),
+    User.findById(row.buyerUserId).lean(),
+    row.customerId ? Customer.findOne({ _id: row.customerId, sellerId: row.sellerId }).lean() : null,
   ]);
   if (!seller || !buyer) throw new MessagingError("NOT_FOUND");
   return {

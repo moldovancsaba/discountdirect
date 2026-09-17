@@ -15,7 +15,7 @@ Next.js 15.5.21 App Router owns the frontend and HTTP backend, with React 19.2.8
 
 Only server code imports the shared Mongoose helper. The URI is read at request time, allowing clean builds without database credentials. Concurrent first requests share a pending connection. Failed connection attempts clear the pending promise, allowing subsequent requests to recover. Pool size is capped at five per function instance; selection/connect/socket and ping deadlines are bounded at five seconds. Automatic index creation and command buffering are disabled. This release does not create business collections, insert demo records or run migrations.
 
-Use `MONGODB_DB` to select a database, default `discountdirect`. Each future tenant-scoped collection and index belongs to its domain issue. Atlas backup/access-policy acceptance remains in issue #2.
+Use `MONGODB_DB` to select a database, default `discountdirect`. `src/lib/tenant-core.ts` provides the DD-002 tenant guard foundation: guarded Mongoose schemas either receive a seller context through async-local storage, carry an explicit `sellerId` constraint during the compatibility rollout or run under a named maintenance bypass. The first guarded families are catalog, purchase-ledger, privacy and recommendation-preview records. Messaging, offers, campaigns, delivery, automation, realtime, redemption and auth relationship models still rely on explicit service-level seller checks until the remaining strict tenant-context rollout lands. Atlas backup/access-policy acceptance remains in issue #2.
 
 ## Operator access
 

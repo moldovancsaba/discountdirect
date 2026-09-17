@@ -218,7 +218,7 @@ export async function listAutomations(userId: string, sellerSlug: string) {
     OfferAutomationRun.find({ sellerId: seller._id }).sort({ startedAt: -1, _id: -1 }).limit(30).lean(),
   ]);
   const customerIds = [...new Set(automations.map((row: any) => row.customerId.toString()).concat(lists.map((row: any) => row.customerId.toString())))];
-  const customers = await Customer.find({ _id: { $in: customerIds } }).lean();
+  const customers = await Customer.find({ sellerId: seller._id, _id: { $in: customerIds } }).lean();
   const customerById = new Map(customers.map((row: any) => [row._id.toString(), row]));
   return {
     seller: { id: seller._id.toString(), name: seller.name, slug: seller.slug },

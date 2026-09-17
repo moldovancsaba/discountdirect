@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 const timestamps = { timestamps: true, versionKey: false } as const;
@@ -68,6 +69,10 @@ const purchaseImportBatchSchema = new Schema(
   { ...timestamps, collection: "purchase_import_batches" },
 );
 purchaseImportBatchSchema.index({ sellerId: 1, checksum: 1 }, { unique: true });
+
+customerSchema.plugin(sellerScopedSchema);
+purchaseSchema.plugin(sellerScopedSchema);
+purchaseImportBatchSchema.plugin(sellerScopedSchema);
 
 export const Customer = models.Customer || model("Customer", customerSchema);
 export const Purchase = models.Purchase || model("Purchase", purchaseSchema);

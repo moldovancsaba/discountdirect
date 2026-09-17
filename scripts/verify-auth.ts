@@ -19,6 +19,7 @@ import {
 } from "../src/auth/crypto.ts";
 import { catalogModels, Product } from "../src/catalog/models.ts";
 import { Customer, Purchase, purchaseModels } from "../src/purchases/models.ts";
+import { withTenantBypass } from "../src/lib/tenant-core.ts";
 import { ChannelPreference, ConsentEvent, PrivacyRequest, privacyModels } from "../src/privacy/models.ts";
 import { RecommendationPreview, recommendationModels } from "../src/recommendations/models.ts";
 import { Conversation, ConversationEvent, messagingModels } from "../src/messaging/models.ts";
@@ -302,7 +303,7 @@ try {
     cookie,
   );
   const staleBatch = (await stalePreview.json()).batch;
-  const currentProduct = await Product.findById(createdProduct.id).lean();
+  const currentProduct = await Product.findOne({ _id: createdProduct.id, sellerId: allowedSeller._id }).lean();
   assert.ok(currentProduct);
   const directEdit = await fetch(`${base}${productPath}/${createdProduct.id}`, {
     method: "PATCH",
@@ -375,7 +376,12 @@ try {
   assert.equal((await fetch(`${base}/api/sellers/allowed-seller/purchases/${history[0].id}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ expectedVersion: history[0].version, status: "corrected", reason: "Stale correction" }) })).status, 409);
   assert.equal((await fetch(`${base}/api/sellers/foreign-seller/customers`, { headers: { cookie } })).status, 403);
   await Customer.create({ sellerId: foreignSeller._id, externalBuyerId: "FOREIGN-CUSTOMER", emailNormalized: user.emailNormalized, displayName: "Same email, other seller", sourceName: "Verification" });
-  assert.equal(await Customer.countDocuments({ emailNormalized: user.emailNormalized }), 2);
+  assert.equal(
+    await withTenantBypass("auth-integration-cross-seller-customer-count", () =>
+      Customer.countDocuments({ emailNormalized: user.emailNormalized }),
+    ),
+    2,
+  );
   const buyerPage = await fetch(`${base}/buyer/allowed-seller`, { headers: { cookie } });
   assert.equal(buyerPage.status, 200);
   assert.match(await buyerPage.text(), /Korábbi termék/);

@@ -89,14 +89,14 @@ export async function createPrivacyRequest(userId: string, sellerSlug: string, t
   try { type = validatePrivacyRequestType(typeValue); } catch { throw new PrivacyError("INVALID"); }
   const { seller, customer } = await buyerContext(userId, sellerSlug);
   const openKey = `${seller._id}:${userId}:${type}`;
-  const existing = await PrivacyRequest.findOne({ openKey }).lean();
+  const existing = await PrivacyRequest.findOne({ sellerId: seller._id, openKey }).lean();
   if (existing) return requestOutput(existing);
   try {
     const row = await PrivacyRequest.create({ sellerId: seller._id, buyerUserId: userId, customerId: customer?._id ?? null, type, openKey, status: "requested", requestedAt: new Date() });
     return requestOutput(row.toObject());
   } catch (error: any) {
     if (error?.code === 11000) {
-      const concurrent = await PrivacyRequest.findOne({ openKey }).lean();
+      const concurrent = await PrivacyRequest.findOne({ sellerId: seller._id, openKey }).lean();
       if (concurrent) return requestOutput(concurrent);
     }
     throw error;
@@ -113,7 +113,7 @@ async function buildExportPayload(sellerId: unknown, buyerUserId: unknown, custo
   const [user, seller, customer, preferences, events, purchases] = await Promise.all([
     User.findById(buyerUserId).session(session).lean(),
     Seller.findById(sellerId).session(session).lean(),
-    customerId ? Customer.findById(customerId).session(session).lean() : null,
+    customerId ? Customer.findOne({ _id: customerId, sellerId }).session(session).lean() : null,
     ChannelPreference.find({ sellerId, buyerUserId }).session(session).lean(),
     ConsentEvent.find({ sellerId, buyerUserId }).sort({ occurredAt: 1, _id: 1 }).session(session).lean(),
     customerId ? Purchase.find({ sellerId, customerId }).sort({ purchasedAt: 1, _id: 1 }).session(session).lean() : [],
@@ -156,7 +156,7 @@ export async function advancePrivacyRequest(userId: string, sellerSlug: string, 
       if (request.type === "access_export") {
         const payload = await buildExportPayload(request.sellerId, request.buyerUserId, request.customerId, session);
         await PrivacyExport.findOneAndUpdate(
-          { requestId: request._id },
+          { requestId: request._id, sellerId: request.sellerId },
           { $set: { sellerId: request.sellerId, buyerUserId: request.buyerUserId, payload, expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) } },
           { upsert: true, session, runValidators: true },
         );

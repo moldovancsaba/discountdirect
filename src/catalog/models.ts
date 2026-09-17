@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 const timestamps = { timestamps: true, versionKey: false } as const;
@@ -62,6 +63,10 @@ const importBatchSchema = new Schema(
   { ...timestamps, collection: "import_batches" },
 );
 importBatchSchema.index({ sellerId: 1, checksum: 1 }, { unique: true });
+
+productSchema.plugin(sellerScopedSchema);
+productRevisionSchema.plugin(sellerScopedSchema);
+importBatchSchema.plugin(sellerScopedSchema);
 
 export const Product = models.Product || model("Product", productSchema);
 export const ProductRevision = models.ProductRevision || model("ProductRevision", productRevisionSchema);

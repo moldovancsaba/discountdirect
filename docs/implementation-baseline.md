@@ -56,9 +56,14 @@ recognized environment variables are:
 | `src/automations` | `offer_automations`, `offer_automation_previews`, `offer_automation_runs`, `offer_lists` |
 | `src/redemptions` | `redemption_coupons`, `redemption_events` |
 
-The implementation currently uses explicit seller and buyer access checks in each
-domain service. It does not yet have the D26/DD-002 tenant query plugin described
-in the refreshed external plan.
+The implementation uses explicit seller and buyer access checks in each domain
+service. A DD-002 tenant guard foundation now exists in `src/lib/tenant-core.ts`
+and is applied to catalog, purchase-ledger, privacy and recommendation-preview
+models. The guard injects the active seller context when present, refuses
+unscoped guarded-model access, and requires named bypasses for intentional
+cross-seller maintenance checks. Messaging, offers, campaigns, delivery,
+automation, realtime and redemption models still rely on explicit service-level
+seller checks until the remaining DD-002 strict rollout wraps those flows.
 
 ## Route and surface inventory
 
@@ -98,6 +103,8 @@ privacy and redemptions.
 
 - SSO-only account access, workspace selection, logout and audited operator
   revocation are implemented.
+- Tenant guard helpers and first guarded model families are implemented for
+  catalog, purchase-ledger, privacy and recommendation-preview records.
 - Seller product catalog, optimistic product imports, purchase imports and
   corrected/refunded purchase history are implemented.
 - Buyer/seller privacy preferences, consent events, access exports,
@@ -133,6 +140,10 @@ These gaps are intentional inventory facts, not regressions:
   read-url foundation. Privacy exports are still database-backed and postal/PDF
   artifact persistence is not yet wired into business flows or verified against
   staging Blob.
+- Tenant guard rollout is partial: catalog, purchase-ledger, privacy and
+  recommendation-preview models are guarded, while messaging, offers, campaigns,
+  delivery, automation, realtime, redemption and auth relationship models are
+  pending strict tenant-context wrapping.
 - The e-commerce handoff/write-back path is not implemented: no Shoprenter,
   UNAS, WooCommerce or Shopify connector, cart token, checkout URL, order
   write-back or stock webhook.

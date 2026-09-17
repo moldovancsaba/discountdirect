@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 const timestamps = { timestamps: true, versionKey: false } as const;
@@ -65,6 +66,11 @@ const privacyExportSchema = new Schema(
   { timestamps: { createdAt: true, updatedAt: false }, versionKey: false, collection: "privacy_exports" },
 );
 privacyExportSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+channelPreferenceSchema.plugin(sellerScopedSchema);
+consentEventSchema.plugin(sellerScopedSchema);
+privacyRequestSchema.plugin(sellerScopedSchema);
+privacyExportSchema.plugin(sellerScopedSchema);
 
 export const ChannelPreference = models.ChannelPreference || model("ChannelPreference", channelPreferenceSchema);
 export const ConsentEvent = models.ConsentEvent || model("ConsentEvent", consentEventSchema);
