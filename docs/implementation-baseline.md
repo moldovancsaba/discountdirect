@@ -20,7 +20,7 @@ contracts materially change.
 | Realtime | Socket.IO endpoint on Vercel plus durable Atlas `RealtimeEvent` replay and HTTP fallback |
 | Jobs | Vercel Cron invokes `/api/cron/automations` every 30 minutes and `/api/cron/deliveries` every 15 minutes |
 | E-mail | Resend adapter for outbound mail, signed inbound replies, suppressions and unsubscribe handling |
-| Current storage gaps | No Upstash Redis yet; no Vercel Blob yet; no separate reporting projection yet |
+| Current storage gaps | Upstash Redis client/key policy exists, but staging/production Redis is not configured or wired into campaign/frequency flows yet; no Vercel Blob yet; no separate reporting projection yet |
 
 ## Deployment and environment
 
@@ -32,6 +32,7 @@ recognized environment variables are:
 | --- | --- |
 | Database | `MONGODB_URI`, `MONGODB_DB` |
 | App/runtime | `APP_URL`, `REALTIME_ENABLED` |
+| Redis | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
 | SSO | `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET`, `SSO_ORIGIN`, `SSO_REDIRECT1_URI`, `SSO_REDIRECT2_URI` |
 | Operations | `OPERATIONS_TOKEN`, `CRON_SECRET` |
 | E-mail | `EMAIL_DELIVERY_PROVIDER`, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_STAGED_RECIPIENTS`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_API_KEY`, `RESEND_API_BASE_URL`, `RESEND_FROM`, `RESEND_REPLY_DOMAIN`, `RESEND_WEBHOOK_SECRET` |
@@ -123,9 +124,10 @@ privacy and redemptions.
 
 These gaps are intentional inventory facts, not regressions:
 
-- Upstash Redis is not installed yet; frequency caps, rate limits, flash counters
-  and short-lived idempotency locks still rely on database state or are not yet
-  implemented.
+- Upstash Redis has a client, key convention, TTL policy and Lua-script loader
+  foundation. Frequency caps, rate limits, flash counters and short-lived
+  idempotency locks are not yet wired into the business flows or verified
+  against staging Redis.
 - Vercel Blob is not installed yet; privacy exports are database-backed and
   postal/PDF artifact storage is not in place.
 - The e-commerce handoff/write-back path is not implemented: no Shoprenter,
