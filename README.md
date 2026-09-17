@@ -8,7 +8,7 @@ Personalized offers and seller–buyer relationships. Realtime transport release
 - [Repository project board](https://github.com/moldovancsaba/discountdirect/projects)
 - [Implementation plan](IMPLEMENTATION_PLAN.md)
 - [Release notes](RELEASE_NOTES.md)
-- [Architecture](docs/architecture.md) · [Setup and operations](docs/operations.md)
+- [Architecture](docs/architecture.md) · [Implementation baseline](docs/implementation-baseline.md) · [Setup and operations](docs/operations.md)
 - [Authentication and provisioning](docs/authentication.md)
 - [Purchase ledger](docs/purchases.md)
 - [Privacy and channel preferences](docs/privacy.md)
