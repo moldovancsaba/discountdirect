@@ -1,5 +1,12 @@
 # DiscountDirect implementation plan
 
+> Current-state notice, 2026-09-18: this file preserves the original issue plan and its
+> chronological release notes. It is not the source of truth for present capability.
+> The verified current stack, routes, models, implemented business rules and remaining
+> gaps are maintained in `docs/implementation-baseline.md`; the latest verified code is
+> commit `0eb5d55`. Historical statements below remain dated evidence, not current
+> instructions.
+
 > Implementation update, 2026-09-08: foundation release 0.2.0 adds the runnable application, Atlas health checks and temporary protected operations access. The user explicitly deferred GDS after a GitHub Packages billing-limit error; #3 remains open. See RELEASE_NOTES.md and docs/operations.md. The remaining plan below retains its target-state requirements.
 
 > Implementation update, 2026-09-09: access foundation release 0.3.0 adds password hashing, one-time activation/recovery, opaque revocable sessions, durable login limits, server-resolved seller/buyer scopes and protected workspace entry points. Issue #4 remains open for MFA, complete audit/revocation operations and the deferred GDS dependency.

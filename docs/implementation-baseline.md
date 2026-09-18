@@ -1,9 +1,8 @@
 # Implementation baseline inventory
 
-Verified on 2026-09-17 against the local implementation repository at
-`/Users/Shared/Projects/discountdirect`, with `main` at `4ca170d`
-(`fix: clean up production workspace ui (#24)`) before this inventory document was
-added. This file is the DD-000 baseline artifact: keep it in sync whenever the
+Verified on 2026-09-18 against the local implementation repository at
+`/Users/Shared/Projects/discountdirect`, through `main` commit `0eb5d55`
+(`feat: measure campaign holdout lift`). This file is the DD-000 baseline artifact: keep it in sync whenever the
 runtime stack, deployment shape, domain models, route surface or provider
 contracts materially change.
 
@@ -20,7 +19,7 @@ contracts materially change.
 | Realtime | Socket.IO endpoint on Vercel plus durable Atlas `RealtimeEvent` replay and HTTP fallback |
 | Jobs | Vercel Cron invokes `/api/cron/automations` every 30 minutes and `/api/cron/deliveries` every 15 minutes |
 | E-mail | Resend adapter for outbound mail, signed inbound replies, suppressions and unsubscribe handling |
-| Current storage gaps | Upstash Redis and Vercel Blob client/key-policy foundations exist, but staging/production stores are not configured or wired into business flows yet; no separate reporting projection yet |
+| Accelerators and artifacts | Upstash Redis client/key-policy foundations exist and frequency-cap counters are wired with MongoDB as authority; general rate limits, flash counters and locks remain planned. Vercel Blob has a private-key and signed-read foundation but is not yet wired to product artifacts. No separate reporting projection exists. |
 
 ## Deployment and environment
 

@@ -66,6 +66,6 @@ export async function recordMarketingSend(sellerId: string, buyerUserId: string,
     const count = await redis.incr(key);
     if (count === 1) await redis.expire(key, ttl);
   } catch {
-    // MongoDB delivery history remains authoritative and rebuilds a missing key.
+    // Redis is an acceleration cache; authoritative sent-delivery history rebuilds a missing counter.
   }
 }

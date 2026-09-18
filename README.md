@@ -1,10 +1,10 @@
 # DiscountDirect
 
-Personalized offers and seller–buyer relationships. Realtime transport release **1.5.0**.
+Personalized offers and seller–buyer relationships. Current implementation baseline **1.5.0** plus unreleased pricing-evidence and campaign-measurement work.
 
 - [Application](https://discountdirect.vercel.app)
 - [Original experience workspace](https://discountdirect.vercel.app/experience)
-- [General Dashboard](https://discountdirect.vercel.app/admin) — requires the operator key from `.env.local`
+- [General Dashboard](https://discountdirect.vercel.app/admin) — requires an approved DoneIsBetter operator SSO account
 - [Repository project board](https://github.com/moldovancsaba/discountdirect/projects)
 - [Implementation plan](IMPLEMENTATION_PLAN.md)
 - [Release notes](RELEASE_NOTES.md)
@@ -20,7 +20,7 @@ Personalized offers and seller–buyer relationships. Realtime transport release
 - [Delivery, automations and redemption](docs/delivery-automation-redemption.md)
 - [E-mail delivery provider evidence](docs/email-delivery-provider-evidence-2026-09-12.md)
 
-Built with Next.js, React, TypeScript, MongoDB Atlas/Mongoose and SovereignSquad GDS 6.7.0; hosted on the existing Vercel project. The application uses the GDS `mint` preset (Mint circuit), Hungarian locale, one root provider, governed components and token-only local layout CSS. Socket.IO and later business features follow the issue plan.
+Built with Next.js, React, TypeScript, MongoDB Atlas/Mongoose and SovereignSquad GDS 6.7.0; hosted on the existing Vercel project. The application uses the GDS `mint` preset (Mint circuit), Hungarian locale, one root provider, governed components and token-only local layout CSS. Socket.IO is a convenience transport over durable conversations; the product baseline and remaining gaps are recorded in [the implementation inventory](docs/implementation-baseline.md).
 
 ## Run
 
