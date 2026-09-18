@@ -1,5 +1,16 @@
 # Release notes
 
+## Unreleased
+
+### New Features
+
+- Added the HU market policy and versioned seller settings registry with strict defaults and validation.
+- Added an owner-managed seller settings screen and protected settings API; seller staff have read-only access.
+
+### Fixed Bugs
+
+- Unknown settings keys, invalid percentage ranges and stale concurrent updates now fail closed.
+
 ## Unreleased — Provider-gated e-mail delivery
 
 ### New features

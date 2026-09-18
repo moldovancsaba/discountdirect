@@ -8,6 +8,8 @@ import { Offer, OfferEvent } from "../src/offers/models.ts";
 import { ChannelPreference } from "../src/privacy/models.ts";
 import { Customer, Purchase, PurchaseImportBatch } from "../src/purchases/models.ts";
 import { RecommendationPreview } from "../src/recommendations/models.ts";
+import { Market, SellerSettingsModel } from "../src/settings/models.ts";
+import { SELLER_SETTINGS_DEFAULTS } from "../src/settings/validation.ts";
 
 function option(name: string) {
   const prefix = `--${name}=`;
@@ -37,6 +39,16 @@ try {
     { upsert: true, returnDocument: "after" },
   );
   await Membership.updateOne({ sellerId: seller._id, userId: owner._id }, { $set: { role: "owner", status: "active" } }, { upsert: true });
+  await Market.updateOne(
+    { code: "HU" },
+    { $setOnInsert: { code: "HU", legalBasisByChannel: { chat: "legitimate_interest", email: "legitimate_interest", mailing: "legitimate_interest", rcs: "consent" }, retentionDays: 2555, softOptIn: true, currency: "HUF", locale: "hu-HU", referencePriceDays: 30 } },
+    { upsert: true },
+  );
+  await SellerSettingsModel.updateOne(
+    { sellerId: seller._id },
+    { $setOnInsert: { sellerId: seller._id, marketCode: "HU", settings: SELLER_SETTINGS_DEFAULTS, version: 1, updatedByUserId: owner._id } },
+    { upsert: true },
+  );
 
   const products = new Map<string, { _id: mongoose.Types.ObjectId; sku: string; name: string; priceHuf: number; version: number }>();
   for (const [sku, name, priceHuf, buyerKey, compatibleWith] of fixture.catalog) {

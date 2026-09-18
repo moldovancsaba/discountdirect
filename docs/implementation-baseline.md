@@ -140,6 +140,9 @@ privacy and redemptions.
   are implemented.
 - Accepted offers issue one redemption coupon, and seller confirmation redeems
   it transactionally.
+- The HU market policy and strict seller settings registry apply SSOT defaults,
+  reject unknown or out-of-range values, and expose owner-only updates through
+  the protected seller settings endpoint.
 
 ## Known Release 1 deltas
 
