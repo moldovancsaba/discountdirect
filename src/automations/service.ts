@@ -3,6 +3,7 @@ import "server-only";
 import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
+import { withTenantBypass } from "@/lib/tenant";
 import { createDeliveryRecord } from "@/delivery/service";
 import { Customer } from "@/purchases/models";
 import { createRecommendationPreview } from "@/recommendations/service";
@@ -117,6 +118,11 @@ async function sellerAccess(userId: string, sellerSlug: string) {
   return seller;
 }
 
+async function activeBuyerSellerIds(userId: string) {
+  const rows = await BuyerRelationship.find({ buyerUserId: userId, status: "active" }).select({ sellerId: 1 }).lean();
+  return rows.map((row) => row.sellerId);
+}
+
 function previewInput(input: unknown) {
   if (!input || typeof input !== "object") throw new AutomationError("INVALID");
   const value = input as Record<string, unknown>;
@@ -180,13 +186,13 @@ export async function scheduleAutomationPreview(userId: string, sellerSlug: stri
   if (existing) return outputAutomation(existing);
   const preview = await OfferAutomationPreview.findOne({ _id: previewId, sellerId: seller._id }).lean();
   if (!preview) throw new AutomationError("NOT_FOUND");
-  if (preview.scheduledAutomationId) { const row = await OfferAutomation.findById(preview.scheduledAutomationId).lean(); if (row) return outputAutomation(row); }
+  if (preview.scheduledAutomationId) { const row = await OfferAutomation.findOne({ _id: preview.scheduledAutomationId, sellerId: seller._id }).lean(); if (row) return outputAutomation(row); }
   if (preview.status !== "ready") throw new AutomationError("CONFLICT");
   const database = await connectDatabase();
   let result: any;
   await database.connection.transaction(async (session) => {
     const [row] = await OfferAutomation.create([{ sellerId: seller._id, customerId: preview.customerId, buyerUserId: preview.buyerUserId, channel: preview.channel, cadence: preview.cadence, nextRunAt: preview.nextRunAt, productLimit: preview.productLimit, clientRequestId, createdByUserId: userId }], { session });
-    await OfferAutomationPreview.updateOne({ _id: preview._id, status: "ready" }, { $set: { status: "scheduled", scheduledAutomationId: row._id, scheduledAt: new Date() } }, { session });
+    await OfferAutomationPreview.updateOne({ _id: preview._id, sellerId: seller._id, status: "ready" }, { $set: { status: "scheduled", scheduledAutomationId: row._id, scheduledAt: new Date() } }, { session });
     result = outputAutomation(row.toObject());
   });
   return result;
@@ -267,7 +273,7 @@ async function runAutomation(automation: any, actorUserId: string, sellerSlug?: 
       run.deliveryId = delivery._id;
       await run.save({ session });
     }
-    await OfferAutomation.updateOne({ _id: automation._id }, { $set: { lastRunAt: now, nextRunAt: addCadence(automation.nextRunAt > now ? automation.nextRunAt : now, automation.cadence) } }, { session });
+    await OfferAutomation.updateOne({ _id: automation._id, sellerId: automation.sellerId }, { $set: { lastRunAt: now, nextRunAt: addCadence(automation.nextRunAt > now ? automation.nextRunAt : now, automation.cadence) } }, { session });
     result = { run: outputRun(run.toObject()), list: offerList ? outputList(offerList.toObject()) : null, delivery: delivery ? { id: delivery._id.toString(), status: delivery.status, reasonCode: delivery.reasonCode } : null };
   });
   return result;
@@ -275,7 +281,9 @@ async function runAutomation(automation: any, actorUserId: string, sellerSlug?: 
 
 export async function runDueAutomations(limit = 20) {
   await connectDatabase();
-  const rows = await OfferAutomation.find({ status: "active", nextRunAt: { $lte: new Date() } }).sort({ nextRunAt: 1, _id: 1 }).limit(Math.min(Math.max(limit, 1), 50)).lean();
+  const rows = await withTenantBypass("automation-cron-global-due-scan", () =>
+    OfferAutomation.find({ status: "active", nextRunAt: { $lte: new Date() } }).sort({ nextRunAt: 1, _id: 1 }).limit(Math.min(Math.max(limit, 1), 50)).lean(),
+  );
   const results = [];
   for (const row of rows) {
     try { results.push(await runAutomation(row, row.createdByUserId.toString())); }
@@ -286,16 +294,20 @@ export async function runDueAutomations(limit = 20) {
 
 export async function buyerOfferLists(userId: string) {
   await connectDatabase();
+  const sellerIds = await activeBuyerSellerIds(userId);
+  if (!sellerIds.length) return { lists: [] };
   const now = new Date();
-  await OfferList.updateMany({ buyerUserId: userId, status: "active", availableUntil: { $lte: now } }, { $set: { status: "expired" } });
-  const rows = await OfferList.find({ buyerUserId: userId }).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
+  await OfferList.updateMany({ sellerId: { $in: sellerIds }, buyerUserId: userId, status: "active", availableUntil: { $lte: now } }, { $set: { status: "expired" } });
+  const rows = await OfferList.find({ sellerId: { $in: sellerIds }, buyerUserId: userId }).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
   return { lists: rows.map(outputList) };
 }
 
 export async function buyerOfferList(userId: string, listId: string) {
   if (!mongoose.isValidObjectId(listId)) throw new AutomationError("INVALID");
   await connectDatabase();
-  const row = await OfferList.findOne({ _id: listId, buyerUserId: userId }).lean();
+  const sellerIds = await activeBuyerSellerIds(userId);
+  if (!sellerIds.length) throw new AutomationError("NOT_FOUND");
+  const row = await OfferList.findOne({ _id: listId, sellerId: { $in: sellerIds }, buyerUserId: userId }).lean();
   if (!row) throw new AutomationError("NOT_FOUND");
   return outputList(row);
 }
@@ -303,9 +315,15 @@ export async function buyerOfferList(userId: string, listId: string) {
 export async function automationSummary() {
   await connectDatabase();
   const [automations, runs, lists] = await Promise.all([
-    OfferAutomation.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
-    OfferAutomationRun.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
-    OfferList.countDocuments({ status: "active", availableUntil: { $gt: new Date() } }),
+    withTenantBypass("operator-automation-summary", () =>
+      OfferAutomation.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+    ),
+    withTenantBypass("operator-automation-run-summary", () =>
+      OfferAutomationRun.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+    ),
+    withTenantBypass("operator-active-offer-list-summary", () =>
+      OfferList.countDocuments({ status: "active", availableUntil: { $gt: new Date() } }),
+    ),
   ]);
   return { automations: Object.fromEntries(automations.map((row: { _id: string; count: number }) => [row._id, row.count])), runs: Object.fromEntries(runs.map((row: { _id: string; count: number }) => [row._id, row.count])), activeLists: lists };
 }

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 const timestamps = { timestamps: true, versionKey: false } as const;
@@ -93,6 +94,11 @@ const deliveryWebhookEventSchema = new Schema(
 );
 deliveryWebhookEventSchema.index({ provider: 1, providerEventId: 1 }, { unique: true });
 deliveryWebhookEventSchema.index({ occurredAt: -1, _id: -1 });
+
+deliveryOutboxSchema.plugin(sellerScopedSchema);
+deliveryEventSchema.plugin(sellerScopedSchema);
+deliverySuppressionSchema.plugin(sellerScopedSchema);
+deliveryWebhookEventSchema.plugin(sellerScopedSchema);
 
 export const DeliveryOutbox = models.DeliveryOutbox || model("DeliveryOutbox", deliveryOutboxSchema);
 export const DeliveryEvent = models.DeliveryEvent || model("DeliveryEvent", deliveryEventSchema);

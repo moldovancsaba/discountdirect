@@ -57,7 +57,7 @@ export async function replayRealtimeEvents(userId: string, conversationId: strin
   const parsed = cursor(cursorValue);
   if (cursorValue && !parsed) throw new RealtimeError("INVALID");
   const after = parsed ? { $or: [{ occurredAt: { $gt: parsed.at } }, { occurredAt: parsed.at, _id: { $gt: parsed.id } }] } : {};
-  const rows = await RealtimeEvent.find({ conversationId: access.conversation._id, ...after }).sort({ occurredAt: 1, _id: 1 }).limit(101).lean();
+  const rows = await RealtimeEvent.find({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, ...after }).sort({ occurredAt: 1, _id: 1 }).limit(101).lean();
   const page = rows.slice(0, 100);
   const last = page.at(-1);
   return { events: page.map(eventOutput), nextCursor: rows.length > 100 && last ? Buffer.from(JSON.stringify({ at: last.occurredAt.toISOString(), id: last._id.toString() })).toString("base64url") : null };
@@ -66,8 +66,8 @@ export async function replayRealtimeEvents(userId: string, conversationId: strin
 export async function heartbeatPresence(userId: string, conversationId: string) {
   const access = await realtimeConversationAccess(userId, conversationId);
   const now = new Date();
-  const prior = await ConversationPresence.findOne({ conversationId: access.conversation._id, userId }).lean();
-  await ConversationPresence.findOneAndUpdate({ conversationId: access.conversation._id, userId }, { $set: { sellerId: access.conversation.sellerId, expiresAt: new Date(now.getTime() + PRESENCE_MS), updatedAt: now } }, { upsert: true, new: true });
+  const prior = await ConversationPresence.findOne({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, userId }).lean();
+  await ConversationPresence.findOneAndUpdate({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, userId }, { $set: { sellerId: access.conversation.sellerId, expiresAt: new Date(now.getTime() + PRESENCE_MS), updatedAt: now } }, { upsert: true, new: true });
   if (!prior) await recordPresenceChange(access.conversation, now);
   return access;
 }
@@ -75,13 +75,15 @@ export async function heartbeatPresence(userId: string, conversationId: string) 
 export async function removePresence(userId: string, conversationId: string) {
   if (!mongoose.isValidObjectId(conversationId)) return;
   const access = await realtimeConversationAccess(userId, conversationId).catch(() => null);
-  const removed = await ConversationPresence.deleteOne({ conversationId, userId });
+  const removed = access
+    ? await ConversationPresence.deleteOne({ sellerId: access.conversation.sellerId, conversationId, userId })
+    : { deletedCount: 0 };
   if (access && removed.deletedCount) await recordPresenceChange(access.conversation, new Date());
 }
 
 export async function presenceForParticipant(userId: string, conversationId: string) {
   const access = await realtimeConversationAccess(userId, conversationId);
-  const rows = await ConversationPresence.find({ conversationId: access.conversation._id, expiresAt: { $gt: new Date() } }).lean();
+  const rows = await ConversationPresence.find({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, expiresAt: { $gt: new Date() } }).lean();
   return { activeUserIds: rows.map((row) => row.userId.toString()) };
 }
 

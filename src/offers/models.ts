@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 const timestamps = { timestamps: true, versionKey: false } as const;
@@ -39,6 +40,9 @@ const offerEventSchema = new Schema({
   type: { type: String, enum: ["created", "accepted", "declined", "expired", "cancelled"], required: true }, version: { type: Number, required: true }, occurredAt: { type: Date, required: true }, actorUserId: { type: Schema.Types.ObjectId, default: null, ref: "User" },
 }, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false, collection: "offer_events" });
 offerEventSchema.index({ offerId: 1, occurredAt: 1, _id: 1 });
+
+offerSchema.plugin(sellerScopedSchema);
+offerEventSchema.plugin(sellerScopedSchema);
 
 export const Offer = models.Offer || model("Offer", offerSchema);
 export const OfferEvent = models.OfferEvent || model("OfferEvent", offerEventSchema);

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 const timestamps = { timestamps: true, versionKey: false } as const;
@@ -100,6 +101,11 @@ const offerListSchema = new Schema(
 );
 offerListSchema.index({ buyerUserId: 1, status: 1, availableUntil: 1, _id: -1 });
 offerListSchema.index({ sellerId: 1, createdAt: -1, _id: -1 });
+
+offerAutomationSchema.plugin(sellerScopedSchema);
+offerAutomationPreviewSchema.plugin(sellerScopedSchema);
+offerAutomationRunSchema.plugin(sellerScopedSchema);
+offerListSchema.plugin(sellerScopedSchema);
 
 export const OfferAutomation = models.OfferAutomation || model("OfferAutomation", offerAutomationSchema);
 export const OfferAutomationPreview = models.OfferAutomationPreview || model("OfferAutomationPreview", offerAutomationPreviewSchema);

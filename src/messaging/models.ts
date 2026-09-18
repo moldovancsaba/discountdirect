@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 const timestamps = { timestamps: true, versionKey: false } as const;
@@ -42,6 +43,9 @@ conversationEventSchema.index(
   { conversationId: 1, senderUserId: 1, clientRequestId: 1 },
   { unique: true, partialFilterExpression: { clientRequestId: { $type: "string" } } },
 );
+
+conversationSchema.plugin(sellerScopedSchema);
+conversationEventSchema.plugin(sellerScopedSchema);
 
 export const Conversation = models.Conversation || model("Conversation", conversationSchema);
 export const ConversationEvent = models.ConversationEvent || model("ConversationEvent", conversationEventSchema);

@@ -2,8 +2,9 @@ import "server-only";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Mongoose documents are normalized at this boundary. */
 import { randomBytes } from "node:crypto";
 import mongoose from "mongoose";
-import { Membership, Seller } from "@/auth/models";
+import { BuyerRelationship, Membership, Seller } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
+import { withTenantBypass } from "@/lib/tenant";
 import { Offer } from "@/offers/models";
 import { RedemptionCoupon, RedemptionEvent } from "./models";
 
@@ -37,9 +38,14 @@ async function sellerAccess(userId: string, sellerSlug: string) {
   return seller;
 }
 
+async function activeBuyerSellerIds(userId: string) {
+  const rows = await BuyerRelationship.find({ buyerUserId: userId, status: "active" }).select({ sellerId: 1 }).lean();
+  return rows.map((row) => row.sellerId);
+}
+
 export async function issueCouponForAcceptedOffer(session: mongoose.ClientSession, offer: any, actorUserId: string, now: Date) {
   if (offer.status !== "accepted") throw new RedemptionError("CONFLICT");
-  const existing = await RedemptionCoupon.findOne({ offerId: offer._id }).session(session).lean();
+  const existing = await RedemptionCoupon.findOne({ sellerId: offer.sellerId, offerId: offer._id }).session(session).lean();
   if (existing) return existing;
   let coupon: any;
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -58,11 +64,13 @@ export async function issueCouponForAcceptedOffer(session: mongoose.ClientSessio
 
 export async function buyerCoupons(userId: string) {
   await connectDatabase();
+  const sellerIds = await activeBuyerSellerIds(userId);
+  if (!sellerIds.length) return { coupons: [] };
   const now = new Date();
-  await RedemptionCoupon.updateMany({ buyerUserId: userId, status: "issued", expiresAt: { $lte: now } }, { $set: { status: "expired" }, $inc: { version: 1 } });
-  const rows = await RedemptionCoupon.find({ buyerUserId: userId }).sort({ issuedAt: -1, _id: -1 }).limit(100).lean();
+  await RedemptionCoupon.updateMany({ sellerId: { $in: sellerIds }, buyerUserId: userId, status: "issued", expiresAt: { $lte: now } }, { $set: { status: "expired" }, $inc: { version: 1 } });
+  const rows = await RedemptionCoupon.find({ sellerId: { $in: sellerIds }, buyerUserId: userId }).sort({ issuedAt: -1, _id: -1 }).limit(100).lean();
   const offerIds = rows.map((row) => row.offerId);
-  const offers = await Offer.find({ _id: { $in: offerIds } }).lean();
+  const offers = await Offer.find({ sellerId: { $in: sellerIds }, _id: { $in: offerIds } }).lean();
   const offerById = new Map(offers.map((row: any) => [row._id.toString(), row]));
   return { coupons: rows.map((row: any) => ({ ...output(row), offer: offerById.get(row.offerId.toString()) ? { productName: offerById.get(row.offerId.toString()).productName, priceHuf: offerById.get(row.offerId.toString()).priceHuf } : null })) };
 }
@@ -105,6 +113,8 @@ export async function confirmRedemption(userId: string, sellerSlug: string, code
 
 export async function redemptionSummary() {
   await connectDatabase();
-  const rows = await RedemptionCoupon.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]);
+  const rows = await withTenantBypass("operator-redemption-summary", () =>
+    RedemptionCoupon.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+  );
   return Object.fromEntries(rows.map((row: { _id: string; count: number }) => [row._id, row.count])) as Record<string, number>;
 }

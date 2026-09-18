@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
+import { withTenantBypass } from "@/lib/tenant";
 import { recordInboundBuyerMessage } from "@/messaging/service";
 import { mayDeliverMarketing } from "@/privacy/service";
 import {
@@ -84,18 +85,25 @@ async function sellerAccess(userId: string, sellerSlug: string) {
   return seller;
 }
 
+async function activeBuyerSellerIds(userId: string) {
+  const rows = await BuyerRelationship.find({ buyerUserId: userId, status: "active" }).select({ sellerId: 1 }).lean();
+  return rows.map((row) => row.sellerId);
+}
+
 function suppressionCode(reason: string) {
   return `SUPPRESSED_${reason.toUpperCase()}`;
 }
 
 async function activeSuppression(sellerId: unknown, buyerUserId: unknown, channel: OutboundDeliveryChannel, session?: mongoose.ClientSession) {
-  const query = DeliverySuppression.findOne({
-    buyerUserId,
-    channel,
-    $or: [{ scope: "global" }, { scope: "seller", sellerId }],
+  return withTenantBypass("delivery-global-or-seller-suppression-check", () => {
+    const query = DeliverySuppression.findOne({
+      buyerUserId,
+      channel,
+      $or: [{ scope: "global" }, { scope: "seller", sellerId }],
+    });
+    if (session) query.session(session);
+    return query.lean();
   });
-  if (session) query.session(session);
-  return query.lean();
 }
 
 async function recordEvent(
@@ -174,6 +182,10 @@ export async function buyerDeliveries(userId: string, sellerSlug?: string) {
     if (!seller) throw new DeliveryError("NOT_FOUND");
     if (!await BuyerRelationship.exists({ sellerId: seller._id, buyerUserId: userId, status: "active" })) throw new DeliveryError("FORBIDDEN");
     filter.sellerId = seller._id;
+  } else {
+    const sellerIds = await activeBuyerSellerIds(userId);
+    if (!sellerIds.length) return { deliveries: [] };
+    filter.sellerId = { $in: sellerIds };
   }
   const rows = await DeliveryOutbox.find(filter).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
   return { deliveries: rows.map(output) };
@@ -267,7 +279,7 @@ function resendFailureReason(error: unknown) {
 async function finishDelivery(row: any, status: DeliveryStatus, reasonCode: string, extra: Record<string, unknown> = {}) {
   const now = new Date();
   await DeliveryOutbox.updateOne(
-    { _id: row._id },
+    { _id: row._id, sellerId: row.sellerId },
     { $set: { status, reasonCode, completedAt: ["sent", "unsupported", "suppressed", "cancelled", "bounced", "complained"].includes(status) ? now : null, nextAttemptAt: null, lockedUntil: null, lockedBy: null, ...extra } },
   );
   await recordEvent(null, { deliveryId: row._id, sellerId: row.sellerId, status, reasonCode, occurredAt: now });
@@ -278,7 +290,7 @@ async function retryDelivery(row: any, reasonCode: string) {
   const finalAttempt = row.attemptCount >= row.maxAttempts;
   const nextAttemptAt = finalAttempt ? null : retryAt(row.attemptCount);
   await DeliveryOutbox.updateOne(
-    { _id: row._id },
+    { _id: row._id, sellerId: row.sellerId },
     { $set: { status: "retryable_failed", reasonCode, nextAttemptAt, lockedUntil: null, lockedBy: null } },
   );
   await recordEvent(null, { deliveryId: row._id, sellerId: row.sellerId, status: "retryable_failed", reasonCode, occurredAt: new Date() });
@@ -310,18 +322,21 @@ export async function processDueDeliveries(limitValue = 20, fetcher: FetchLike =
   const results = [];
   for (let index = 0; index < limit; index += 1) {
     const now = new Date();
-    const row = await DeliveryOutbox.findOneAndUpdate(
-      {
-        channel: "email",
-        status: { $in: ["queued", "retryable_failed"] },
-        nextAttemptAt: { $lte: now },
-        $or: [{ lockedUntil: null }, { lockedUntil: { $lte: now } }],
-      },
-      {
-        $set: { status: "processing", reasonCode: "DELIVERY_SEND_IN_PROGRESS", lastAttemptAt: now, lockedUntil: new Date(now.getTime() + LOCK_MS), lockedBy: WORKER_ID },
-        $inc: { attemptCount: 1 },
-      },
-      { sort: { nextAttemptAt: 1, createdAt: 1, _id: 1 }, new: true, runValidators: true },
+    const row = await withTenantBypass(
+      "delivery-cron-global-claim",
+      () => DeliveryOutbox.findOneAndUpdate(
+        {
+          channel: "email",
+          status: { $in: ["queued", "retryable_failed"] },
+          nextAttemptAt: { $lte: now },
+          $or: [{ lockedUntil: null }, { lockedUntil: { $lte: now } }],
+        },
+        {
+          $set: { status: "processing", reasonCode: "DELIVERY_SEND_IN_PROGRESS", lastAttemptAt: now, lockedUntil: new Date(now.getTime() + LOCK_MS), lockedBy: WORKER_ID },
+          $inc: { attemptCount: 1 },
+        },
+        { sort: { nextAttemptAt: 1, createdAt: 1, _id: 1 }, new: true, runValidators: true },
+      ),
     );
     if (!row) break;
     await recordEvent(null, { deliveryId: row._id, sellerId: row.sellerId, status: "processing", reasonCode: "DELIVERY_SEND_IN_PROGRESS", occurredAt: now });
@@ -364,12 +379,14 @@ async function upsertSuppression(session: mongoose.ClientSession, delivery: any,
 
 async function markProviderSuppression(input: { messageId: string | null; providerEventId: string; status: "bounced" | "complained" | "suppressed"; reasonCode: string; suppressionReason: SuppressionReason; occurredAt: Date }) {
   if (!input.messageId) return { action: "delivery_not_found", reasonCode: "WEBHOOK_MESSAGE_ID_MISSING", deliveryId: null, sellerId: null, providerMessageId: null };
-  const delivery = await DeliveryOutbox.findOne({ provider: "resend", providerMessageId: input.messageId }).lean();
+  const delivery = await withTenantBypass("resend-webhook-provider-message-lookup", () =>
+    DeliveryOutbox.findOne({ provider: "resend", providerMessageId: input.messageId }).lean(),
+  );
   if (!delivery) return { action: "delivery_not_found", reasonCode: "WEBHOOK_DELIVERY_NOT_FOUND", deliveryId: null, sellerId: null, providerMessageId: input.messageId };
   const database = await connectDatabase();
   await database.connection.transaction(async (session) => {
     await DeliveryOutbox.updateOne(
-      { _id: delivery._id },
+      { _id: delivery._id, sellerId: delivery.sellerId },
       { $set: { status: input.status, reasonCode: input.reasonCode, completedAt: input.occurredAt, lastProviderEventAt: input.occurredAt, nextAttemptAt: null, lockedUntil: null, lockedBy: null } },
       { session },
     );
@@ -381,7 +398,7 @@ async function markProviderSuppression(input: { messageId: string | null; provid
 
 async function inboundReceived(input: { config: EmailTransportConfig; data: Record<string, unknown>; providerEventId: string; messageId: string | null; fetcher: FetchLike }) {
   const metadataDeliveryId = deliveryIdFromAddresses(input.data.received_for, input.config.replyDomain) ?? deliveryIdFromAddresses(input.data.to, input.config.replyDomain);
-  const metadataDelivery = metadataDeliveryId ? await DeliveryOutbox.findById(metadataDeliveryId).lean() : null;
+  const metadataDelivery = metadataDeliveryId ? await withTenantBypass("resend-inbound-metadata-delivery-lookup", () => DeliveryOutbox.findById(metadataDeliveryId).lean()) : null;
   if (Array.isArray(input.data.attachments) && input.data.attachments.length > 0) {
     return { action: "attachment_rejected", reasonCode: "INBOUND_ATTACHMENT_REJECTED", deliveryId: metadataDelivery?._id ?? null, sellerId: metadataDelivery?.sellerId ?? null, providerMessageId: input.messageId };
   }
@@ -389,12 +406,14 @@ async function inboundReceived(input: { config: EmailTransportConfig; data: Reco
   const email = input.data.text || input.data.html ? input.data : await getResendReceivedEmail(input.config, input.messageId!, input.fetcher);
   const deliveryId = metadataDeliveryId ?? deliveryIdFromAddresses(email.received_for, input.config.replyDomain) ?? deliveryIdFromAddresses(email.to, input.config.replyDomain);
   if (!deliveryId || !mongoose.isValidObjectId(deliveryId)) return { action: "delivery_not_found", reasonCode: "INBOUND_DELIVERY_ID_MISSING", deliveryId: null, sellerId: null, providerMessageId: input.messageId };
-  const delivery = await DeliveryOutbox.findOne({ _id: deliveryId, provider: "resend" }).lean();
+  const delivery = await withTenantBypass("resend-inbound-reply-delivery-lookup", () =>
+    DeliveryOutbox.findOne({ _id: deliveryId, provider: "resend" }).lean(),
+  );
   if (!delivery) return { action: "delivery_not_found", reasonCode: "WEBHOOK_DELIVERY_NOT_FOUND", deliveryId: null, sellerId: null, providerMessageId: input.messageId };
   const body = inboundMessageBody(email);
   if (!body) return { action: "inbound_rejected", reasonCode: "INBOUND_BODY_EMPTY", deliveryId: delivery._id, sellerId: delivery.sellerId, providerMessageId: input.messageId };
   await recordInboundBuyerMessage({ sellerId: delivery.sellerId, buyerUserId: delivery.buyerUserId, clientRequestId: clientRequestId(input.providerEventId), body });
-  await DeliveryOutbox.updateOne({ _id: delivery._id }, { $set: { lastProviderEventAt: new Date() } });
+  await DeliveryOutbox.updateOne({ _id: delivery._id, sellerId: delivery.sellerId }, { $set: { lastProviderEventAt: new Date() } });
   return { action: "inbound_message_created", reasonCode: "INBOUND_MESSAGE_CREATED", deliveryId: delivery._id, sellerId: delivery.sellerId, providerMessageId: input.messageId };
 }
 
@@ -409,17 +428,19 @@ export async function handleResendWebhook(rawPayload: string, headers: Headers |
   await connectDatabase();
   let webhookRow: any;
   try {
-    const [row] = await DeliveryWebhookEvent.create([{
-      provider: "resend",
-      providerEventId: verified.providerEventId,
-      providerMessageId: messageId,
-      type: type || "unknown",
-      action: "accepted",
-      reasonCode: "WEBHOOK_ACCEPTED",
-      payloadHash: payloadHash(rawPayload),
-      occurredAt: at,
-      processedAt: new Date(),
-    }]);
+    const [row] = await withTenantBypass("resend-webhook-event-ingest", () =>
+      DeliveryWebhookEvent.create([{
+        provider: "resend",
+        providerEventId: verified.providerEventId,
+        providerMessageId: messageId,
+        type: type || "unknown",
+        action: "accepted",
+        reasonCode: "WEBHOOK_ACCEPTED",
+        payloadHash: payloadHash(rawPayload),
+        occurredAt: at,
+        processedAt: new Date(),
+      }]),
+    );
     webhookRow = row;
   } catch (error: any) {
     if (error?.code === 11000) return { duplicate: true, action: "duplicate", reasonCode: "WEBHOOK_DUPLICATE" };
@@ -437,9 +458,12 @@ export async function handleResendWebhook(rawPayload: string, headers: Headers |
   } else {
     outcome = { action: "ignored", reasonCode: "WEBHOOK_EVENT_IGNORED", deliveryId: null, sellerId: null, providerMessageId: messageId };
   }
-  await DeliveryWebhookEvent.updateOne(
-    { _id: webhookRow._id },
-    { $set: { action: outcome.action, reasonCode: outcome.reasonCode, deliveryId: outcome.deliveryId ?? null, sellerId: outcome.sellerId ?? null, providerMessageId: outcome.providerMessageId ?? messageId ?? null, processedAt: new Date() } },
+  await withTenantBypass(
+    "resend-webhook-event-finalize",
+    () => DeliveryWebhookEvent.updateOne(
+      { _id: webhookRow._id },
+      { $set: { action: outcome.action, reasonCode: outcome.reasonCode, deliveryId: outcome.deliveryId ?? null, sellerId: outcome.sellerId ?? null, providerMessageId: outcome.providerMessageId ?? messageId ?? null, processedAt: new Date() } },
+    ),
   );
   return { duplicate: false, action: outcome.action, reasonCode: outcome.reasonCode };
 }
@@ -449,14 +473,16 @@ export async function suppressDeliveryBuyer(deliveryId: string, token: string) {
   if (!secret) throw new DeliveryError("UNAVAILABLE");
   if (!mongoose.isValidObjectId(deliveryId) || !verifyUnsubscribeToken(deliveryId, token, secret)) throw new DeliveryError("INVALID");
   await connectDatabase();
-  const delivery = await DeliveryOutbox.findById(deliveryId).lean();
+  const delivery = await withTenantBypass("unsubscribe-token-delivery-lookup", () =>
+    DeliveryOutbox.findById(deliveryId).lean(),
+  );
   if (!delivery) throw new DeliveryError("NOT_FOUND");
   const database = await connectDatabase();
   const now = new Date();
   await database.connection.transaction(async (session) => {
     await upsertSuppression(session, delivery, "unsubscribe", `unsubscribe:${deliveryId}`, now);
     await DeliveryOutbox.updateOne(
-      { _id: delivery._id },
+      { _id: delivery._id, sellerId: delivery.sellerId },
       { $set: { status: "suppressed", reasonCode: "EMAIL_UNSUBSCRIBED", completedAt: now, nextAttemptAt: null, lockedUntil: null, lockedBy: null, lastProviderEventAt: now } },
       { session },
     );
@@ -467,12 +493,16 @@ export async function suppressDeliveryBuyer(deliveryId: string, token: string) {
 
 export async function deliverySummary() {
   await connectDatabase();
-  const rows = await DeliveryOutbox.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]);
+  const rows = await withTenantBypass("operator-delivery-summary", () =>
+    DeliveryOutbox.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+  );
   return Object.fromEntries(rows.map((row: { _id: string; count: number }) => [row._id, row.count])) as Record<string, number>;
 }
 
 export async function deliveryChannelSummary() {
   await connectDatabase();
-  const rows = await DeliveryOutbox.aggregate([{ $group: { _id: "$channel", count: { $sum: 1 } } }]);
+  const rows = await withTenantBypass("operator-delivery-channel-summary", () =>
+    DeliveryOutbox.aggregate([{ $group: { _id: "$channel", count: { $sum: 1 } } }]),
+  );
   return Object.fromEntries(rows.map((row: { _id: string; count: number }) => [row._id, row.count])) as Record<string, number>;
 }

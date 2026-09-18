@@ -80,10 +80,15 @@ function eventOutput(row: any, offer: any = null) {
   };
 }
 
-async function timelineOutput(rows: any[]) {
+async function activeBuyerSellerIds(userId: string) {
+  const rows = await BuyerRelationship.find({ buyerUserId: userId, status: "active" }).select({ sellerId: 1 }).lean();
+  return rows.map((row) => row.sellerId);
+}
+
+async function timelineOutput(sellerId: unknown, rows: any[]) {
   const offerIds = rows.filter((row) => row.offerId).map((row) => row.offerId);
   if (!offerIds.length) return rows.map((row) => eventOutput(row));
-  const offers = await Offer.find({ _id: { $in: offerIds } }).lean();
+  const offers = await Offer.find({ sellerId, _id: { $in: offerIds } }).lean();
   const byId = new Map(offers.map((offer: any) => [offer._id.toString(), offer]));
   return rows.map((row) => eventOutput(row, row.offerId ? byId.get(row.offerId.toString()) : null));
 }
@@ -147,18 +152,20 @@ export async function sellerConversations(userId: string, sellerSlug: string, cu
 
 export async function buyerConversations(userId: string, cursor?: string | null) {
   await connectDatabase();
-  return listConversations({ buyerUserId: userId }, cursor);
+  const sellerIds = await activeBuyerSellerIds(userId);
+  if (!sellerIds.length) return { conversations: [], nextCursor: null };
+  return listConversations({ buyerUserId: userId, sellerId: { $in: sellerIds } }, cursor);
 }
 
 export async function conversationTimeline(userId: string, conversationId: string, cursorValue?: string | null) {
   const access = await participant(userId, conversationId);
   const cursor = decodeCursor(cursorValue);
   if (cursorValue && !cursor) throw new MessagingError("INVALID");
-  const rows = await ConversationEvent.find({ conversationId: access.conversation._id, ...pageFilter("createdAt", cursor) }).sort({ createdAt: -1, _id: -1 }).limit(51).lean();
+  const rows = await ConversationEvent.find({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, ...pageFilter("createdAt", cursor) }).sort({ createdAt: -1, _id: -1 }).limit(51).lean();
   const page = rows.slice(0, 50);
-  if (access.role === "seller") await Conversation.updateOne({ _id: access.conversation._id }, { $set: { sellerUnreadCount: 0 } });
-  else await Conversation.updateOne({ _id: access.conversation._id }, { $set: { buyerUnreadCount: 0 } });
-  return { conversation: await conversationOutput(access.conversation), role: access.role, events: await timelineOutput(page.reverse()), nextCursor: rows.length > 50 ? encodeCursor(page[page.length - 1]) : null };
+  if (access.role === "seller") await Conversation.updateOne({ _id: access.conversation._id, sellerId: access.conversation.sellerId }, { $set: { sellerUnreadCount: 0 } });
+  else await Conversation.updateOne({ _id: access.conversation._id, sellerId: access.conversation.sellerId }, { $set: { buyerUnreadCount: 0 } });
+  return { conversation: await conversationOutput(access.conversation), role: access.role, events: await timelineOutput(access.conversation.sellerId, page.reverse()), nextCursor: rows.length > 50 ? encodeCursor(page[page.length - 1]) : null };
 }
 
 export async function sendConversationMessage(userId: string, conversationId: string, clientRequestId: unknown, body: unknown) {
@@ -167,11 +174,11 @@ export async function sendConversationMessage(userId: string, conversationId: st
   const database = await connectDatabase();
   let output: any;
   await database.connection.transaction(async (session) => {
-    const existing = await ConversationEvent.findOne({ conversationId: access.conversation._id, senderUserId: userId, clientRequestId: input.clientRequestId }).session(session).lean();
+    const existing = await ConversationEvent.findOne({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, senderUserId: userId, clientRequestId: input.clientRequestId }).session(session).lean();
     if (existing) { output = eventOutput(existing); return; }
     const now = new Date();
     const [created] = await ConversationEvent.create([{ conversationId: access.conversation._id, sellerId: access.conversation.sellerId, kind: "message", senderRole: access.role, senderUserId: userId, body: input.body, clientRequestId: input.clientRequestId, createdAt: now }], { session });
-    const updated = await Conversation.findOneAndUpdate({ _id: access.conversation._id }, { $set: { lastEventAt: now, lastEventPreview: input.body.slice(0, 240) }, $inc: { ...(access.role === "seller" ? { buyerUnreadCount: 1 } : { sellerUnreadCount: 1 }), version: 1 } }, { new: true, session });
+    const updated = await Conversation.findOneAndUpdate({ _id: access.conversation._id, sellerId: access.conversation.sellerId }, { $set: { lastEventAt: now, lastEventPreview: input.body.slice(0, 240) }, $inc: { ...(access.role === "seller" ? { buyerUnreadCount: 1 } : { sellerUnreadCount: 1 }), version: 1 } }, { new: true, session });
     if (!updated) throw new MessagingError("NOT_FOUND");
     await recordRealtimeEvent(session, { sellerId: access.conversation.sellerId, conversationId: access.conversation._id, type: "message.created", version: updated.version, messageId: created._id, occurredAt: now });
     output = eventOutput(created.toObject());
@@ -191,11 +198,11 @@ export async function recordInboundBuyerMessage(input: { sellerId: unknown; buye
   const database = await connectDatabase();
   let output: any;
   await database.connection.transaction(async (session) => {
-    const existing = await ConversationEvent.findOne({ conversationId: conversation._id, senderUserId: input.buyerUserId, clientRequestId: value.clientRequestId }).session(session).lean();
+    const existing = await ConversationEvent.findOne({ sellerId: conversation.sellerId, conversationId: conversation._id, senderUserId: input.buyerUserId, clientRequestId: value.clientRequestId }).session(session).lean();
     if (existing) { output = eventOutput(existing); return; }
     const now = new Date();
     const [created] = await ConversationEvent.create([{ conversationId: conversation._id, sellerId: conversation.sellerId, kind: "message", senderRole: "buyer", senderUserId: input.buyerUserId, body: value.body, clientRequestId: value.clientRequestId, createdAt: now }], { session });
-    const updated = await Conversation.findOneAndUpdate({ _id: conversation._id }, { $set: { lastEventAt: now, lastEventPreview: value.body.slice(0, 240) }, $inc: { sellerUnreadCount: 1, version: 1 } }, { new: true, session });
+    const updated = await Conversation.findOneAndUpdate({ _id: conversation._id, sellerId: conversation.sellerId }, { $set: { lastEventAt: now, lastEventPreview: value.body.slice(0, 240) }, $inc: { sellerUnreadCount: 1, version: 1 } }, { new: true, session });
     if (!updated) throw new MessagingError("NOT_FOUND");
     await recordRealtimeEvent(session, { sellerId: conversation.sellerId, conversationId: conversation._id, type: "message.created", version: updated.version, messageId: created._id, occurredAt: now });
     output = eventOutput(created.toObject());

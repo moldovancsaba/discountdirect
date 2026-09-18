@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 
@@ -29,6 +30,9 @@ const conversationPresenceSchema = new Schema(
 );
 conversationPresenceSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 conversationPresenceSchema.index({ conversationId: 1, userId: 1 }, { unique: true });
+
+realtimeEventSchema.plugin(sellerScopedSchema);
+conversationPresenceSchema.plugin(sellerScopedSchema);
 
 export const RealtimeEvent = models.RealtimeEvent || model("RealtimeEvent", realtimeEventSchema);
 export const ConversationPresence = models.ConversationPresence || model("ConversationPresence", conversationPresenceSchema);

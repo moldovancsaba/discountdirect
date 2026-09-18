@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 const timestamps = { timestamps: true, versionKey: false } as const;
@@ -34,6 +35,9 @@ const redemptionEventSchema = new Schema(
   { timestamps: { createdAt: true, updatedAt: false }, versionKey: false, collection: "redemption_events" },
 );
 redemptionEventSchema.index({ couponId: 1, occurredAt: 1, _id: 1 });
+
+redemptionCouponSchema.plugin(sellerScopedSchema);
+redemptionEventSchema.plugin(sellerScopedSchema);
 
 export const RedemptionCoupon = models.RedemptionCoupon || model("RedemptionCoupon", redemptionCouponSchema);
 export const RedemptionEvent = models.RedemptionEvent || model("RedemptionEvent", redemptionEventSchema);

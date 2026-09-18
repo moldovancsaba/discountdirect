@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 
 const { Schema, model, models } = mongoose;
 const timestamps = { timestamps: true, versionKey: false } as const;
@@ -76,6 +77,11 @@ const inventoryBalanceSchema = new Schema({
   reserved: { type: Number, required: true, min: 0, default: 0 },
 }, { ...timestamps, collection: "campaign_inventory_balances" });
 inventoryBalanceSchema.index({ sellerId: 1, productId: 1 }, { unique: true });
+
+campaignSchema.plugin(sellerScopedSchema);
+campaignPreviewSchema.plugin(sellerScopedSchema);
+reservationSchema.plugin(sellerScopedSchema);
+inventoryBalanceSchema.plugin(sellerScopedSchema);
 
 export const Campaign = models.Campaign || model("Campaign", campaignSchema);
 export const CampaignPreview = models.CampaignPreview || model("CampaignPreview", campaignPreviewSchema);

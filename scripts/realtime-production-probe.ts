@@ -152,6 +152,7 @@ async function seedSyntheticConversation() {
   });
   created.conversationIds.push(conversation._id);
   return {
+    sellerId: seller._id,
     conversationId: conversation._id.toString(),
     sellerCookie: `${USER_SESSION_COOKIE}=${await createSession(sellerUser)}`,
     buyerCookie: `${USER_SESSION_COOKIE}=${await createSession(buyerUser)}`,
@@ -249,15 +250,10 @@ function cursorFrom(event: { eventId: string; occurredAt: string }) {
 }
 
 async function cleanup() {
-  await ConversationPresence.deleteMany({ conversationId: { $in: created.conversationIds } });
-  await RealtimeEvent.deleteMany({
-    $or: [
-      { conversationId: { $in: created.conversationIds } },
-      { sellerId: { $in: created.sellerIds } },
-    ],
-  });
-  await ConversationEvent.deleteMany({ conversationId: { $in: created.conversationIds } });
-  await Conversation.deleteMany({ _id: { $in: created.conversationIds } });
+  await ConversationPresence.deleteMany({ sellerId: { $in: created.sellerIds }, conversationId: { $in: created.conversationIds } });
+  await RealtimeEvent.deleteMany({ sellerId: { $in: created.sellerIds }, conversationId: { $in: created.conversationIds } });
+  await ConversationEvent.deleteMany({ sellerId: { $in: created.sellerIds }, conversationId: { $in: created.conversationIds } });
+  await Conversation.deleteMany({ sellerId: { $in: created.sellerIds }, _id: { $in: created.conversationIds } });
   await Session.deleteMany({ userId: { $in: created.userIds } });
   await BuyerRelationship.deleteMany({
     $or: [
@@ -356,6 +352,7 @@ try {
   assert.equal(buyerHeartbeatAck.ok, true, JSON.stringify(buyerHeartbeatAck));
   assert.ok(
     await ConversationPresence.countDocuments({
+      sellerId: seeded.sellerId,
       conversationId: seeded.conversationId,
       expiresAt: { $gt: new Date() },
     }),

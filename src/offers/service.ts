@@ -28,6 +28,11 @@ function offerThreadPreview(row: any, eventType: "created" | "accepted" | "decli
   return `Ajánlat lezárva: ${row.productName}`;
 }
 
+async function activeBuyerSellerIds(userId: string) {
+  const rows = await BuyerRelationship.find({ buyerUserId: userId, status: "active" }).select({ sellerId: 1 }).lean();
+  return rows.map((row) => row.sellerId);
+}
+
 export async function createOffer(userId: string, sellerSlug: string, input: unknown) {
   const value = createInput(input); const seller = await sellerContext(userId, sellerSlug);
   const existing = await Offer.findOne({ sellerId: seller._id, createdByUserId: userId, clientRequestId: value.clientRequestId }).lean(); if (existing) return output(existing);
@@ -49,7 +54,7 @@ export async function createOffer(userId: string, sellerSlug: string, input: unk
       if (conversation) {
         const previewText = offerThreadPreview(row, "created");
         await ConversationEvent.create([{ conversationId: conversation._id, sellerId: seller._id, kind: "offer", senderRole: "seller", senderUserId: userId, body: previewText, offerId: row._id, offerEventType: "created", createdAt: now }], { session });
-        const updated = await Conversation.findByIdAndUpdate(conversation._id, { $set: { lastEventAt: now, lastEventPreview: previewText.slice(0, 240) }, $inc: { pendingOfferCount: 1, buyerUnreadCount: 1, version: 1 } }, { new: true, session });
+        const updated = await Conversation.findOneAndUpdate({ _id: conversation._id, sellerId: seller._id }, { $set: { lastEventAt: now, lastEventPreview: previewText.slice(0, 240) }, $inc: { pendingOfferCount: 1, buyerUnreadCount: 1, version: 1 } }, { new: true, session });
         if (updated) await recordRealtimeEvent(session, { sellerId: seller._id, conversationId: conversation._id, type: "offer.updated", version: updated.version, occurredAt: now });
       }
       result = output(row.toObject());
@@ -64,14 +69,16 @@ export async function createOffer(userId: string, sellerSlug: string, input: unk
   }
 }
 
-export async function buyerOffers(userId: string) { await connectDatabase(); const now = new Date(); await Offer.updateMany({ buyerUserId: userId, status: "pending", expiresAt: { $lte: now } }, { $set: { status: "expired", decidedAt: now }, $inc: { version: 1 } }); const rows = await Offer.find({ buyerUserId: userId }).sort({ expiresAt: 1, _id: 1 }).limit(100).lean(); return { offers: rows.map(output) }; }
+export async function buyerOffers(userId: string) { await connectDatabase(); const sellerIds = await activeBuyerSellerIds(userId); if (!sellerIds.length) return { offers: [] }; const now = new Date(); await Offer.updateMany({ sellerId: { $in: sellerIds }, buyerUserId: userId, status: "pending", expiresAt: { $lte: now } }, { $set: { status: "expired", decidedAt: now }, $inc: { version: 1 } }); const rows = await Offer.find({ sellerId: { $in: sellerIds }, buyerUserId: userId }).sort({ expiresAt: 1, _id: 1 }).limit(100).lean(); return { offers: rows.map(output) }; }
 export async function respondToOffer(userId: string, offerId: string, expectedVersion: unknown, decision: unknown) {
   if (!mongoose.isValidObjectId(offerId) || !Number.isInteger(expectedVersion) || !["accepted", "declined"].includes(String(decision))) throw new OfferError("INVALID");
   const database = await connectDatabase();
+  const sellerIds = await activeBuyerSellerIds(userId);
+  if (!sellerIds.length) throw new OfferError("NOT_FOUND");
   let result: any;
   try {
     await database.connection.transaction(async (session) => {
-      const row = await Offer.findById(offerId).session(session);
+      const row = await Offer.findOne({ _id: offerId, sellerId: { $in: sellerIds }, buyerUserId: userId }).session(session);
       if (!row) throw new OfferError("NOT_FOUND");
       if (row.buyerUserId.toString() !== userId || !await BuyerRelationship.exists({ sellerId: row.sellerId, buyerUserId: userId, status: "active" })) throw new OfferError("FORBIDDEN");
       if (row.status === decision) { result = output(row.toObject()); return; }
@@ -86,7 +93,7 @@ export async function respondToOffer(userId: string, offerId: string, expectedVe
         if (row.conversationId) {
           const previewText = offerThreadPreview(row, "expired");
           await ConversationEvent.create([{ conversationId: row.conversationId, sellerId: row.sellerId, kind: "offer", senderRole: "system", body: previewText, offerId: row._id, offerEventType: "expired", createdAt: now }], { session });
-          const conversation = await Conversation.findByIdAndUpdate(row.conversationId, { $set: { lastEventAt: now, lastEventPreview: previewText.slice(0, 240) }, $inc: { pendingOfferCount: -1, sellerUnreadCount: 1, version: 1 } }, { new: true, session });
+          const conversation = await Conversation.findOneAndUpdate({ _id: row.conversationId, sellerId: row.sellerId }, { $set: { lastEventAt: now, lastEventPreview: previewText.slice(0, 240) }, $inc: { pendingOfferCount: -1, sellerUnreadCount: 1, version: 1 } }, { new: true, session });
           if (conversation) await recordRealtimeEvent(session, { sellerId: row.sellerId, conversationId: conversation._id, type: "offer.updated", version: conversation.version, occurredAt: now });
         }
         throw new OfferError("EXPIRED");
@@ -103,7 +110,7 @@ export async function respondToOffer(userId: string, offerId: string, expectedVe
         const offerEventType = decision as "accepted" | "declined";
         const previewText = offerThreadPreview(row, offerEventType);
         await ConversationEvent.create([{ conversationId: row.conversationId, sellerId: row.sellerId, kind: "offer", senderRole: "buyer", senderUserId: userId, body: previewText, offerId: row._id, offerEventType, createdAt: now }], { session });
-        const conversation = await Conversation.findByIdAndUpdate(row.conversationId, { $set: { lastEventAt: now, lastEventPreview: previewText.slice(0, 240) }, $inc: { pendingOfferCount: -1, sellerUnreadCount: 1, version: 1 } }, { new: true, session });
+        const conversation = await Conversation.findOneAndUpdate({ _id: row.conversationId, sellerId: row.sellerId }, { $set: { lastEventAt: now, lastEventPreview: previewText.slice(0, 240) }, $inc: { pendingOfferCount: -1, sellerUnreadCount: 1, version: 1 } }, { new: true, session });
         if (conversation) await recordRealtimeEvent(session, { sellerId: row.sellerId, conversationId: conversation._id, type: "offer.updated", version: conversation.version, occurredAt: now });
       }
       result = output(row.toObject());

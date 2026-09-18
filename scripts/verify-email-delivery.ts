@@ -175,7 +175,7 @@ try {
   assert.equal(capturedSends.length, 1);
   assert.equal(capturedSends[0].headers["idempotency-key"], seed.delivery.idempotencyKey);
   assert.equal(capturedSends[0].body.reply_to, deliveryReplyAddress);
-  const sent = await DeliveryOutbox.findById(seed.delivery._id).lean();
+  const sent = await DeliveryOutbox.findOne({ _id: seed.delivery._id, sellerId: seed.seller._id }).lean();
   assert.equal(sent?.status, "sent");
   assert.equal(sent?.providerMessageId, providerMessageId);
 
@@ -183,12 +183,12 @@ try {
   const inbound = await fetch(`${appBase}/api/email/inbound`, { method: "POST", headers: signedHeaders(inboundPayload, "evt_inbound_verify"), body: inboundPayload });
   assert.equal(inbound.status, 200);
   assert.equal((await inbound.json()).action, "inbound_message_created");
-  assert.equal(await ConversationEvent.countDocuments({ conversationId: seed.conversation._id, kind: "message", senderRole: "buyer" }), 1);
+  assert.equal(await ConversationEvent.countDocuments({ sellerId: seed.seller._id, conversationId: seed.conversation._id, kind: "message", senderRole: "buyer" }), 1);
 
   const duplicate = await fetch(`${appBase}/api/email/inbound`, { method: "POST", headers: signedHeaders(inboundPayload, "evt_inbound_verify"), body: inboundPayload });
   assert.equal(duplicate.status, 200);
   assert.equal((await duplicate.json()).duplicate, true);
-  assert.equal(await ConversationEvent.countDocuments({ conversationId: seed.conversation._id, kind: "message", senderRole: "buyer" }), 1);
+  assert.equal(await ConversationEvent.countDocuments({ sellerId: seed.seller._id, conversationId: seed.conversation._id, kind: "message", senderRole: "buyer" }), 1);
 
   const forged = await fetch(`${appBase}/api/email/inbound`, { method: "POST", headers: signedHeaders(inboundPayload, "evt_forged_verify"), body: inboundPayload.replace("email.received", "email.bounced") });
   assert.equal(forged.status, 400);
@@ -197,14 +197,14 @@ try {
   const bounce = await fetch(`${appBase}/api/email/inbound`, { method: "POST", headers: signedHeaders(bouncePayload, "evt_bounce_verify"), body: bouncePayload });
   assert.equal(bounce.status, 200);
   assert.equal((await bounce.json()).action, "bounced");
-  assert.equal((await DeliveryOutbox.findById(seed.delivery._id).lean())?.status, "bounced");
+  assert.equal((await DeliveryOutbox.findOne({ _id: seed.delivery._id, sellerId: seed.seller._id }).lean())?.status, "bounced");
   assert.equal((await DeliverySuppression.findOne({ sellerId: seed.seller._id, buyerUserId: seed.buyerUser._id, channel: "email" }).lean())?.reason, "hard_bounce");
 
   const suppressedCandidate = await createQueuedDelivery(seed, `email-verification-suppressed:${randomBytes(8).toString("hex")}`);
   const suppressedRun = await fetch(`${appBase}/api/cron/deliveries?limit=1`, { headers: { authorization: `Bearer ${cronSecret}` } });
   assert.equal(suppressedRun.status, 200);
   assert.equal((await suppressedRun.json()).processed, 1);
-  const suppressed = await DeliveryOutbox.findById(suppressedCandidate._id).lean();
+  const suppressed = await DeliveryOutbox.findOne({ _id: suppressedCandidate._id, sellerId: seed.seller._id }).lean();
   assert.equal(suppressed?.status, "suppressed");
   assert.equal(suppressed?.reasonCode, "SUPPRESSED_HARD_BOUNCE");
   assert.equal(capturedSends.length, 1);
@@ -213,7 +213,7 @@ try {
   const unsubscribed = await fetch(`${appBase}/api/email/unsubscribe?deliveryId=${seed.delivery._id}&token=${encodeURIComponent(token)}`);
   assert.equal(unsubscribed.status, 200);
   assert.equal((await DeliverySuppression.findOne({ sellerId: seed.seller._id, buyerUserId: seed.buyerUser._id, channel: "email" }).lean())?.reason, "unsubscribe");
-  assert.equal((await DeliveryOutbox.findById(seed.delivery._id).lean())?.status, "suppressed");
+  assert.equal((await DeliveryOutbox.findOne({ _id: seed.delivery._id, sellerId: seed.seller._id }).lean())?.status, "suppressed");
 
   console.log("Email delivery integration passed: cron send, signed inbound reply, duplicate rejection, forged webhook rejection, bounce suppression, retry suppression and unsubscribe.");
 } finally {

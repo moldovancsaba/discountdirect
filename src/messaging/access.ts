@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { BuyerRelationship, Membership } from "../auth/models.ts";
 import { connectDatabaseCore } from "../lib/database-core.ts";
+import { withTenantBypass } from "../lib/tenant-core.ts";
 import { Conversation } from "./models.ts";
 import { MessagingError } from "./errors.ts";
 
@@ -8,7 +9,9 @@ export async function participant(userId: string, conversationId: string) {
   if (!mongoose.isValidObjectId(conversationId))
     throw new MessagingError("INVALID");
   await connectDatabaseCore();
-  const conversation = await Conversation.findById(conversationId).lean();
+  const conversation = await withTenantBypass("conversation-participant-authorization-lookup", () =>
+    Conversation.findById(conversationId).lean(),
+  );
   if (!conversation) throw new MessagingError("NOT_FOUND");
   const sellerMember = await Membership.exists({
     sellerId: conversation.sellerId,

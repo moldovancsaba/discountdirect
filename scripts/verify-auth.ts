@@ -423,11 +423,11 @@ try {
   assert.equal(await Offer.countDocuments({ sellerId: allowedSeller._id }), 1);
   assert.equal((await fetch(`${base}/api/offers`, { headers: { cookie } })).status, 200);
   assert.equal((await post(`/api/offers/${offer.id}/respond`, { expectedVersion: offer.version, decision: "accepted" }, cookie)).status, 200);
-  const issuedCoupon = await RedemptionCoupon.findOne({ offerId: offer.id }).lean();
+  const issuedCoupon = await RedemptionCoupon.findOne({ sellerId: allowedSeller._id, offerId: offer.id }).lean();
   assert.ok(issuedCoupon);
   assert.match(issuedCoupon.code, /^DD-[A-F0-9]{10}$/);
   assert.equal((await post("/api/sellers/allowed-seller/redemptions/confirm", { code: issuedCoupon.code }, cookie)).status, 200);
-  assert.equal((await RedemptionCoupon.findById(issuedCoupon._id).lean())?.status, "redeemed");
+  assert.equal((await RedemptionCoupon.findOne({ _id: issuedCoupon._id, sellerId: allowedSeller._id }).lean())?.status, "redeemed");
   assert.equal((await post(`/api/offers/${offer.id}/respond`, { expectedVersion: offer.version, decision: "declined" }, cookie)).status, 409);
   assert.equal(await DeliveryOutbox.countDocuments({ sellerId: allowedSeller._id, kind: "personal_offer", status: "unsupported" }), 1);
 
@@ -440,15 +440,15 @@ try {
   assert.equal(campaign.audienceSize, 1);
   assert.equal((await post(campaignPath, { ...campaignInput, discountPct: 99 }, cookie)).status, 201);
   assert.equal(await Campaign.countDocuments({ sellerId: allowedSeller._id }), 1);
-  const campaignOffer = await Offer.findOne({ campaignId: campaign.id }).lean();
+  const campaignOffer = await Offer.findOne({ sellerId: allowedSeller._id, campaignId: campaign.id }).lean();
   assert.ok(campaignOffer);
   assert.equal((await post(`/api/offers/${campaignOffer._id}/respond`, { expectedVersion: campaignOffer.version, decision: "accepted" }, cookie)).status, 200);
-  assert.equal(await CampaignReservation.countDocuments({ campaignId: campaign.id, status: "reserved" }), 1);
-  assert.equal(await RedemptionCoupon.countDocuments({ offerId: campaignOffer._id, status: "issued" }), 1);
+  assert.equal(await CampaignReservation.countDocuments({ sellerId: allowedSeller._id, campaignId: campaign.id, status: "reserved" }), 1);
+  assert.equal(await RedemptionCoupon.countDocuments({ sellerId: allowedSeller._id, offerId: campaignOffer._id, status: "issued" }), 1);
   assert.equal(await DeliveryOutbox.countDocuments({ sellerId: allowedSeller._id, kind: "flash_campaign", status: "unsupported" }), 1);
   assert.equal((await CampaignInventoryBalance.findOne({ sellerId: allowedSeller._id, productId: campaignInput.productId }).lean())?.reserved, 1);
   assert.equal((await post(`/api/sellers/allowed-seller/campaigns/${campaign.id}/cancel`, {}, cookie)).status, 200);
-  assert.equal(await CampaignReservation.countDocuments({ campaignId: campaign.id, status: "released" }), 1);
+  assert.equal(await CampaignReservation.countDocuments({ sellerId: allowedSeller._id, campaignId: campaign.id, status: "released" }), 1);
   assert.equal((await CampaignInventoryBalance.findOne({ sellerId: allowedSeller._id, productId: campaignInput.productId }).lean())?.reserved, 0);
 
   const privacyRequestPath = "/api/buyer/allowed-seller/privacy-requests";
@@ -522,8 +522,8 @@ try {
   assert.equal(sent.status, 201);
   const message = (await sent.json()).message;
   assert.equal((await post(messagesPath, { clientRequestId: "seller-message-001", body: "Szia, van egy kérdésünk a rendelésedről." }, cookie)).status, 201);
-  assert.equal(await ConversationEvent.countDocuments({ conversationId: conversation.id, kind: "message" }), 1);
-  assert.equal(await RealtimeEvent.countDocuments({ conversationId: conversation.id, type: "message.created" }), 1);
+  assert.equal(await ConversationEvent.countDocuments({ sellerId: allowedSeller._id, conversationId: conversation.id, kind: "message" }), 1);
+  assert.equal(await RealtimeEvent.countDocuments({ sellerId: allowedSeller._id, conversationId: conversation.id, type: "message.created" }), 1);
   const realtimeEvents = await fetch(`${base}/api/conversations/${conversation.id}/realtime-events`, { headers: { cookie: buyerCookie } });
   assert.equal(realtimeEvents.status, 200);
   assert.equal((await realtimeEvents.json()).events[0].type, "message.created");
