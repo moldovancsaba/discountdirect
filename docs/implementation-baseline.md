@@ -157,6 +157,11 @@ privacy and redemptions.
   from catalog revisions, including the price effective when the window began.
   The evidence window and matching revision versions remain attached to the
   commercial snapshot.
+- Flash campaigns apply the configured deterministic pooled or per-campaign
+  holdout before creating offers. Treatment and control membership are frozen
+  in the campaign, and imported matching purchases produce comparable
+  conversion-rate and measured-difference reporting without claiming causality
+  for small samples.
 
 ## Known Release 1 deltas
 
@@ -182,9 +187,9 @@ These gaps are intentional inventory facts, not regressions:
   offer creation currently focus on `email` and `postal`; in-app delivery exists
   as an outbox channel; newsletter, WhatsApp, RCS and marketplace inbox settings
   are not modeled.
-- Holdout groups, incremental margin measurement, membership perks,
-  birthday/back-in-stock/price-drop journeys and a reporting read model are not
-  implemented.
+- Incremental margin measurement, membership perks,
+  birthday/back-in-stock/price-drop journeys and a separate reporting read
+  model are not implemented.
 - Postal partner submission, printed/posted statuses and PDF generation are not
   implemented.
 
