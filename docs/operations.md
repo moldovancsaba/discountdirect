@@ -40,3 +40,16 @@ The repository's `vercel.json` selects Next.js with frozen-lockfile installation
 - Delivery shows `TRANSPORT_NOT_CONFIGURED` or `EMAIL_TRANSPORT_CONFIGURATION_INCOMPLETE`: verify Resend/Vercel provider variables, staged-recipient configuration and the latest deployment. Do not mark these rows sent manually.
 - UI/HTTP regression: use Vercel Instant Rollback to a previously verified deployment in the project deployment history; then revert the offending commit on GitHub and deploy again. Authentication indexes and empty additive collections may remain after rollback; release 0.3.0 does not alter business records. Never choose an unverified future deployment.
 - Performance: the displayed duration covers this request's connection plus ping, not application-wide latency. No user-presence or historical performance metrics are asserted yet.
+## Prototype fixtures
+
+Load the original DiscountDirect acceptance fixture into an isolated development
+or staging database with:
+
+```bash
+pnpm fixtures:prototype -- --target=development --owner-email=your-sso-email@example.com
+```
+
+Use `--target=staging` with the Vercel Preview environment. The loader is
+idempotent, uses the dedicated `elektrohome-demo` seller slug and refuses a
+production runtime. Its final JSON summary must report Kiss Anna, Szabó Gábor
+and Nagy Réka with 9, 7 and 2 purchases and 0, 1 and 0 pending offers.

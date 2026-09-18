@@ -124,72 +124,47 @@ export function sellerScopedSchema(schema: Schema, options: { allowExplicitSelle
   const allowExplicitSellerId = options.allowExplicitSellerId ?? true;
 
   for (const operation of queryOperations) {
-    (schema as any).pre(operation, function tenantQueryGuard(this: unknown, next: (error?: Error) => void) {
+    (schema as any).pre(operation, function tenantQueryGuard(this: unknown) {
       const context = currentTenantContext();
-      if (context?.mode === "bypass") {
-        next();
-        return;
-      }
+      if (context?.mode === "bypass") return;
 
       const query = this as { getFilter: () => Record<string, unknown>; setQuery: (filter: unknown) => void };
       const filter = query.getFilter();
       if (context?.mode === "seller") {
         query.setQuery(tenantScopedQueryFilter(filter, context.sellerId));
-        next();
         return;
       }
 
-      if (allowExplicitSellerId && hasSellerConstraint(filter)) {
-        next();
-        return;
-      }
+      if (allowExplicitSellerId && hasSellerConstraint(filter)) return;
 
-      next(new TenantScopeError("TENANT_CONTEXT_REQUIRED"));
+      throw new TenantScopeError("TENANT_CONTEXT_REQUIRED");
     });
   }
 
-  (schema as any).pre("aggregate", function tenantAggregateGuard(this: unknown, next: (error?: Error) => void) {
+  (schema as any).pre("aggregate", function tenantAggregateGuard(this: unknown) {
     const context = currentTenantContext();
-    if (context?.mode === "bypass") {
-      next();
-      return;
-    }
+    if (context?.mode === "bypass") return;
 
     const aggregate = this as { pipeline: () => PipelineStage[] };
     const pipeline = aggregate.pipeline();
     if (context?.mode === "seller") {
       pipeline.unshift({ $match: { sellerId: context.sellerId } });
-      next();
       return;
     }
 
-    if (allowExplicitSellerId && pipelineStartsWithSellerConstraint(pipeline)) {
-      next();
-      return;
-    }
+    if (allowExplicitSellerId && pipelineStartsWithSellerConstraint(pipeline)) return;
 
-    next(new TenantScopeError("TENANT_CONTEXT_REQUIRED"));
+    throw new TenantScopeError("TENANT_CONTEXT_REQUIRED");
   });
 
-  (schema as any).pre("save", function tenantSaveGuard(this: unknown, next: (error?: Error) => void) {
-    try {
-      guardDocument(this as unknown as Record<string, unknown>, currentTenantContext(), allowExplicitSellerId);
-      next();
-    } catch (error) {
-      next(error as Error);
-    }
+  (schema as any).pre("save", function tenantSaveGuard(this: unknown) {
+    guardDocument(this as unknown as Record<string, unknown>, currentTenantContext(), allowExplicitSellerId);
   });
 
   (schema as any).pre("insertMany", function tenantInsertManyGuard(
     this: unknown,
-    next: (error?: Error) => void,
     docs: Record<string, unknown>[],
   ) {
-    try {
-      for (const doc of docs) guardDocument(doc, currentTenantContext(), allowExplicitSellerId);
-      next();
-    } catch (error) {
-      next(error as Error);
-    }
+    for (const doc of docs) guardDocument(doc, currentTenantContext(), allowExplicitSellerId);
   });
 }

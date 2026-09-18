@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import mongoose from "mongoose";
 import {
   hasSellerConstraint,
   pipelineStartsWithSellerConstraint,
@@ -8,6 +9,7 @@ import {
   tenantScopedQueryFilter,
   withSellerTenant,
   withTenantBypass,
+  sellerScopedSchema,
 } from "../src/lib/tenant-core.ts";
 
 test("tenant readiness is explicit outside and inside seller scope", () => {
@@ -62,4 +64,13 @@ test("tenant bypass requires a named reason", () => {
     sellerId: null,
     reason: "provider-webhook-lookup",
   });
+});
+
+test("Mongoose 9 query middleware rejects an actual unscoped query", async () => {
+  const schema = new mongoose.Schema({ sellerId: mongoose.Schema.Types.ObjectId }, { bufferCommands: false });
+  schema.plugin(sellerScopedSchema);
+  const name = `TenantGuardProbe${Date.now()}`;
+  const Model = mongoose.model(name, schema);
+  await assert.rejects(Model.findOne({}).exec(), (error: unknown) => error instanceof Error && error.message === "TENANT_CONTEXT_REQUIRED");
+  mongoose.deleteModel(name);
 });

@@ -110,6 +110,11 @@ privacy and redemptions.
   operators to `platform_ops`. CI inventories every Route Handler and Server
   Action and fails when a surface has no declared access policy. Machine-token,
   public and hard SSO-only refusal endpoints remain separate from human roles.
+- The idempotent DD-004 prototype loader seeds the isolated `elektrohome-demo`
+  tenant with ElektroHome, Anna, Gábor and Réka, their 18 purchases, catalogue,
+  recommendations, messages and offers. Development and Vercel Preview staging
+  were verified with pending-offer counts `0 / 1 / 0`; production execution is
+  refused by the loader.
 - Tenant guards cover every seller-owned business model family. Buyer-wide
   reads derive their seller scope from active buyer relationships; global cron,
   provider-webhook and operator reporting flows use named bypasses.
