@@ -143,6 +143,10 @@ privacy and redemptions.
 - The HU market policy and strict seller settings registry apply SSOT defaults,
   reject unknown or out-of-range values, and expose owner-only updates through
   the protected seller settings endpoint.
+- Every outbound marketing delivery passes one market-aware `may_send` decision
+  covering relationship state, customer privacy state, objection or consent,
+  prior-order soft opt-in and seller frequency caps. MongoDB sent history is
+  authoritative and rebuilds missing Redis counters.
 
 ## Known Release 1 deltas
 

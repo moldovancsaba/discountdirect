@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
 import { Conversation, ConversationEvent } from "@/messaging/models";
-import { mayDeliverMarketing } from "@/privacy/service";
+import { maySendMarketing } from "@/consent/service";
 import { RecommendationPreview } from "@/recommendations/models";
 import { recordRealtimeEvent } from "@/realtime/service";
 import { Offer, OfferEvent } from "./models";
@@ -39,7 +39,8 @@ export async function createOffer(userId: string, sellerSlug: string, input: unk
   const preview = await RecommendationPreview.findOne({ _id: value.previewId, sellerId: seller._id, status: "eligible" }).lean();
   if (!preview?.buyerUserId) throw new OfferError("NOT_FOUND");
   const recommendation = preview.recommendations.find((item: any) => item.productId.toString() === value.productId);
-  if (!recommendation || !await BuyerRelationship.exists({ sellerId: seller._id, buyerUserId: preview.buyerUserId, status: "active" }) || !await mayDeliverMarketing(seller._id.toString(), preview.buyerUserId.toString(), preview.channel)) throw new OfferError("FORBIDDEN");
+  const sendDecision = await maySendMarketing(seller._id.toString(), preview.buyerUserId.toString(), preview.channel);
+  if (!recommendation || !await BuyerRelationship.exists({ sellerId: seller._id, buyerUserId: preview.buyerUserId, status: "active" }) || !sendDecision.allowed) throw new OfferError("FORBIDDEN");
   const database = await connectDatabase(); let result: any;
   try {
     await database.connection.transaction(async (session) => {

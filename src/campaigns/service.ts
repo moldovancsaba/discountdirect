@@ -7,7 +7,7 @@ import { Product } from "@/catalog/models";
 import { connectDatabase } from "@/lib/database";
 import { Conversation, ConversationEvent } from "@/messaging/models";
 import { Offer, OfferEvent } from "@/offers/models";
-import { mayDeliverMarketing } from "@/privacy/service";
+import { maySendMarketing } from "@/consent/service";
 import { RecommendationPreview } from "@/recommendations/models";
 import { recordRealtimeEvent } from "@/realtime/service";
 import { Campaign, CampaignInventoryBalance, CampaignPreview, CampaignReservation } from "./models";
@@ -29,7 +29,8 @@ async function campaignAudience(sellerId: any, productId: string, channel: "emai
   for (const preview of previews) {
     const buyer = preview.buyerUserId?.toString(); if (!buyer || seen.has(buyer)) continue;
     const recommendation = preview.recommendations.find((item: any) => item.productId.toString() === productId); if (!recommendation) continue;
-    if (!await BuyerRelationship.exists({ sellerId, buyerUserId: preview.buyerUserId, status: "active" }) || !await mayDeliverMarketing(sellerId.toString(), buyer, channel)) continue;
+    const sendDecision = await maySendMarketing(sellerId.toString(), buyer, channel);
+    if (!await BuyerRelationship.exists({ sellerId, buyerUserId: preview.buyerUserId, status: "active" }) || !sendDecision.allowed) continue;
     seen.add(buyer); audience.push({ buyerUserId: preview.buyerUserId, customerId: preview.customerId, recommendationPreviewId: preview._id, reasonCode: recommendation.reasonCode, reasonText: recommendation.reasonText, evidencePurchaseIds: recommendation.evidencePurchaseIds });
     if (audience.length === MAX_AUDIENCE) break;
   }

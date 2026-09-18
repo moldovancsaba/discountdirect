@@ -194,12 +194,3 @@ export async function buyerPrivacyExport(userId: string, sellerSlug: string, req
   if (!artifact) throw new PrivacyError("NOT_FOUND");
   return artifact.payload;
 }
-
-export async function mayDeliverMarketing(sellerId: string, buyerUserId: string, channel: "email" | "postal") {
-  await connectDatabase();
-  const [preference, customer] = await Promise.all([
-    ChannelPreference.findOne({ sellerId, buyerUserId, channel, purpose: "marketing", status: "subscribed" }).lean(),
-    User.findById(buyerUserId).lean().then((user) => user ? Customer.findOne({ sellerId, emailNormalized: user.emailNormalized, privacyStatus: "active" }).lean() : null),
-  ]);
-  return Boolean(preference && customer);
-}

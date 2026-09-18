@@ -6,6 +6,7 @@
 
 - Added the HU market policy and versioned seller settings registry with strict defaults and validation.
 - Added an owner-managed seller settings screen and protected settings API; seller staff have read-only access.
+- Added centralized market-aware send eligibility and Redis-backed frequency-cap enforcement for outbound marketing.
 
 ### Fixed Bugs
 

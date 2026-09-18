@@ -6,7 +6,7 @@ import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
 import { withTenantBypass } from "@/lib/tenant";
 import { recordInboundBuyerMessage } from "@/messaging/service";
-import { mayDeliverMarketing } from "@/privacy/service";
+import { maySendMarketing, recordMarketingSend } from "@/consent/service";
 import {
   deliveryIdFromAddresses,
   emailTransportReadiness,
@@ -135,10 +135,10 @@ export async function createDeliveryRecord(session: mongoose.ClientSession, inpu
     state = transportState(input.channel);
   } else {
     const channel = input.channel;
-    const allowed = await mayDeliverMarketing(String(input.sellerId), String(input.buyerUserId), channel);
-    const suppression = allowed ? await activeSuppression(input.sellerId, input.buyerUserId, channel, session) : null;
-    state = !allowed
-      ? { status: "suppressed", reasonCode: "NO_CURRENT_CHANNEL_CONSENT" }
+    const decision = await maySendMarketing(String(input.sellerId), String(input.buyerUserId), channel);
+    const suppression = decision.allowed ? await activeSuppression(input.sellerId, input.buyerUserId, channel, session) : null;
+    state = !decision.allowed
+      ? { status: "suppressed", reasonCode: decision.reasonCode }
       : suppression
         ? { status: "suppressed", reasonCode: suppressionCode(String(suppression.reason)) }
         : transportState(channel);
@@ -303,14 +303,17 @@ async function deliverLockedEmail(row: any, fetcher: FetchLike) {
   const [seller, buyer] = await Promise.all([Seller.findById(row.sellerId).lean(), User.findById(row.buyerUserId).lean()]);
   if (!seller || !buyer) return finishDelivery(row, "cancelled", "DELIVERY_PARTICIPANT_NOT_FOUND");
   if (!buyer.emailNormalized) return finishDelivery(row, "suppressed", "BUYER_EMAIL_MISSING");
-  if (!await mayDeliverMarketing(String(row.sellerId), String(row.buyerUserId), "email")) return finishDelivery(row, "suppressed", "NO_CURRENT_CHANNEL_CONSENT");
+  const decision = await maySendMarketing(String(row.sellerId), String(row.buyerUserId), "email");
+  if (!decision.allowed) return finishDelivery(row, "suppressed", decision.reasonCode);
   const suppression = await activeSuppression(row.sellerId, row.buyerUserId, "email");
   if (suppression) return finishDelivery(row, "suppressed", suppressionCode(String(suppression.reason)));
   if (!recipientAllowedByStage(config, buyer.emailNormalized)) return finishDelivery(row, "unsupported", "EMAIL_STAGED_RECIPIENT_NOT_ALLOWED");
   const content = composeEmail(row, seller, buyer, config);
   try {
     const result = await sendResendEmail(config, { deliveryId: row._id.toString(), sellerId: row.sellerId.toString(), to: buyer.emailNormalized, idempotencyKey: row.idempotencyKey, ...content }, fetcher);
-    return finishDelivery(row, "sent", "RESEND_ACCEPTED", { provider: "resend", providerMessageId: result.id, sentAt: new Date(), lastProviderEventAt: new Date() });
+    const finished = await finishDelivery(row, "sent", "RESEND_ACCEPTED", { provider: "resend", providerMessageId: result.id, sentAt: new Date(), lastProviderEventAt: new Date() });
+    await recordMarketingSend(String(row.sellerId), String(row.buyerUserId), "email");
+    return finished;
   } catch (error) {
     return retryDelivery(row, resendFailureReason(error));
   }
