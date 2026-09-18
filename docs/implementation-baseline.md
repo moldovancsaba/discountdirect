@@ -147,6 +147,9 @@ privacy and redemptions.
   covering relationship state, customer privacy state, objection or consent,
   prior-order soft opt-in and seller frequency caps. MongoDB sent history is
   authoritative and rebuilds missing Redis counters.
+- Seller-buyer relationships persist deterministic `new`, `returning` or
+  `loyal` segments with order count, lifetime HUF value and first/last order
+  dates. Purchase ingest and corrections recalculate the same versioned rule.
 
 ## Known Release 1 deltas
 

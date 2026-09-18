@@ -10,6 +10,7 @@ import { PRIVACY_NOTICE_VERSION } from "@/privacy/validation";
 import { cancelBuyerDeliveries } from "@/delivery/service";
 import { Customer, Purchase, PurchaseImportBatch } from "./models";
 import { validatePurchaseInput, type PurchaseInput } from "./validation";
+import { deriveCustomerSegment, SEGMENT_RULE_VERSION } from "@/relationships/segments";
 
 export class PurchaseError extends Error {
   constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "TOO_LARGE" | "STALE") { super(code); }
@@ -34,6 +35,26 @@ function rowChecksum(row: PurchaseInput) {
 
 function purchaseOutput(row: any) {
   return { id: row._id.toString(), orderId: row.orderId, lineId: row.lineId, productSku: row.productSku, productName: row.productNameSnapshot, purchasedAt: row.purchasedAt, quantity: row.quantity, totalHuf: row.totalHuf, status: row.status, correctionReason: row.correctionReason ?? null, version: row.version };
+}
+
+async function recalculateRelationship(sellerId: unknown, customerId: unknown, emailNormalized: string | null, session?: mongoose.ClientSession) {
+  if (!emailNormalized) return;
+  const buyerQuery = User.findOne({ emailNormalized });
+  if (session) buyerQuery.session(session);
+  const buyer = await buyerQuery.lean();
+  if (!buyer) return;
+  const aggregate = Purchase.aggregate([
+    { $match: { sellerId: new mongoose.Types.ObjectId(String(sellerId)), customerId: new mongoose.Types.ObjectId(String(customerId)), status: "purchased" } },
+    { $group: { _id: null, orderCount: { $sum: 1 }, totalHuf: { $sum: "$totalHuf" }, firstOrderAt: { $min: "$purchasedAt" }, lastOrderAt: { $max: "$purchasedAt" } } },
+  ]);
+  if (session) aggregate.session(session);
+  const [summary] = await aggregate;
+  const metrics = summary ?? { orderCount: 0, totalHuf: 0, firstOrderAt: null, lastOrderAt: null };
+  await BuyerRelationship.updateOne(
+    { sellerId, buyerUserId: buyer._id },
+    { $set: { segment: deriveCustomerSegment(metrics.orderCount, metrics.firstOrderAt, metrics.lastOrderAt), segmentRuleVersion: SEGMENT_RULE_VERSION, orderCount: metrics.orderCount, totalHuf: metrics.totalHuf, firstOrderAt: metrics.firstOrderAt, lastOrderAt: metrics.lastOrderAt } },
+    session ? { session } : {},
+  );
 }
 
 export async function previewPurchaseImport(userId: string, sellerSlug: string, value: unknown) {
@@ -100,6 +121,7 @@ export async function applyPurchaseImport(userId: string, sellerSlug: string, ba
         purchasedAt: data.purchasedAt, quantity: data.quantity, totalHuf: data.totalHuf,
         sourceName: batch.sourceName, sourceChecksum: rowChecksum(data), importBatchId: batch._id,
       }], { session });
+      await recalculateRelationship(seller._id, customer._id, customer.emailNormalized, session);
     }
     batch.status = "applied";
     batch.appliedAt = new Date();
@@ -114,11 +136,12 @@ export async function listCustomers(userId: string, sellerSlug: string) {
   const rows = await Customer.aggregate([
     { $match: { sellerId: seller._id } },
     { $lookup: { from: "purchases", localField: "_id", foreignField: "customerId", as: "purchases" } },
-    { $project: { externalBuyerId: 1, displayName: 1, emailNormalized: 1, privacyStatus: 1, purchaseCount: { $size: "$purchases" }, totalHuf: { $sum: { $map: { input: "$purchases", as: "purchase", in: { $cond: [{ $eq: ["$$purchase.status", "purchased"] }, "$$purchase.totalHuf", 0] } } } }, lastPurchaseAt: { $max: "$purchases.purchasedAt" } } },
+    { $set: { activePurchases: { $filter: { input: "$purchases", as: "purchase", cond: { $eq: ["$$purchase.status", "purchased"] } } } } },
+    { $project: { externalBuyerId: 1, displayName: 1, emailNormalized: 1, privacyStatus: 1, purchaseCount: { $size: "$activePurchases" }, totalHuf: { $sum: "$activePurchases.totalHuf" }, firstPurchaseAt: { $min: "$activePurchases.purchasedAt" }, lastPurchaseAt: { $max: "$activePurchases.purchasedAt" } } },
     { $sort: { lastPurchaseAt: -1, _id: 1 } },
     { $limit: 100 },
   ]);
-  return { seller, customers: rows.map((row) => ({ ...row, id: row._id.toString(), _id: undefined })) };
+  return { seller, customers: rows.map((row) => ({ ...row, id: row._id.toString(), _id: undefined, segment: deriveCustomerSegment(row.purchaseCount, row.firstPurchaseAt ?? null, row.lastPurchaseAt ?? null) })) };
 }
 
 export async function customerHistory(userId: string, sellerSlug: string, customerId: string, limit = 50) {
@@ -138,7 +161,9 @@ export async function updatePurchaseStatus(userId: string, sellerSlug: string, p
     { $set: { status, correctionReason: reason.trim(), correctedAt: new Date(), correctedByUserId: userId }, $inc: { version: 1 } },
     { new: true, runValidators: true },
   );
-  if (!purchase) throw new PurchaseError((await Purchase.exists({ _id: purchaseId, sellerId: seller._id })) ? "STALE" : "NOT_FOUND");
+    if (!purchase) throw new PurchaseError((await Purchase.exists({ _id: purchaseId, sellerId: seller._id })) ? "STALE" : "NOT_FOUND");
+  const customer = await Customer.findOne({ _id: purchase.customerId, sellerId: seller._id }).lean();
+  if (customer) await recalculateRelationship(seller._id, customer._id, customer.emailNormalized);
   return purchaseOutput(purchase.toObject());
 }
 

@@ -14,6 +14,7 @@ const messages: Record<string, string> = { imported: "A vásárlási előzménye
 const errors: Record<string, string> = { INVALID: "Ellenőrizd a megadott adatokat.", TOO_LARGE: "Az import 1–200 sort tartalmazhat.", STALE: "A tétel időközben megváltozott. Frissítsd az oldalt." };
 const statusLabel: Record<string, string> = { purchased: "Vásárlás", refunded: "Visszatérítve", corrected: "Helyesbítve" };
 const privacyLabel: Record<string, string> = { active: "Aktív", restricted: "Korlátozott", erasure_requested: "Törlésre jelölve", erased: "Anonimizált" };
+const segmentLabel: Record<string, string> = { new: "Új vevő", returning: "Visszatérő vevő", loyal: "Törzsvásárló" };
 
 export default async function CustomersPage({ params, searchParams }: { params: Promise<{ sellerSlug: string }>; searchParams: Promise<{ customer?: string; batch?: string; preview?: string; saved?: string; error?: string }> }) {
   const user = await currentUser();
@@ -42,7 +43,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
           price={money.format(customer.totalHuf)}
           mediaSeed={customer.id}
           mediaOverlay={privacyLabel[customer.privacyStatus]}
-          metadata={[{ id: "external", label: "Külső azonosító", value: customer.externalBuyerId }, { id: "count", label: "Tételek", value: customer.purchaseCount }]}
+          metadata={[{ id: "segment", label: "Szegmens", value: segmentLabel[customer.segment] }, { id: "count", label: "Rendelések", value: customer.purchaseCount }, { id: "since", label: "Vásárló ettől", value: customer.firstPurchaseAt ? new Date(customer.firstPurchaseAt).getFullYear() : "—" }, { id: "external", label: "Külső azonosító", value: customer.externalBuyerId }]}
           primaryAction={<GdsButton component="a" href={`/seller/${sellerSlug}/customers?customer=${customer.id}`} variant="default" leftSection={<GdsIcon name="History" decorative />}>Előzmények</GdsButton>}
         />)}
       </GdsGrid>

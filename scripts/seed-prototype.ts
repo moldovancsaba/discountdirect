@@ -10,6 +10,7 @@ import { Customer, Purchase, PurchaseImportBatch } from "../src/purchases/models
 import { RecommendationPreview } from "../src/recommendations/models.ts";
 import { Market, SellerSettingsModel } from "../src/settings/models.ts";
 import { SELLER_SETTINGS_DEFAULTS } from "../src/settings/validation.ts";
+import { deriveCustomerSegment, SEGMENT_RULE_VERSION } from "../src/relationships/segments.ts";
 
 function option(name: string) {
   const prefix = `--${name}=`;
@@ -95,6 +96,13 @@ try {
       );
       purchaseIds.push(purchase._id);
     }
+    const activePurchases = await Purchase.find({ sellerId: seller._id, customerId: customer._id, status: "purchased" }).select({ purchasedAt: 1, totalHuf: 1 }).lean();
+    const firstOrderAt = activePurchases.reduce<Date | null>((earliest, row) => !earliest || row.purchasedAt < earliest ? row.purchasedAt : earliest, null);
+    const lastOrderAt = activePurchases.reduce<Date | null>((latest, row) => !latest || row.purchasedAt > latest ? row.purchasedAt : latest, null);
+    await BuyerRelationship.updateOne(
+      { sellerId: seller._id, buyerUserId: buyer._id },
+      { $set: { segment: deriveCustomerSegment(activePurchases.length, firstOrderAt, lastOrderAt), segmentRuleVersion: SEGMENT_RULE_VERSION, orderCount: activePurchases.length, totalHuf: activePurchases.reduce((sum, row) => sum + row.totalHuf, 0), firstOrderAt, lastOrderAt } },
+    );
 
     const recommendationRows = buyerFixture.recommendations.map(([sku, reasonText], index) => {
       const product = products.get(sku);

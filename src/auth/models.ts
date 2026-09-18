@@ -62,6 +62,12 @@ const buyerRelationshipSchema = new Schema(
     sellerId: { type: Schema.Types.ObjectId, required: true, ref: "Seller" },
     buyerUserId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
     status: { type: String, enum: ["active", "revoked"], default: "active" },
+    segment: { type: String, enum: ["new", "returning", "loyal"], default: "new", index: true },
+    segmentRuleVersion: { type: String, default: "segments-2026-09-v1", maxlength: 80 },
+    orderCount: { type: Number, required: true, default: 0, min: 0 },
+    totalHuf: { type: Number, required: true, default: 0, min: 0 },
+    firstOrderAt: { type: Date, default: null },
+    lastOrderAt: { type: Date, default: null },
   },
   { ...timestamps, collection: "buyer_relationships" },
 );
