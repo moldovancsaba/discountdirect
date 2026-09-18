@@ -24,7 +24,8 @@ function timelineCard(event: TimelineEvent, returnTo: string) {
       mediaOverlay={event.offer.status === "pending" ? `${event.offer.discountPct}% kedvezmény` : offerStatus[event.offer.status] ?? event.offer.status}
       metadata={[
         { id: "product", label: "Termék", value: event.offer.product.name },
-        { id: "original", label: "Eredeti ár", value: money.format(event.offer.originalHuf) },
+        { id: "reference", label: "30 napos összehasonlító ár", value: money.format(event.offer.referencePriceHuf) },
+        { id: "catalog", label: "Katalógusár az ajánlatkor", value: money.format(event.offer.originalHuf) },
         { id: "expiry", label: "Érvényes", value: date.format(new Date(event.offer.expiresAt)) },
         { id: "when", label: "Időpont", value: date.format(new Date(event.createdAt)) },
       ]}

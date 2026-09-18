@@ -216,17 +216,19 @@ function renderOfferEmail(row: any, seller: any, buyer: any, optOutUrl: string) 
   const productName = typeof snapshot.productName === "string" ? snapshot.productName : "személyes ajánlat";
   const discountPct = Number.isFinite(Number(snapshot.discountPct)) ? `${Number(snapshot.discountPct)}% kedvezmény` : "egyedi kedvezmény";
   const price = Number.isFinite(Number(snapshot.priceHuf)) ? money.format(Number(snapshot.priceHuf)) : "az ajánlatban szereplő ár";
+  const referencePrice = Number.isFinite(Number(snapshot.referencePriceHuf)) ? money.format(Number(snapshot.referencePriceHuf)) : null;
+  const referenceText = referencePrice ? ` A megelőző 30 nap legalacsonyabb ára: ${referencePrice}.` : "";
   const expiresAt = snapshot.expiresAt ? new Date(String(snapshot.expiresAt)) : null;
   const subject = row.kind === "flash_campaign" ? `${seller.name}: villámkampány ajánlat` : `${seller.name}: új személyes ajánlat`;
   const text = [
     `Kedves ${buyer.displayName}!`,
-    `${seller.name} ajánlatot küldött: ${productName}, ${discountPct}, ${price}.`,
+    `${seller.name} ajánlatot küldött: ${productName}, ${discountPct}, ${price}.${referenceText}`,
     expiresAt && Number.isFinite(expiresAt.getTime()) ? `Érvényes: ${expiresAt.toLocaleString("hu-HU", { timeZone: "Europe/Budapest" })}.` : "",
     "Válaszolj erre az e-mailre, és a válaszod a DiscountDirect beszélgetésbe kerül.",
     `Leiratkozás: ${optOutUrl}`,
   ].join("\n\n");
   const expiry = expiresAt && Number.isFinite(expiresAt.getTime()) ? `<p>Érvényes: ${htmlEscape(expiresAt.toLocaleString("hu-HU", { timeZone: "Europe/Budapest" }))}.</p>` : "";
-  const html = `<p>Kedves ${htmlEscape(buyer.displayName)}!</p><p>${htmlEscape(seller.name)} ajánlatot küldött: <strong>${htmlEscape(productName)}</strong>, ${htmlEscape(discountPct)}, ${htmlEscape(price)}.</p>${expiry}<p>Válaszolj erre az e-mailre, és a válaszod a DiscountDirect beszélgetésbe kerül.</p><p><a href="${htmlEscape(optOutUrl)}">Leiratkozás</a></p>`;
+  const html = `<p>Kedves ${htmlEscape(buyer.displayName)}!</p><p>${htmlEscape(seller.name)} ajánlatot küldött: <strong>${htmlEscape(productName)}</strong>, ${htmlEscape(discountPct)}, ${htmlEscape(price)}.${referencePrice ? ` A megelőző 30 nap legalacsonyabb ára: ${htmlEscape(referencePrice)}.` : ""}</p>${expiry}<p>Válaszolj erre az e-mailre, és a válaszod a DiscountDirect beszélgetésbe kerül.</p><p><a href="${htmlEscape(optOutUrl)}">Leiratkozás</a></p>`;
   return { subject, text, html };
 }
 

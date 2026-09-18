@@ -9,10 +9,13 @@
 - Added centralized market-aware send eligibility and Redis-backed frequency-cap enforcement for outbound marketing.
 - Added durable customer segment derivation with order count, tenure and lifetime-value evidence in the seller ledger.
 - Added server-enforced discount steps and segment-aware pricing guardrails for personal offers and flash campaigns.
+- Added revision-backed 30-day comparison-price evidence for personal offers and flash campaigns.
 
 ### Fixed Bugs
 
 - Unknown settings keys, invalid percentage ranges and stale concurrent updates now fail closed.
+- Stale recommendation previews can no longer create offers after the catalog product version changes.
+- Discount calculations cannot use a base above either the current catalog price or the lowest evidenced price in the preceding 30 days.
 - Rebuilt navigation around actual seller, buyer and operator workspaces so users only see destinations allowed by their memberships and relationships.
 - Removed public links into protected role areas and prevented global buyer routes from being interpreted as seller identifiers.
 - Replaced internal status and reason codes with consistent Hungarian business language across offers, lists, coupons, campaigns, automations and delivery records.

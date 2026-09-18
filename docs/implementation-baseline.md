@@ -153,15 +153,19 @@ privacy and redemptions.
 - Personal offers and flash campaigns enforce seller pricing server-side in
   both configured modes: approved discount steps or bounded guardrails. Global,
   retained-price and per-segment maxima are applied before price calculation.
+- Personal offers and flash campaigns derive a frozen 30-day comparison price
+  from catalog revisions, including the price effective when the window began.
+  The evidence window and matching revision versions remain attached to the
+  commercial snapshot.
 
 ## Known Release 1 deltas
 
 These gaps are intentional inventory facts, not regressions:
 
-- Upstash Redis has a client, key convention, TTL policy and Lua-script loader
-  foundation. Frequency caps, rate limits, flash counters and short-lived
-  idempotency locks are not yet wired into the business flows or verified
-  against staging Redis.
+- Upstash Redis has a client, key convention, TTL policy and Lua-script loader,
+  and seller frequency caps are wired into outbound eligibility. General rate
+  limits, flash counters and short-lived idempotency locks are not yet wired
+  into the business flows or verified against staging Redis.
 - Vercel Blob has a private artifact key convention, retention policy and signed
   read-url foundation. Privacy exports are still database-backed and postal/PDF
   artifact persistence is not yet wired into business flows or verified against
@@ -178,9 +182,9 @@ These gaps are intentional inventory facts, not regressions:
   offer creation currently focus on `email` and `postal`; in-app delivery exists
   as an outbox channel; newsletter, WhatsApp, RCS and marketplace inbox settings
   are not modeled.
-- Holdout groups, incremental margin measurement, frequency caps, 30-day
-  reference-price evidence, membership perks, birthday/back-in-stock/price-drop
-  journeys and a reporting read model are not implemented.
+- Holdout groups, incremental margin measurement, membership perks,
+  birthday/back-in-stock/price-drop journeys and a reporting read model are not
+  implemented.
 - Postal partner submission, printed/posted statuses and PDF generation are not
   implemented.
 

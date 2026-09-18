@@ -12,11 +12,13 @@ import { reserveFlashOffer, CampaignError } from "@/campaigns/service";
 import { createDeliveryRecord } from "@/delivery/service";
 import { issueCouponForAcceptedOffer } from "@/redemptions/service";
 import { discountDecision } from "@/pricing/service";
+import { discountedPrice } from "@/pricing/reference-price";
+import { productReferencePrice } from "@/pricing/reference-price-service";
 
 export class OfferError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "EXPIRED" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 
-function output(row: any) { return { id: row._id.toString(), product: { id: row.productId.toString(), sku: row.productSku, name: row.productName, version: row.productVersion }, reason: { code: row.reasonCode, text: row.reasonText, evidencePurchaseIds: row.evidencePurchaseIds.map((id: any) => id.toString()) }, campaignId: row.campaignId ? row.campaignId.toString() : null, channel: row.channel, originalHuf: row.originalHuf, discountPct: row.discountPct, priceHuf: row.priceHuf, status: row.status, expiresAt: row.expiresAt, decidedAt: row.decidedAt ?? null, version: row.version, createdAt: row.createdAt }; }
+function output(row: any) { return { id: row._id.toString(), product: { id: row.productId.toString(), sku: row.productSku, name: row.productName, version: row.productVersion }, reason: { code: row.reasonCode, text: row.reasonText, evidencePurchaseIds: row.evidencePurchaseIds.map((id: any) => id.toString()) }, campaignId: row.campaignId ? row.campaignId.toString() : null, channel: row.channel, originalHuf: row.originalHuf, referencePriceHuf: row.referencePriceHuf ?? row.originalHuf, discountBaseHuf: row.discountBaseHuf ?? row.originalHuf, referencePriceWindowStart: row.referencePriceWindowStart ?? null, referencePriceCalculatedAt: row.referencePriceCalculatedAt ?? null, discountPct: row.discountPct, priceHuf: row.priceHuf, status: row.status, expiresAt: row.expiresAt, decidedAt: row.decidedAt ?? null, version: row.version, createdAt: row.createdAt }; }
 async function sellerContext(userId: string, sellerSlug: string) { await connectDatabase(); const seller = await Seller.findOne({ slug: sellerSlug, status: "active" }).lean(); if (!seller) throw new OfferError("NOT_FOUND"); if (!await Membership.exists({ sellerId: seller._id, userId, status: "active" })) throw new OfferError("FORBIDDEN"); return seller; }
 function createInput(input: unknown) { if (!input || typeof input !== "object") throw new OfferError("INVALID"); const value = input as Record<string, unknown>; if (!mongoose.isValidObjectId(value.previewId) || !mongoose.isValidObjectId(value.productId) || !Number.isInteger(value.discountPct) || Number(value.discountPct) < 0 || Number(value.discountPct) > 100 || typeof value.clientRequestId !== "string" || !/^[A-Za-z0-9_-]{8,120}$/.test(value.clientRequestId) || typeof value.expiresAt !== "string") throw new OfferError("INVALID"); const expiresAt = new Date(value.expiresAt); if (Number.isNaN(expiresAt.getTime()) || expiresAt <= new Date() || expiresAt.getTime() > Date.now() + MAX_EXPIRY_MS) throw new OfferError("INVALID"); return { previewId: String(value.previewId), productId: String(value.productId), discountPct: Number(value.discountPct), clientRequestId: value.clientRequestId, expiresAt }; }
 
@@ -44,15 +46,20 @@ export async function createOffer(userId: string, sellerSlug: string, input: unk
   const pricingDecision = await discountDecision(seller._id.toString(), preview.buyerUserId.toString(), value.discountPct);
   if (!recommendation || !await BuyerRelationship.exists({ sellerId: seller._id, buyerUserId: preview.buyerUserId, status: "active" }) || !sendDecision.allowed) throw new OfferError("FORBIDDEN");
   if (!pricingDecision.allowed) throw new OfferError("INVALID");
+  const calculatedAt = new Date();
+  let reference;
+  try { reference = await productReferencePrice(seller._id, recommendation.productId, calculatedAt); } catch { throw new OfferError("CONFLICT"); }
+  const { product, evidence } = reference;
+  if (product.version !== recommendation.productVersion) throw new OfferError("CONFLICT");
+  const calculatedPrice = discountedPrice(product.priceHuf, evidence, value.discountPct);
   const database = await connectDatabase(); let result: any;
   try {
     await database.connection.transaction(async (session) => {
       const conversation = await Conversation.findOne({ sellerId: seller._id, buyerUserId: preview.buyerUserId }).session(session);
-      const priceHuf = Math.round(recommendation.priceHuf * (100 - value.discountPct) / 100);
       const now = new Date();
-      const [row] = await Offer.create([{ sellerId: seller._id, buyerUserId: preview.buyerUserId, customerId: preview.customerId, conversationId: conversation?._id ?? null, recommendationPreviewId: preview._id, channel: preview.channel, productId: recommendation.productId, productSku: recommendation.productSku, productName: recommendation.productName, productVersion: recommendation.productVersion, reasonCode: recommendation.reasonCode, reasonText: recommendation.reasonText, evidencePurchaseIds: recommendation.evidencePurchaseIds, originalHuf: recommendation.priceHuf, discountPct: value.discountPct, priceHuf, expiresAt: value.expiresAt, clientRequestId: value.clientRequestId, createdByUserId: userId }], { session });
+      const [row] = await Offer.create([{ sellerId: seller._id, buyerUserId: preview.buyerUserId, customerId: preview.customerId, conversationId: conversation?._id ?? null, recommendationPreviewId: preview._id, channel: preview.channel, productId: recommendation.productId, productSku: recommendation.productSku, productName: recommendation.productName, productVersion: recommendation.productVersion, reasonCode: recommendation.reasonCode, reasonText: recommendation.reasonText, evidencePurchaseIds: recommendation.evidencePurchaseIds, originalHuf: product.priceHuf, referencePriceHuf: evidence.referencePriceHuf, discountBaseHuf: calculatedPrice.discountBaseHuf, referencePriceWindowStart: evidence.windowStart, referencePriceCalculatedAt: evidence.calculatedAt, referencePriceEvidenceVersions: evidence.evidenceVersions, discountPct: value.discountPct, priceHuf: calculatedPrice.priceHuf, expiresAt: value.expiresAt, clientRequestId: value.clientRequestId, createdByUserId: userId }], { session });
       await OfferEvent.create([{ offerId: row._id, sellerId: seller._id, type: "created", version: row.version, occurredAt: now, actorUserId: userId }], { session });
-      const deliverySnapshot = { productName: row.productName, priceHuf: row.priceHuf, discountPct: row.discountPct, expiresAt: row.expiresAt };
+      const deliverySnapshot = { productName: row.productName, priceHuf: row.priceHuf, discountPct: row.discountPct, referencePriceHuf: row.referencePriceHuf, expiresAt: row.expiresAt };
       await createDeliveryRecord(session, { sellerId: seller._id, buyerUserId: preview.buyerUserId, customerId: preview.customerId, offerId: row._id, kind: "personal_offer", channel: "in_app", idempotencyKey: `offer:${row._id}:in_app`, contentSnapshot: deliverySnapshot, createdByUserId: userId });
       await createDeliveryRecord(session, { sellerId: seller._id, buyerUserId: preview.buyerUserId, customerId: preview.customerId, offerId: row._id, kind: "personal_offer", channel: preview.channel, idempotencyKey: `offer:${row._id}:${preview.channel}`, contentSnapshot: deliverySnapshot, createdByUserId: userId });
       if (conversation) {
