@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Button as GdsButton, EmptyState, GdsGrid, GdsIcon, ListingCard, PageHeader, SectionPanel } from "@discountdirect/gds-client";
+import { BannerNotice, Button as GdsButton, EmptyState, GdsGrid, GdsIcon, ListingCard, PageHeader, SectionPanel } from "@discountdirect/gds-client";
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { buyerDeliveries } from "@/delivery/service";
@@ -16,13 +16,28 @@ const channelLabel: Record<string, string> = { in_app: "Alkalmazáson belül", e
 export default async function BuyerHubPage() {
   const user = await currentUser();
   if (!user) redirect("/sign-in");
-  const [conversations, offers, lists, coupons, deliveries] = await Promise.all([buyerConversations(user.id), buyerOffers(user.id), buyerOfferLists(user.id), buyerCoupons(user.id), buyerDeliveries(user.id)]);
+  const names = ["conversations", "offers", "lists", "coupons", "deliveries"] as const;
+  const results = await Promise.allSettled([buyerConversations(user.id), buyerOffers(user.id), buyerOfferLists(user.id), buyerCoupons(user.id), buyerDeliveries(user.id)]);
+  const unavailable = results.flatMap((result, index) => {
+    if (result.status === "fulfilled") return [];
+    console.error("[buyer-hub] data source failed", {
+      source: names[index],
+      error: result.reason instanceof Error ? result.reason.message : "UNKNOWN",
+    });
+    return [names[index]];
+  });
+  const conversations = results[0].status === "fulfilled" ? results[0].value : { conversations: [], nextCursor: null };
+  const offers = results[1].status === "fulfilled" ? results[1].value : { offers: [] };
+  const lists = results[2].status === "fulfilled" ? results[2].value : { lists: [] };
+  const coupons = results[3].status === "fulfilled" ? results[3].value : { coupons: [] };
+  const deliveries = results[4].status === "fulfilled" ? results[4].value : { deliveries: [] };
   const pendingOffers = offers.offers.filter((offer) => offer.status === "pending");
   const activeLists = lists.lists.filter((list) => list.status === "active");
   const issuedCoupons = coupons.coupons.filter((coupon) => coupon.status === "issued");
 
   return <Shell active="buyer">
     <PageHeader title="Vásárlói csatornaközpont" description="Egy helyen láthatók az alkalmazáson belüli ajánlatok, üzenetek, ajánlatlisták, kuponok és kézbesítési állapotok." eyebrow="Vásárlói felület" actions={<div className="button-row"><GdsButton component="a" href="/buyer/conversations" variant="default" leftSection={<GdsIcon name="Message" decorative />}>Üzenetek</GdsButton><GdsButton component="a" href="/buyer/offers" variant="default" leftSection={<GdsIcon name="Tag" decorative />}>Ajánlatok</GdsButton><GdsButton component="a" href="/buyer/lists" variant="default" leftSection={<GdsIcon name="List" decorative />}>Listák</GdsButton></div>} />
+    {unavailable.length ? <BannerNotice severity="warning" title="Néhány adat átmenetileg nem érhető el" message="A többi vásárlói funkció továbbra is használható. Frissítsd az oldalt néhány pillanat múlva." /> : null}
     <GdsGrid columns={{ base: 1, md: 3 }}>
       <ListingCard title="Függő ajánlatok" description="Elfogadható vagy elutasítható személyes és kampányajánlatok." mediaSeed="buyer-pending-offers" mediaOverlay="Ajánlat" metadata={[{ id: "count", label: "Darab", value: pendingOffers.length }]} primaryAction={<GdsButton component="a" href="/buyer/offers" leftSection={<GdsIcon name="Tag" decorative />}>Megnyitás</GdsButton>} />
       <ListingCard title="Aktív ajánlatlisták" description="Automatizmusból létrejött, időhöz kötött terméklisták." mediaSeed="buyer-active-lists" mediaOverlay="Lista" metadata={[{ id: "count", label: "Darab", value: activeLists.length }]} primaryAction={<GdsButton component="a" href="/buyer/lists" leftSection={<GdsIcon name="List" decorative />}>Megnyitás</GdsButton>} />
