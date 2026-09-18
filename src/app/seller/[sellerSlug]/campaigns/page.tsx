@@ -5,6 +5,8 @@ import { listProducts } from "@/catalog/service";
 import { getCampaignPreview, listCampaigns } from "@/campaigns/service";
 import { Shell } from "@/components/shell";
 import { cancelCampaignAction, launchFlashCampaignAction, previewFlashCampaignAction } from "./actions";
+import { getSellerSettings } from "@/settings/service";
+import { DiscountInput } from "@/components/discount-input";
 
 export const dynamic = "force-dynamic";
 const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
@@ -18,7 +20,8 @@ export default async function CampaignsPage({ params, searchParams }: { params: 
   const { sellerSlug } = await params;
   let catalog;
   let data;
-  try { [catalog, data] = await Promise.all([listProducts(user.id, sellerSlug, true), listCampaigns(user.id, sellerSlug)]); } catch { redirect("/account?error=forbidden"); }
+  let pricing;
+  try { [catalog, data, pricing] = await Promise.all([listProducts(user.id, sellerSlug, true), listCampaigns(user.id, sellerSlug), getSellerSettings(user.id, sellerSlug)]); } catch { redirect("/account?error=forbidden"); }
   const query = await searchParams;
   const products = catalog.products.filter((product) => product.active && product.stock > 0);
   let preview: Awaited<ReturnType<typeof getCampaignPreview>> | null = null;
@@ -32,7 +35,7 @@ export default async function CampaignsPage({ params, searchParams }: { params: 
     <SectionPanel title="Villámkampány előnézete" description="Az előnézet még nem küld ajánlatot. A célközönség a meglévő, jogosult ajánlási előnézetekből és csatornahozzájárulásból áll.">
       {products.length ? <form className="catalog-form" action={previewFlashCampaignAction.bind(null, sellerSlug)}>
         <GdsSelect name="productId" label="Termék" required data={products.map((product) => ({ value: product.id, label: `${product.name} · ${product.stock} db · ${money.format(product.priceHuf)}` }))} />
-        <NumberInput name="discountPct" label="Kedvezmény (%)" required min={0} max={100} step={1} allowDecimal={false} defaultValue={15} />
+        <DiscountInput settings={pricing.settings} />
         <NumberInput name="quantity" label="Legfeljebb foglalható darab" required min={1} max={1000} step={1} allowDecimal={false} defaultValue={1} />
         <GdsSelect name="channel" label="Kimenő csatorna" required data={[{ value: "email", label: "E-mail" }, { value: "postal", label: "Postai" }]} />
         <GdsSelect name="expiresAt" label="Időablak" required data={[{ value: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), label: "6 óra" }, { value: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), label: "24 óra" }, { value: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), label: "48 óra" }]} />

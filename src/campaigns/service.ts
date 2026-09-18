@@ -12,6 +12,7 @@ import { RecommendationPreview } from "@/recommendations/models";
 import { recordRealtimeEvent } from "@/realtime/service";
 import { Campaign, CampaignInventoryBalance, CampaignPreview, CampaignReservation } from "./models";
 import { createDeliveryRecord } from "@/delivery/service";
+import { discountDecision } from "@/pricing/service";
 
 export class CampaignError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 48 * 60 * 60 * 1000;
@@ -23,14 +24,15 @@ async function sellerContext(userId: string, sellerSlug: string) { await connect
 function previewInputFrom(input: unknown) { if (!input || typeof input !== "object") throw new CampaignError("INVALID"); const value = input as Record<string, unknown>; if (!mongoose.isValidObjectId(value.productId) || !Number.isInteger(value.discountPct) || Number(value.discountPct) < 0 || Number(value.discountPct) > 100 || !Number.isInteger(value.quantity) || Number(value.quantity) < 1 || Number(value.quantity) > 1000 || !["email", "postal"].includes(String(value.channel)) || typeof value.expiresAt !== "string") throw new CampaignError("INVALID"); const expiresAt = new Date(value.expiresAt); if (Number.isNaN(expiresAt.getTime()) || expiresAt <= new Date() || expiresAt.getTime() > Date.now() + MAX_EXPIRY_MS) throw new CampaignError("INVALID"); return { productId: String(value.productId), discountPct: Number(value.discountPct), quantity: Number(value.quantity), channel: String(value.channel) as "email" | "postal", expiresAt }; }
 function inputFrom(input: unknown) { if (!input || typeof input !== "object") throw new CampaignError("INVALID"); const value = input as Record<string, unknown>; if (typeof value.clientRequestId !== "string" || !/^[A-Za-z0-9_-]{8,120}$/.test(value.clientRequestId)) throw new CampaignError("INVALID"); return { ...previewInputFrom(input), clientRequestId: value.clientRequestId }; }
 
-async function campaignAudience(sellerId: any, productId: string, channel: "email" | "postal") {
+async function campaignAudience(sellerId: any, productId: string, channel: "email" | "postal", discountPct: number) {
   const previews = await RecommendationPreview.find({ sellerId, status: "eligible", channel, "recommendations.productId": productId, buyerUserId: { $ne: null } }).sort({ createdAt: -1, _id: -1 }).limit(500).lean();
   const audience: any[] = []; const seen = new Set<string>();
   for (const preview of previews) {
     const buyer = preview.buyerUserId?.toString(); if (!buyer || seen.has(buyer)) continue;
     const recommendation = preview.recommendations.find((item: any) => item.productId.toString() === productId); if (!recommendation) continue;
     const sendDecision = await maySendMarketing(sellerId.toString(), buyer, channel);
-    if (!await BuyerRelationship.exists({ sellerId, buyerUserId: preview.buyerUserId, status: "active" }) || !sendDecision.allowed) continue;
+    const pricingDecision = await discountDecision(sellerId.toString(), buyer, discountPct);
+    if (!await BuyerRelationship.exists({ sellerId, buyerUserId: preview.buyerUserId, status: "active" }) || !sendDecision.allowed || !pricingDecision.allowed) continue;
     seen.add(buyer); audience.push({ buyerUserId: preview.buyerUserId, customerId: preview.customerId, recommendationPreviewId: preview._id, reasonCode: recommendation.reasonCode, reasonText: recommendation.reasonText, evidencePurchaseIds: recommendation.evidencePurchaseIds });
     if (audience.length === MAX_AUDIENCE) break;
   }
@@ -49,7 +51,7 @@ function offerThreadPreview(row: any) {
 export async function createFlashCampaignPreview(userId: string, sellerSlug: string, input: unknown) {
   const value = previewInputFrom(input); const seller = await sellerContext(userId, sellerSlug);
   const product = await Product.findOne({ _id: value.productId, sellerId: seller._id, active: true }).lean(); if (!product || product.stock < value.quantity) throw new CampaignError("INVALID");
-  const audience = await campaignAudience(seller._id, value.productId, value.channel); if (!audience.length) throw new CampaignError("CONFLICT");
+  const audience = await campaignAudience(seller._id, value.productId, value.channel, value.discountPct); if (!audience.length) throw new CampaignError("CONFLICT");
   const priceHuf = Math.round(product.priceHuf * (100 - value.discountPct) / 100);
   const [preview] = await CampaignPreview.create([{ sellerId: seller._id, kind: "flash", productId: product._id, productSku: product.sku, productName: product.name, productVersion: product.version, originalHuf: product.priceHuf, discountPct: value.discountPct, priceHuf, channel: value.channel, quantity: value.quantity, expiresAt: value.expiresAt, audienceSnapshot: audience, inputHash: previewHash(value, product, audience), createdByUserId: userId }]);
   return campaignPreviewOutput(preview.toObject());

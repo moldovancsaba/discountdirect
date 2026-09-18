@@ -8,6 +8,7 @@
 - Added an owner-managed seller settings screen and protected settings API; seller staff have read-only access.
 - Added centralized market-aware send eligibility and Redis-backed frequency-cap enforcement for outbound marketing.
 - Added durable customer segment derivation with order count, tenure and lifetime-value evidence in the seller ledger.
+- Added server-enforced discount steps and segment-aware pricing guardrails for personal offers and flash campaigns.
 
 ### Fixed Bugs
 

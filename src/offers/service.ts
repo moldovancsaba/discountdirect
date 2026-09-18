@@ -11,6 +11,7 @@ import { Offer, OfferEvent } from "./models";
 import { reserveFlashOffer, CampaignError } from "@/campaigns/service";
 import { createDeliveryRecord } from "@/delivery/service";
 import { issueCouponForAcceptedOffer } from "@/redemptions/service";
+import { discountDecision } from "@/pricing/service";
 
 export class OfferError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "EXPIRED" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
@@ -40,7 +41,9 @@ export async function createOffer(userId: string, sellerSlug: string, input: unk
   if (!preview?.buyerUserId) throw new OfferError("NOT_FOUND");
   const recommendation = preview.recommendations.find((item: any) => item.productId.toString() === value.productId);
   const sendDecision = await maySendMarketing(seller._id.toString(), preview.buyerUserId.toString(), preview.channel);
+  const pricingDecision = await discountDecision(seller._id.toString(), preview.buyerUserId.toString(), value.discountPct);
   if (!recommendation || !await BuyerRelationship.exists({ sellerId: seller._id, buyerUserId: preview.buyerUserId, status: "active" }) || !sendDecision.allowed) throw new OfferError("FORBIDDEN");
+  if (!pricingDecision.allowed) throw new OfferError("INVALID");
   const database = await connectDatabase(); let result: any;
   try {
     await database.connection.transaction(async (session) => {

@@ -150,6 +150,9 @@ privacy and redemptions.
 - Seller-buyer relationships persist deterministic `new`, `returning` or
   `loyal` segments with order count, lifetime HUF value and first/last order
   dates. Purchase ingest and corrections recalculate the same versioned rule.
+- Personal offers and flash campaigns enforce seller pricing server-side in
+  both configured modes: approved discount steps or bounded guardrails. Global,
+  retained-price and per-segment maxima are applied before price calculation.
 
 ## Known Release 1 deltas
 

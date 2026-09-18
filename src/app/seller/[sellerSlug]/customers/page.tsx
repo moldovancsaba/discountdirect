@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
-import { BannerNotice, Button as GdsButton, EmptyState, GdsGrid, GdsIcon, ListingCard, NumberInput, PageHeader, SectionPanel, Select as GdsSelect, SimpleDataTable, StatusBadge, Textarea as GdsTextarea, TextInput } from "@discountdirect/gds-client";
+import { BannerNotice, Button as GdsButton, EmptyState, GdsGrid, GdsIcon, ListingCard, PageHeader, SectionPanel, Select as GdsSelect, SimpleDataTable, StatusBadge, Textarea as GdsTextarea, TextInput } from "@discountdirect/gds-client";
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { customerHistory, listCustomers, purchaseImportBatch } from "@/purchases/service";
 import { recommendationPreview } from "@/recommendations/service";
 import { openConversationAction } from "@/app/conversations/actions";
 import { applyPurchasesAction, createOfferAction, customerPrivacyAction, previewPurchasesAction, purchaseStatusAction, recommendationPreviewAction } from "./actions";
+import { getSellerSettings } from "@/settings/service";
+import { DiscountInput } from "@/components/discount-input";
 
 export const dynamic = "force-dynamic";
 const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
@@ -21,7 +23,8 @@ export default async function CustomersPage({ params, searchParams }: { params: 
   if (!user) redirect("/sign-in");
   const { sellerSlug } = await params;
   let result;
-  try { result = await listCustomers(user.id, sellerSlug); } catch { redirect("/account?error=forbidden"); }
+  let pricing;
+  try { [result, pricing] = await Promise.all([listCustomers(user.id, sellerSlug), getSellerSettings(user.id, sellerSlug)]); } catch { redirect("/account?error=forbidden"); }
   const query = await searchParams;
   let selected: Awaited<ReturnType<typeof customerHistory>> | null = null;
   if (query.customer) { try { selected = await customerHistory(user.id, sellerSlug, query.customer); } catch { selected = null; } }
@@ -72,7 +75,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
       <GdsGrid columns={{ base: 1, md: 2 }}>
         {recommendation.recommendations.map((item: { productId: string; productName: string; reasonText: string; priceHuf: number; score: number; productSku: string; reasonCode: string; evidencePurchaseIds: string[] }) => <ListingCard key={item.productId} title={item.productName} description={item.reasonText} price={money.format(item.priceHuf)} mediaSeed={item.productId} mediaOverlay={`${item.score} pont`} metadata={[{ id: "sku", label: "Cikkszám", value: item.productSku }, { id: "rule", label: "Szabály", value: item.reasonCode }, { id: "evidence", label: "Bizonyíték", value: `${item.evidencePurchaseIds.length} vásárlási tétel` }]} />)}
       </GdsGrid>
-      {recommendation.status === "eligible" && selected ? <SectionPanel title="Személyes ajánlat létrehozása" description="Válassz egy előnézeti terméket. Az ár, kedvezmény és indok rögzített pillanatkép lesz; a rendszer nem küld üzenetet vagy ajánlatot automatikusan."><form action={createOfferAction.bind(null, sellerSlug, selected.customer._id.toString(), recommendation.id)}><GdsSelect name="productId" label="Ajánlott termék" data={recommendation.recommendations.map((item: { productId: string; productName: string }) => ({ value: item.productId, label: item.productName }))} /><NumberInput name="discountPct" label="Kedvezmény (%)" defaultValue={10} min={0} max={100} required /><TextInput name="expiresAt" label="Érvényesség vége" type="datetime-local" required /><GdsButton type="submit" leftSection={<GdsIcon name="Tag" decorative />}>Ajánlat rögzítése</GdsButton></form></SectionPanel> : null}
+      {recommendation.status === "eligible" && selected ? <SectionPanel title="Személyes ajánlat létrehozása" description="Válassz egy előnézeti terméket. Az ár, kedvezmény és indok rögzített pillanatkép lesz; a rendszer nem küld üzenetet vagy ajánlatot automatikusan."><form action={createOfferAction.bind(null, sellerSlug, selected.customer._id.toString(), recommendation.id)}><GdsSelect name="productId" label="Ajánlott termék" data={recommendation.recommendations.map((item: { productId: string; productName: string }) => ({ value: item.productId, label: item.productName }))} /><DiscountInput settings={pricing.settings} /><TextInput name="expiresAt" label="Érvényesség vége" type="datetime-local" required /><GdsButton type="submit" leftSection={<GdsIcon name="Tag" decorative />}>Ajánlat rögzítése</GdsButton></form></SectionPanel> : null}
     </SectionPanel> : null}
     <SectionPanel id="purchase-import" title="Vásárlási JSON-import" description="Legfeljebb 200 sor. Az előnézet ellenőrzi az ismétlődő rendelési tételeket és a mezőket; az ismeretlen cikkszám megmarad pillanatképként.">
       <form action={previewPurchasesAction.bind(null, sellerSlug)}><TextInput name="sourceName" label="Forrás neve" required maxLength={120} placeholder="Webshop export" /><GdsTextarea name="json" label="Vásárlási tételek" minRows={11} required placeholder={'[{"externalBuyerId":"C-1","buyerEmail":"vasarlo@example.com","buyerName":"Minta Vásárló","orderId":"O-1","lineId":"1","productSku":"SKU-1","productName":"Termék","purchasedAt":"2026-09-01T10:00:00Z","quantity":1,"totalHuf":12990}]'} /><GdsButton type="submit" leftSection={<GdsIcon name="Preview" decorative />}>Előnézet készítése</GdsButton></form>

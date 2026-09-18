@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { BannerNotice, Button as GdsButton, EmptyState, GdsGrid, GdsIcon, ListingCard, NumberInput, PageHeader, SectionPanel, Select as GdsSelect, StatusBadge, Textarea as GdsTextarea, TextInput } from "@discountdirect/gds-client";
+import { BannerNotice, Button as GdsButton, EmptyState, GdsGrid, GdsIcon, ListingCard, PageHeader, SectionPanel, Select as GdsSelect, StatusBadge, Textarea as GdsTextarea, TextInput } from "@discountdirect/gds-client";
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { RealtimeThread } from "@/components/realtime-thread";
@@ -7,6 +7,8 @@ import { conversationTimeline } from "@/messaging/service";
 import { customerHistory } from "@/purchases/service";
 import { recommendationPreview } from "@/recommendations/service";
 import { conversationRecommendationPreviewAction, createConversationOfferAction, sendConversationMessageAction } from "@/app/conversations/actions";
+import { getSellerSettings } from "@/settings/service";
+import { DiscountInput } from "@/components/discount-input";
 
 export const dynamic = "force-dynamic";
 const date = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Budapest" });
@@ -44,7 +46,8 @@ export default async function SellerConversationPage({ params, searchParams }: {
   if (!user) redirect("/sign-in");
   const { sellerSlug, conversationId } = await params;
   let result;
-  try { result = await conversationTimeline(user.id, conversationId); if (result.conversation.seller.slug !== sellerSlug || result.role !== "seller") redirect("/account?error=forbidden"); } catch { redirect("/account?error=forbidden"); }
+  let pricing;
+  try { [result, pricing] = await Promise.all([conversationTimeline(user.id, conversationId), getSellerSettings(user.id, sellerSlug)]); if (result.conversation.seller.slug !== sellerSlug || result.role !== "seller") redirect("/account?error=forbidden"); } catch { redirect("/account?error=forbidden"); }
   const query = await searchParams;
   const returnTo = `/seller/${sellerSlug}/conversations/${conversationId}`;
   let history: Awaited<ReturnType<typeof customerHistory>> | null = null;
@@ -83,7 +86,7 @@ export default async function SellerConversationPage({ params, searchParams }: {
           mediaOverlay={`${item.score} pont`}
           metadata={[{ id: "sku", label: "Cikkszám", value: item.productSku }, { id: "rule", label: "Szabály", value: item.reasonCode }, { id: "evidence", label: "Bizonyíték", value: `${item.evidencePurchaseIds.length} vásárlási tétel` }]}
           primaryAction={<form action={createConversationOfferAction.bind(null, returnTo, sellerSlug, recommendation.id, item.productId)}>
-            <NumberInput name="discountPct" label="Kedvezmény (%)" defaultValue={10} min={0} max={100} required />
+            <DiscountInput settings={pricing.settings} />
             <TextInput name="expiresAt" label="Érvényesség vége" type="datetime-local" required />
             <GdsButton type="submit" leftSection={<GdsIcon name="Tag" decorative />}>Ajánlat küldése</GdsButton>
           </form>}

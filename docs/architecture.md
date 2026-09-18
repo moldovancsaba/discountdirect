@@ -35,6 +35,8 @@ DD-060 and DD-063 centralize outbound marketing authorization in `maySendMarketi
 
 DD-013 derives a versioned relationship segment after every order ingest and purchase correction. Zero or one active order is `new`; two or more is `returning`; four or more spanning at least 180 days is `loyal`. The relationship stores active order count, lifetime HUF value and first/last order timestamps, while the seller ledger renders the same deterministic rule.
 
+DD-022 makes seller pricing settings authoritative. Personal offers and each flash-campaign recipient must pass `decideDiscount` before a price is calculated. Step mode accepts only configured percentages; guardrail mode accepts any whole percentage within the floor and the strictest of the global, retained-price and relationship-segment maxima.
+
 Release 0.5.0 adds seller-scoped `Product`, `ProductRevision` and `ImportBatch` collections. Product writes use optimistic versions and seller+SKU uniqueness. Import previews record their checksum and expected versions; apply uses an Atlas transaction so partial or stale batches cannot silently overwrite newer edits.
 
 Release 0.6.0 adds `Customer`, `Purchase` and `PurchaseImportBatch`. Customer identity and order-line uniqueness include the seller ID. Purchase imports are validated and previewed before an Atlas transaction applies them. Original purchase rows remain durable: refunds and corrections change status with an optimistic version and reason, while active-spend totals include only purchased rows. Buyer history requires an active relationship and matches the authenticated account's normalized email inside the same seller scope.
