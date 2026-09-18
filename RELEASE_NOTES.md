@@ -13,6 +13,10 @@
 ### Fixed Bugs
 
 - Unknown settings keys, invalid percentage ranges and stale concurrent updates now fail closed.
+- Rebuilt navigation around actual seller, buyer and operator workspaces so users only see destinations allowed by their memberships and relationships.
+- Removed public links into protected role areas and prevented global buyer routes from being interpreted as seller identifiers.
+- Replaced internal status and reason codes with consistent Hungarian business language across offers, lists, coupons, campaigns, automations and delivery records.
+- Removed duplicated page-header navigation, corrected stale realtime guidance and tightened mobile heading behavior.
 
 ## Unreleased — Provider-gated e-mail delivery
 

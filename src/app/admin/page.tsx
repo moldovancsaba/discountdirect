@@ -8,6 +8,7 @@ import { automationSummary } from "@/automations/service";
 import { redemptionSummary } from "@/redemptions/service";
 import { adminAccessOverview } from "@/auth/admin-access";
 import { disableUserAction, revokeBuyerRelationshipAction, revokeMembershipAction, revokeUserSessionsAction, signOut } from "./actions";
+import { businessLabel } from "@/presentation/labels";
 
 export const metadata: Metadata = { title: "Üzemeltetés", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -64,9 +65,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
     <SectionPanel title="Hozzáférések és munkamenetek" description="Operátori revokációs felület auditnaplóval. A műveletek növelik az authVersion értéket és visszavonják a nyitott munkameneteket.">
       <div className="table-wrap"><SimpleDataTable rows={access.users.map((user) => ({
         user: `${user.displayName} · ${user.email}`,
-        status: <StatusBadge status={statusTone[user.status] ?? "neutral"}>{user.status}</StatusBadge>,
-        role: user.systemRole ?? "—",
-        sso: `${user.ssoRole ?? "user"} · ${user.ssoStatus ?? "unknown"}`,
+        status: <StatusBadge status={statusTone[user.status] ?? "neutral"}>{businessLabel(user.status)}</StatusBadge>,
+        role: user.systemRole ? businessLabel(user.systemRole) : "—",
+        sso: `${businessLabel(user.ssoRole ?? "user")} · ${businessLabel(user.ssoStatus, "Ismeretlen")}`,
         sessions: String(user.activeSessions),
         lastSeen: user.lastSeenAt ? new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Budapest" }).format(new Date(user.lastSeenAt)) : "—",
         revoke: <ReasonAction id={user.id} action={revokeUserSessionsAction} label="Munkamenetek visszavonása" />,
@@ -77,8 +78,8 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
       <div className="table-wrap"><SimpleDataTable rows={access.memberships.map((membership) => ({
         user: `${membership.displayName} · ${membership.email}`,
         seller: membership.sellerName,
-        role: membership.role,
-        status: <StatusBadge status={statusTone[membership.status] ?? "neutral"}>{membership.status}</StatusBadge>,
+        role: businessLabel(membership.role),
+        status: <StatusBadge status={statusTone[membership.status] ?? "neutral"}>{businessLabel(membership.status)}</StatusBadge>,
         action: membership.status === "active" ? <ReasonAction id={membership.id} action={revokeMembershipAction} label="Tagság visszavonása" tone="red" /> : "—",
       }))} columns={[{ key: "user", header: "Felhasználó" }, { key: "seller", header: "Eladó" }, { key: "role", header: "Szerep" }, { key: "status", header: "Állapot" }, { key: "action", header: "Művelet" }]} /></div>
     </SectionPanel>
@@ -86,7 +87,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
       <div className="table-wrap"><SimpleDataTable rows={access.relationships.map((relationship) => ({
         user: `${relationship.displayName} · ${relationship.email}`,
         seller: relationship.sellerName,
-        status: <StatusBadge status={statusTone[relationship.status] ?? "neutral"}>{relationship.status}</StatusBadge>,
+        status: <StatusBadge status={statusTone[relationship.status] ?? "neutral"}>{businessLabel(relationship.status)}</StatusBadge>,
         action: relationship.status === "active" ? <ReasonAction id={relationship.id} action={revokeBuyerRelationshipAction} label="Kapcsolat visszavonása" tone="red" /> : "—",
       }))} columns={[{ key: "user", header: "Vásárló" }, { key: "seller", header: "Eladó" }, { key: "status", header: "Állapot" }, { key: "action", header: "Művelet" }]} /></div>
     </SectionPanel>

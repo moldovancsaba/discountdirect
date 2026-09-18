@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { BannerNotice, Button as GdsButton, EmptyState, PageHeader, SectionPanel, SimpleDataTable, StatusBadge, TextInput } from "@discountdirect/gds-client";
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
+import { businessLabel } from "@/presentation/labels";
 import { sellerCoupons } from "@/redemptions/service";
 import { confirmRedemptionAction } from "./actions";
 
@@ -26,7 +27,7 @@ export default async function SellerRedemptionsPage({ params, searchParams }: { 
       </form>
     </SectionPanel>
     <SectionPanel title="Legutóbbi kuponok" description="A lejárt és már beváltott kódok is látszanak az audit miatt.">
-      {!data.coupons.length ? <EmptyState title="Még nincs kupon" description="Elfogadott ajánlat után jön létre." /> : <SimpleDataTable rows={data.coupons.map((coupon) => ({ code: coupon.code, status: <StatusBadge status={coupon.status === "redeemed" ? "success" : coupon.status === "issued" ? "info" : "neutral"}>{coupon.status}</StatusBadge>, issued: date.format(new Date(coupon.issuedAt)), expires: date.format(new Date(coupon.expiresAt)), redeemed: coupon.redeemedAt ? date.format(new Date(coupon.redeemedAt)) : "—" }))} columns={[{ key: "code", header: "Kód" }, { key: "status", header: "Állapot" }, { key: "issued", header: "Kiadva" }, { key: "expires", header: "Lejár" }, { key: "redeemed", header: "Beváltva" }]} />}
+      {!data.coupons.length ? <EmptyState title="Még nincs kupon" description="Elfogadott ajánlat után jön létre." /> : <SimpleDataTable rows={data.coupons.map((coupon) => ({ code: coupon.code, status: <StatusBadge status={coupon.status === "redeemed" ? "success" : coupon.status === "issued" ? "info" : "neutral"}>{businessLabel(coupon.status)}</StatusBadge>, issued: date.format(new Date(coupon.issuedAt)), expires: date.format(new Date(coupon.expiresAt)), redeemed: coupon.redeemedAt ? date.format(new Date(coupon.redeemedAt)) : "—" }))} columns={[{ key: "code", header: "Kód" }, { key: "status", header: "Állapot" }, { key: "issued", header: "Kiadva" }, { key: "expires", header: "Lejár" }, { key: "redeemed", header: "Beváltva" }]} />}
     </SectionPanel>
   </Shell>;
 }

@@ -3,6 +3,7 @@ import { Button as GdsButton, GdsGrid, GdsIcon, ListingCard, PageHeader, Section
 import { currentUser } from "@/auth/service";
 import { buyerOfferList } from "@/automations/service";
 import { Shell } from "@/components/shell";
+import { businessLabel } from "@/presentation/labels";
 
 export const dynamic = "force-dynamic";
 const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
@@ -16,10 +17,10 @@ export default async function BuyerListPage({ params }: { params: Promise<{ list
   let list;
   try { list = await buyerOfferList(user.id, listId); } catch { redirect("/buyer/lists"); }
   return <Shell active="buyer">
-    <PageHeader title={list.title} description={`Elérhető: ${date.format(new Date(list.availableUntil))}. A termékek nem foglalások és nem kézbesítési igazolások.`} eyebrow="Ajánlatlista" actions={<div className="button-row"><GdsButton component="a" href="/buyer/lists" variant="default" leftSection={<GdsIcon name="Back" decorative />}>Listák</GdsButton><GdsButton component="a" href={`/buyer/letters/${list.id}`} variant="default" leftSection={<GdsIcon name="Print" decorative />}>Nyomtatható levél</GdsButton><StatusBadge status={list.status === "active" ? "success" : "neutral"}>{list.status}</StatusBadge></div>} />
+    <PageHeader title={list.title} description={`Elérhető: ${date.format(new Date(list.availableUntil))}. A termékek nem foglalások és nem kézbesítési igazolások.`} eyebrow="Ajánlatlista" actions={<div className="button-row"><GdsButton component="a" href="/buyer/lists" variant="default" leftSection={<GdsIcon name="Back" decorative />}>Listák</GdsButton><GdsButton component="a" href={`/buyer/letters/${list.id}`} variant="default" leftSection={<GdsIcon name="Print" decorative />}>Nyomtatható levél</GdsButton><StatusBadge status={list.status === "active" ? "success" : "neutral"}>{businessLabel(list.status)}</StatusBadge></div>} />
     <SectionPanel title="Ajánlott termékek" description="Minden indoklás a vásárlási előzményekből származó bizonyítékokra hivatkozik.">
       <GdsGrid columns={{ base: 1, md: 2 }}>
-        {list.products.map((product: OfferListProduct) => <ListingCard key={product.productId} title={product.productName} description={product.reasonText} price={money.format(product.priceHuf)} mediaSeed={product.productId} mediaOverlay={product.reasonCode} metadata={[{ id: "sku", label: "Cikkszám", value: product.productSku }, { id: "evidence", label: "Bizonyíték", value: `${product.evidencePurchaseIds.length} vásárlási tétel` }]} />)}
+        {list.products.map((product: OfferListProduct) => <ListingCard key={product.productId} title={product.productName} description={product.reasonText} price={money.format(product.priceHuf)} mediaSeed={product.productId} mediaOverlay={businessLabel(product.reasonCode)} metadata={[{ id: "sku", label: "Cikkszám", value: product.productSku }, { id: "evidence", label: "Ajánlás alapja", value: `${product.evidencePurchaseIds.length} korábbi vásárlási tétel` }]} />)}
       </GdsGrid>
     </SectionPanel>
   </Shell>;
