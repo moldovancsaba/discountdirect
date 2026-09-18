@@ -4,6 +4,7 @@ import {
   membershipsFor,
 } from "@/auth/service";
 import { errorResponse } from "@/auth/http";
+import { platformRoles, sellerRole } from "@/auth/roles-core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,8 +20,9 @@ export async function GET() {
     return Response.json(
       {
         user,
+        roles: platformRoles({ systemRole: user.systemRole, membershipRoles: memberships.map(({ role }) => role), hasBuyerRelationship: relationships.length > 0 }),
         sellerMemberships: memberships.map(
-          ({ sellerId, name, slug, role }) => ({ sellerId, name, slug, role }),
+          ({ sellerId, name, slug, role }) => ({ sellerId, name, slug, role, platformRole: sellerRole(role) }),
         ),
         buyerRelationships: relationships.map(({ sellerId, name, slug }) => ({
           sellerId,

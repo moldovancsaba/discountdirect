@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { BannerNotice, Button as GdsButton, GdsIcon, PageHeader, SectionPanel, StatusBadge } from "@discountdirect/gds-client";
 import { buyerRelationshipsFor, currentUser, membershipsFor } from "@/auth/service";
+import { platformRoles } from "@/auth/roles-core";
 import { Shell } from "@/components/shell";
 import { signOutUser } from "./actions";
 
@@ -16,6 +17,7 @@ export default async function AccountPage() {
   const user = await currentUser();
   if (!user) redirect("/sign-in");
   const [memberships, relationships] = await Promise.all([membershipsFor(user.id), buyerRelationshipsFor(user.id)]);
+  const roles = platformRoles({ systemRole: user.systemRole, membershipRoles: memberships.map((membership) => membership.role), hasBuyerRelationship: relationships.length > 0 });
   return <Shell active="account">
     <PageHeader
       title="Saját munkatér"
@@ -30,6 +32,7 @@ export default async function AccountPage() {
         <div><strong>SSO szerep</strong><span>{user.ssoRole ?? "user"}</span></div>
         <div><strong>SSO státusz</strong><span><StatusBadge status={user.ssoStatus === "approved" ? "success" : "warning"}>{user.ssoStatus ?? "unknown"}</StatusBadge></span></div>
         <div><strong>Rendszerszerep</strong><span>{user.systemRole ?? "-"}</span></div>
+        <div><strong>DiscountDirect szerepek</strong><span>{roles.join(", ") || "-"}</span></div>
         <div><strong>Utolsó SSO belépés</strong><span>{formatDate(user.lastSsoLoginAt)}</span></div>
       </div>
     </SectionPanel>

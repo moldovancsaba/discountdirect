@@ -105,6 +105,11 @@ privacy and redemptions.
 
 - SSO-only account access, workspace selection, logout and audited operator
   revocation are implemented.
+- Canonical authorization roles map membership owners to `seller_admin`, staff
+  to `seller_agent`, active buyer relationships to `buyer` and approved
+  operators to `platform_ops`. CI inventories every Route Handler and Server
+  Action and fails when a surface has no declared access policy. Machine-token,
+  public and hard SSO-only refusal endpoints remain separate from human roles.
 - Tenant guards cover every seller-owned business model family. Buyer-wide
   reads derive their seller scope from active buyer relationships; global cron,
   provider-webhook and operator reporting flows use named bypasses.
