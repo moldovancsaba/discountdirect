@@ -19,7 +19,7 @@ contracts materially change.
 | Realtime | Socket.IO endpoint on Vercel plus durable Atlas `RealtimeEvent` replay and HTTP fallback |
 | Jobs | Vercel Cron invokes `/api/cron/automations` every 30 minutes and `/api/cron/deliveries` every 15 minutes |
 | E-mail | Resend adapter for outbound mail, signed inbound replies, suppressions and unsubscribe handling |
-| Accelerators and artifacts | Upstash Redis client/key-policy foundations exist and frequency-cap counters are wired with MongoDB as authority; general rate limits, flash counters and locks remain planned. Vercel Blob has a private-key and signed-read foundation but is not yet wired to product artifacts. No separate reporting projection exists. |
+| Accelerators and artifacts | Upstash Redis client/key-policy foundations exist and frequency-cap counters are wired with MongoDB as authority; general rate limits, flash counters and locks remain planned. Vercel Blob has an immutable private-key and signed-read foundation and print-ready offer PDFs now persist through it. No separate reporting projection exists. |
 
 ## Deployment and environment
 
@@ -171,16 +171,17 @@ These gaps are intentional inventory facts, not regressions:
 - Private artifact persistence is implemented for letter PDFs, privacy ZIPs and
   JSON audit snapshots: immutable Blob writes, Atlas metadata, hash/size/type
   validation, seller-authorized five-minute reads and durable failed states.
-  PDF generation and workflow adoption remain owned by the postal/privacy issues.
+  Accepted postal offers now generate deterministic tagged A4 PDFs. Privacy
+  export archive adoption remains owned by the privacy issues.
 
 - Upstash Redis has a client, key convention, TTL policy and Lua-script loader,
   and seller frequency caps are wired into outbound eligibility. General rate
   limits, flash counters and short-lived idempotency locks are not yet wired
   into the business flows or verified against staging Redis.
 - Vercel Blob has a private artifact key convention, retention policy and signed
-  read-url foundation. Privacy exports are still database-backed and postal/PDF
-  artifact persistence is not yet wired into business flows or verified against
-  staging Blob.
+  read-url foundation. Postal offer generation is wired to the artifact ledger;
+  live staging Blob verification is still required before issue closure. Privacy
+  exports remain database-backed.
 - Tenant guard compatibility rollout is complete across seller-owned business
   models. Moving all request entry points from explicit `sellerId` constraints
   to mandatory async-local seller context remains a later hardening step.
@@ -200,8 +201,8 @@ These gaps are intentional inventory facts, not regressions:
 - Incremental margin measurement, membership perks,
   birthday/back-in-stock/price-drop journeys and a separate reporting read
   model are not implemented.
-- Postal partner submission, printed/posted statuses and PDF generation are not
-  implemented.
+- Deterministic print-ready offer PDF generation is implemented. Postal partner
+  submission and printed/posted lifecycle statuses remain unimplemented.
 
 ## Verification commands
 

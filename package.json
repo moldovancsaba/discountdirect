@@ -15,6 +15,8 @@
     "db:check": "node --env-file=.env.local scripts/check-db.mjs",
     "lint": "eslint .",
     "gds:manifest": "node node_modules/@sovereignsquad/gds-compliance/bin/gds-compliance.js validate-manifest --manifest ./gds-adoption.json",
+    "gds:pdf-theme": "node scripts/sync-pdf-theme.mjs",
+    "pdf:fixture": "node --experimental-strip-types scripts/render-offer-pdf-fixture.ts",
     "gds:check": "node node_modules/@sovereignsquad/gds-compliance/bin/gds-compliance.js check --manifest ./gds-adoption.json",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm gds:manifest && pnpm gds:check && pnpm build",
     "test:smoke": "node --env-file=.env.local scripts/smoke.mjs",
@@ -29,6 +31,7 @@
     "fixtures:prototype": "node --experimental-strip-types --env-file=.env.local scripts/seed-prototype.ts"
   },
   "dependencies": {
+    "@expo-google-fonts/noto-sans": "0.4.2",
     "@mantine/core": "7.17.8",
     "@mantine/dates": "7.17.8",
     "@mantine/hooks": "7.17.8",
@@ -45,6 +48,7 @@
     "fast-xml-parser": "5.3.8",
     "mongoose": "9.9.5",
     "next": "15.5.21",
+    "pdfkit": "0.17.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "0.0.1",
@@ -58,6 +62,7 @@
     "@sovereignsquad/gds-compliance": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-compliance-6.7.0.tgz",
     "@sovereignsquad/gds-eslint-config": "https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-eslint-config-6.7.0.tgz",
     "@types/node": "24.12.0",
+    "@types/pdfkit": "0.17.5",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "eslint": "9.39.5",

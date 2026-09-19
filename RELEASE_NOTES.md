@@ -1,5 +1,12 @@
 # Release notes
 
+## 2026-09-19 - Deterministic postal offer PDFs
+
+- Added seller-authorized generation of immutable, print-ready A4 offer letters for accepted postal offers with active consent and an issued coupon.
+- Added buyer-owned postal address management with optimistic version checks and a seller-scoped print snapshot that freezes the offer version, address hash, coupon, reference-price evidence and template version.
+- Added tagged Hungarian PDF output using only official Google Noto Sans TTF files, with Unicode coverage and GDS mint semantic colors.
+- Failed generation attempts remain auditable and can be reclaimed safely; each retry writes a new immutable artifact attempt instead of overwriting evidence.
+
 ## 2026-09-19 - Private artifact persistence
 
 - Added an immutable seller-scoped artifact ledger for letter PDFs, privacy exports and audit snapshots.

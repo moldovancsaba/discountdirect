@@ -15,6 +15,7 @@ import { settingsModelsForIndexes } from "../src/settings/models.ts";
 import { connectorModels } from "../src/connectors/models.ts";
 import { handoffModels } from "../src/handoff/models.ts";
 import { artifactModels } from "../src/artifacts/models.ts";
+import { postalModels } from "../src/postal/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri || !/^mongodb(?:\+srv)?:\/\//.test(uri))
@@ -25,7 +26,7 @@ await mongoose.connect(uri, {
   autoIndex: false,
 });
 try {
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels, ...campaignModels, ...deliveryModels, ...automationModels, ...redemptionModels, ...settingsModelsForIndexes, ...connectorModels, ...handoffModels, ...artifactModels]) await dataModel.createIndexes();
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels, ...campaignModels, ...deliveryModels, ...automationModels, ...redemptionModels, ...settingsModelsForIndexes, ...connectorModels, ...handoffModels, ...artifactModels, ...postalModels]) await dataModel.createIndexes();
   console.log("Authentication, catalog, purchase-ledger, privacy, recommendation, conversation, realtime, offer, campaign, delivery, automation, redemption and settings indexes are present.");
 } finally {
   await mongoose.disconnect();

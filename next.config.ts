@@ -6,6 +6,12 @@ const config: NextConfig = {
     "@sovereignsquad/gds-core",
     "@sovereignsquad/gds-admin",
   ],
+  outputFileTracingIncludes: {
+    "/api/sellers/*/offers/*/print": [
+      "./node_modules/@expo-google-fonts/noto-sans/400Regular/NotoSans_400Regular.ttf",
+      "./node_modules/@expo-google-fonts/noto-sans/700Bold/NotoSans_700Bold.ttf",
+    ],
+  },
   async headers() {
     return [
       {

@@ -1,0 +1,9 @@
+{
+  "source": "@sovereignsquad/gds-theme@6.7.0 mint/light",
+  "primary": "#059669",
+  "canvas": "#ecfdf5",
+  "surface": "#ffffff",
+  "border": "rgba(5, 150, 105, 0.28)",
+  "text": "#111827",
+  "muted": "#64748b"
+}

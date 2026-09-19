@@ -7,6 +7,14 @@
 - Disable artifact-producing workflows to roll back creation. Existing `ready` objects remain readable only until `retentionUntil` and only through the authorized signed-read route.
 - Alert on failed writes, stale uploading rows and deletion backlog without logging filenames, content, hashes tied to people, or signed URLs.
 
+## Postal PDF recovery
+
+- `print_snapshots.status=generating` is an active single-writer lease. A concurrent request fails closed and must not start a second render.
+- `print_snapshots.status=failed` retains its failure evidence. Retrying atomically changes the snapshot back to `generating`, increments `generationAttempt` and writes through a new immutable artifact attempt key.
+- `print_snapshots.status=ready` is idempotent: repeat requests return the existing snapshot and never regenerate or overwrite the PDF.
+- Generation must be disabled if Blob is unavailable. Existing private artifacts remain governed by seller authorization and retention.
+- The deployment bundle must contain the official Google Noto Sans regular and bold TTF files declared in `next.config.ts`; missing font files are a release-blocking build or runtime failure.
+
 ## Local setup
 
 Use Node 24 and pnpm 10.30.3. Copy `.env.example` to `.env.local` only if the local file does not already exist. Set `MONGODB_URI`; optionally set `MONGODB_DB`. Configure the DoneIsBetter SSO variables for human login. Keep `OPERATIONS_TOKEN` only for readiness probes, and set `CRON_SECRET` before enabling Vercel Cron. Do not paste credentials into source or issue comments.
