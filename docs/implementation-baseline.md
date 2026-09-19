@@ -54,6 +54,8 @@ recognized environment variables are:
 | `src/delivery` | `delivery_outbox`, `delivery_events`, `delivery_suppressions`, `delivery_webhook_events` |
 | `src/automations` | `offer_automations`, `offer_automation_previews`, `offer_automation_runs`, `offer_lists` |
 | `src/redemptions` | `redemption_coupons`, `redemption_events` |
+| `src/connectors` | `connector_installations`, `connector_runs` |
+| `src/handoff` | `offer_handoffs` |
 
 The implementation uses explicit seller and buyer access checks in each domain
 service. The DD-002 tenant guard in `src/lib/tenant-core.ts` is applied to every
@@ -177,9 +179,10 @@ These gaps are intentional inventory facts, not regressions:
 - Tenant guard compatibility rollout is complete across seller-owned business
   models. Moving all request entry points from explicit `sellerId` constraints
   to mandatory async-local seller context remains a later hardening step.
-- The e-commerce handoff/write-back path is not implemented: no Shoprenter,
-  UNAS, WooCommerce or Shopify connector, cart token, checkout URL, order
-  write-back or stock webhook.
+- The provider-neutral connector installation/run contract and signed one-time
+  hand-off token are implemented. Provider-specific Shoprenter/UNAS checkout,
+  order write-back and stock webhooks remain open, so hand-off fails honestly
+  until a healthy adapter exists.
 - The richer SSOT offer states are not fully modeled locally: there is no
   `draft`, `sold_out`, `withdrawn` or `redeemed` offer status yet.
 - Channel scope is still narrower than the SSOT: marketing preferences and

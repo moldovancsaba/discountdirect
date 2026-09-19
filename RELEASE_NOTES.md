@@ -4,6 +4,8 @@
 
 ### New Features
 
+- Added the provider-neutral commerce connector installation/run contract and owner-managed GDS connection screen.
+- Added signed, expiring, single-use checkout hand-off records and buyer hand-off states for accepted offers.
 - Added the HU market policy and versioned seller settings registry with strict defaults and validation.
 - Added an owner-managed seller settings screen and protected settings API; seller staff have read-only access.
 - Added centralized market-aware send eligibility and Redis-backed frequency-cap enforcement for outbound marketing.
@@ -14,6 +16,7 @@
 
 ### Fixed Bugs
 
+- Checkout hand-off now freezes the server-authoritative accepted price and rejects replay, expiry, cross-buyer access and missing connector capability without claiming a purchase.
 - Unknown settings keys, invalid percentage ranges and stale concurrent updates now fail closed.
 - Stale recommendation previews can no longer create offers after the catalog product version changes.
 - Discount calculations cannot use a base above either the current catalog price or the lowest evidenced price in the preceding 30 days.

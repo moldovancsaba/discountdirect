@@ -29,6 +29,7 @@ export function accessPolicyForSurface(file: string, handler: string): AccessPol
   if (path.endsWith("/api/health/live/route.ts")) return "public";
   if (path.endsWith("/api/auth/login/route.ts") || path.endsWith("/auth/callback/route.ts") || path.endsWith("/api/oauth/callback/route.ts")) return "public";
   if (path.endsWith("/api/email/unsubscribe/route.ts")) return "public";
+  if (path.includes("/handoff/[token]/route.ts")) return "public";
   if (path.endsWith("/api/auth/activate/route.ts") || (path.endsWith("/api/auth/session/route.ts") && handler === "POST")) return "sso_only_refusal";
   if (path.includes("/api/cron/") || path.endsWith("/api/email/inbound/route.ts") || path.endsWith("/api/health/ready/route.ts")) return "machine";
   if (path.endsWith("/account/actions.ts") || (path.endsWith("/api/auth/session/route.ts") && handler === "DELETE") || path.endsWith("/api/me/route.ts")) return "authenticated";

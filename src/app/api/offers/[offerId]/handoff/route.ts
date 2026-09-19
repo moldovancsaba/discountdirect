@@ -1,0 +1,3 @@
+import { currentUser } from "@/auth/service"; import { errorResponse,isSameOrigin } from "@/auth/http"; import { issueOfferHandoff } from "@/handoff/service"; import { handoffError } from "@/handoff/http";
+export const runtime="nodejs"; export const dynamic="force-dynamic";
+export async function POST(request:Request,{params}:{params:Promise<{offerId:string}>}){const user=await currentUser();if(!user)return errorResponse("UNAUTHORIZED","Bejelentkezés szükséges.",401);if(!isSameOrigin(request))return errorResponse("INVALID_ORIGIN","Érvénytelen kérés.",403);try{return Response.json({handoff:await issueOfferHandoff(user.id,(await params).offerId)},{headers:{"Cache-Control":"no-store"}});}catch(error){return handoffError(error);}}
