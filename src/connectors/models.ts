@@ -7,6 +7,7 @@ const connectorInstallationSchema = new Schema({
   provider: { type: String, enum: ["shoprenter", "unas"], required: true },
   status: { type: String, enum: ["disconnected", "testing", "healthy", "degraded", "disabled", "action_required"], required: true, default: "disconnected" },
   credentialRef: { type: String, required: true, maxlength: 240 },
+  configuration: { shopName: { type: String, default: null, maxlength: 80 }, shopUrl: { type: String, required: true, maxlength: 500 }, checkoutUrlTemplate: { type: String, required: true, maxlength: 800 } },
   cursor: { type: String, default: null, maxlength: 500 },
   lastSuccessAt: { type: Date, default: null },
   lastErrorCode: { type: String, default: null, maxlength: 80 },

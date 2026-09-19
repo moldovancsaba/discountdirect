@@ -47,6 +47,9 @@ importers:
       dayjs:
         specifier: 1.11.18
         version: 1.11.18
+      fast-xml-parser:
+        specifier: 5.3.8
+        version: 5.3.8
       mongoose:
         specifier: 9.9.5
         version: 9.9.5
@@ -1016,6 +1019,9 @@ packages:
     resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
     engines: {node: '>=8'}
 
+  anynum@1.0.1:
+    resolution: {integrity: sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A==}
+
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
@@ -1417,6 +1423,10 @@ packages:
 
   fast-levenshtein@2.0.6:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
+
+  fast-xml-parser@5.3.8:
+    resolution: {integrity: sha512-53jIF4N6u/pxvaL1eb/hEZts/cFLWZ92eCfLrNyCI0k38lettCG/Bs40W9pPwoPXyHQlKu2OUbQtiEIZK/J6Vw==}
+    hasBin: true
 
   fastq@1.20.3:
     resolution: {integrity: sha512-XKv5nnLs6nLF71NgiKJLIZFLkPyIEuOselLG7ujZnGrRfQK8HpvY+WqKhAJUAdLomwVHErVS4LfxFlPq0/FTAw==}
@@ -2259,6 +2269,9 @@ packages:
   strip-json-comments@3.1.1:
     resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
     engines: {node: '>=8'}
+
+  strnum@2.4.2:
+    resolution: {integrity: sha512-rDG3Ah4TV0k1hWvLSzkZtMmLN9+eS+h3knq4MP6A42Y3Yh5qGNnOUs1jJkoSr8FG5dsL28c7KgkIBzSEykqtuw==}
 
   styled-jsx@5.1.6:
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
@@ -3334,6 +3347,8 @@ snapshots:
     dependencies:
       color-convert: 2.0.1
 
+  anynum@1.0.1: {}
+
   argparse@2.0.1: {}
 
   aria-query@5.3.2: {}
@@ -3927,6 +3942,10 @@ snapshots:
   fast-json-stable-stringify@2.1.0: {}
 
   fast-levenshtein@2.0.6: {}
+
+  fast-xml-parser@5.3.8:
+    dependencies:
+      strnum: 2.4.2
 
   fastq@1.20.3:
     dependencies:
@@ -4882,6 +4901,10 @@ snapshots:
   strip-final-newline@2.0.0: {}
 
   strip-json-comments@3.1.1: {}
+
+  strnum@2.4.2:
+    dependencies:
+      anynum: 1.0.1
 
   styled-jsx@5.1.6(react@19.2.8):
     dependencies:

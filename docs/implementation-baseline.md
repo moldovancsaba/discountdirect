@@ -179,10 +179,13 @@ These gaps are intentional inventory facts, not regressions:
 - Tenant guard compatibility rollout is complete across seller-owned business
   models. Moving all request entry points from explicit `sellerId` constraints
   to mandatory async-local seller context remains a later hardening step.
-- The provider-neutral connector installation/run contract and signed one-time
-  hand-off token are implemented. Provider-specific Shoprenter/UNAS checkout,
-  order write-back and stock webhooks remain open, so hand-off fails honestly
-  until a healthy adapter exists.
+- The provider-neutral connector contract and Shoprenter/UNAS adapters implement
+  live connection tests and bounded product, order and stock reads. The owner UI
+  stores only a strict environment-variable reference and durable health state.
+  Signed hand-off uses a recoverable processing lease and a validated same-origin
+  product URL template. Automated provider cart creation, order write-back and
+  stock webhooks remain open because neither published provider contract supplies
+  the required browser-cart creation primitive.
 - The richer SSOT offer states are not fully modeled locally: there is no
   `draft`, `sold_out`, `withdrawn` or `redeemed` offer status yet.
 - Channel scope is still narrower than the SSOT: marketing preferences and

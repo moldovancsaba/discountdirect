@@ -5,6 +5,8 @@ import { BuyerRelationship } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
 import { Offer } from "@/offers/models";
 import { activeInstallation } from "@/connectors/service";
+import { connectorFor } from "@/connectors/runtime";
+import { ProviderError } from "@/connectors/transport";
 import { OfferHandoff } from "./models";
 import { signHandoff, verifyHandoff } from "./core";
 
@@ -31,10 +33,23 @@ export async function issueOfferHandoff(userId:string, offerId:string) {
 
 export async function consumeOfferHandoff(token:string): Promise<string> {
   const claims=verifyHandoff(token,secret()); await connectDatabase();
-  const now=new Date(); const row=await OfferHandoff.findOneAndUpdate({_id:claims.handoffId,sellerId:claims.sellerId,offerId:claims.offerId,buyerUserId:claims.buyerUserId,priceHuf:claims.priceHuf,nonceHash:hash(claims.nonce),status:"issued",expiresAt:{$gt:now}},{$set:{status:"consumed",consumedAt:now},$inc:{version:1}},{new:true}).lean();
+  const now=new Date(); const staleLease=new Date(now.getTime()-2*60_000); const row=await OfferHandoff.findOneAndUpdate({_id:claims.handoffId,sellerId:claims.sellerId,offerId:claims.offerId,buyerUserId:claims.buyerUserId,priceHuf:claims.priceHuf,nonceHash:hash(claims.nonce),$or:[{status:"issued"},{status:"processing",processingStartedAt:{$lt:staleLease}}],expiresAt:{$gt:now}},{$set:{status:"processing",processingStartedAt:now,lastErrorCode:null},$inc:{version:1}},{new:true}).lean();
   if(!row) throw new HandoffError("EXPIRED");
-  const installation=await activeInstallation(claims.sellerId); if(!installation){ await OfferHandoff.updateOne({_id:row._id,sellerId:claims.sellerId},{$set:{status:"failed",lastErrorCode:"CONNECTOR_UNAVAILABLE"}}); throw new HandoffError("UNAVAILABLE"); }
-  // Provider-specific checkout creation is supplied by the Shoprenter/UNAS adapter issues.
-  await OfferHandoff.updateOne({_id:row._id,sellerId:claims.sellerId},{$set:{status:"failed",provider:installation.provider,lastErrorCode:"CHECKOUT_ADAPTER_UNAVAILABLE"}});
-  throw new HandoffError("UNAVAILABLE");
+  const installation=await activeInstallation(claims.sellerId); if(!installation){ await OfferHandoff.updateOne({_id:row._id,sellerId:claims.sellerId,status:"processing"},{$set:{status:"issued",processingStartedAt:null,lastErrorCode:"CONNECTOR_UNAVAILABLE"}}); throw new HandoffError("UNAVAILABLE"); }
+  const offer=await Offer.findOne({_id:claims.offerId,sellerId:claims.sellerId,buyerUserId:claims.buyerUserId,status:"accepted"}).lean();
+  if(!offer){await OfferHandoff.updateOne({_id:row._id,sellerId:claims.sellerId,status:"processing"},{$set:{status:"failed",processingStartedAt:null,lastErrorCode:"OFFER_UNAVAILABLE"}});throw new HandoffError("CONFLICT");}
+  try {
+    const connector=connectorFor(installation.provider,installation.credentialRef,installation.configuration);
+    const controller=new AbortController(); const timeout=setTimeout(()=>controller.abort(),10_000);
+    try {
+      const checkout=await connector.createCheckout({handoffId:row._id.toString(),offerId:offer._id.toString(),productSku:offer.productSku,quantity:1,priceHuf:claims.priceHuf,expiresAt:row.expiresAt},controller.signal);
+      const updated=await OfferHandoff.updateOne({_id:row._id,sellerId:claims.sellerId,status:"processing"},{$set:{status:"consumed",processingStartedAt:null,consumedAt:new Date(),provider:installation.provider,providerReference:checkout.providerReference,checkoutUrlHash:hash(checkout.url),lastErrorCode:null},$inc:{version:1}});
+      if(updated.modifiedCount!==1) throw new HandoffError("EXPIRED");
+      return checkout.url;
+    } finally { clearTimeout(timeout); }
+  } catch(error) {
+    const retryable=error instanceof ProviderError && error.retryable;
+    await OfferHandoff.updateOne({_id:row._id,sellerId:claims.sellerId,status:"processing"},{$set:{status:retryable?"issued":"failed",processingStartedAt:null,lastErrorCode:error instanceof ProviderError?error.code:"CHECKOUT_FAILED"},$inc:{version:1}});
+    throw new HandoffError("UNAVAILABLE");
+  }
 }

@@ -1,5 +1,13 @@
 # Release notes
 
+## 2026-09-19 - Commerce adapters and recoverable handoff
+
+- Added Shoprenter OAuth/API2 and UNAS API-key/XML adapters behind one product, order, stock and checkout contract.
+- Added server-only environment credential resolution, ten-second provider timeouts, bounded retries and safe provider error codes.
+- Replaced connector placeholders with owner configuration, live connection testing, health/action-required states and same-origin product handoff templates.
+- Changed accepted-offer handoff from consume-before-provider to a recoverable processing lease with replay protection and durable success/failure evidence.
+- Added provider contract fixtures; the repository now runs 69 automated tests.
+
 ## Unreleased
 
 ### New Features
