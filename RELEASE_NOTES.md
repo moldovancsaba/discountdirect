@@ -1,5 +1,11 @@
 # Release notes
 
+## 2026-09-19 - Private artifact persistence
+
+- Added an immutable seller-scoped artifact ledger for letter PDFs, privacy exports and audit snapshots.
+- Added bounded hash/size/MIME validation, idempotent private Blob writes, durable failure evidence and retention deadlines.
+- Added seller-authorized five-minute signed read redirects and operational recovery guidance.
+
 ## 2026-09-19 - Commerce adapters and recoverable handoff
 
 - Added Shoprenter OAuth/API2 and UNAS API-key/XML adapters behind one product, order, stock and checkout contract.

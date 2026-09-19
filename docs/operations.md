@@ -1,5 +1,12 @@
 # Operations
 
+## Private artifact recovery
+
+- `artifacts.status=failed` means metadata exists but the immutable Blob write did not complete. Keep the row as evidence and regenerate with a new idempotency key after Blob health recovers.
+- `artifacts.status=uploading` older than the worker timeout is an orphan candidate. Verify the Blob key before marking it failed; never overwrite an existing immutable object.
+- Disable artifact-producing workflows to roll back creation. Existing `ready` objects remain readable only until `retentionUntil` and only through the authorized signed-read route.
+- Alert on failed writes, stale uploading rows and deletion backlog without logging filenames, content, hashes tied to people, or signed URLs.
+
 ## Local setup
 
 Use Node 24 and pnpm 10.30.3. Copy `.env.example` to `.env.local` only if the local file does not already exist. Set `MONGODB_URI`; optionally set `MONGODB_DB`. Configure the DoneIsBetter SSO variables for human login. Keep `OPERATIONS_TOKEN` only for readiness probes, and set `CRON_SECRET` before enabling Vercel Cron. Do not paste credentials into source or issue comments.

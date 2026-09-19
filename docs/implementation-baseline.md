@@ -168,6 +168,11 @@ privacy and redemptions.
 
 These gaps are intentional inventory facts, not regressions:
 
+- Private artifact persistence is implemented for letter PDFs, privacy ZIPs and
+  JSON audit snapshots: immutable Blob writes, Atlas metadata, hash/size/type
+  validation, seller-authorized five-minute reads and durable failed states.
+  PDF generation and workflow adoption remain owned by the postal/privacy issues.
+
 - Upstash Redis has a client, key convention, TTL policy and Lua-script loader,
   and seller frequency caps are wired into outbound eligibility. General rate
   limits, flash counters and short-lived idempotency locks are not yet wired
