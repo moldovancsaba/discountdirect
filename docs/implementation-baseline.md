@@ -203,7 +203,9 @@ These gaps are intentional inventory facts, not regressions:
   model are not implemented.
 - Deterministic print-ready offer PDF generation and the seller-operated
   ready/printed/posted fulfillment lifecycle are implemented. Postal partner
-  submission and verified recipient-delivery events remain unimplemented.
+  submission now has a disabled-by-default provider-neutral adapter, durable
+  retries and signed event ingestion. A real vendor contract and sandbox remain
+  unverified, so verified recipient delivery is not claimed.
 
 ## Verification commands
 

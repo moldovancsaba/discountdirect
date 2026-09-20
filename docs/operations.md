@@ -22,6 +22,14 @@
 - A repeated idempotency key returns the transition it already owns. Do not invent a replacement event for an already successful operation.
 - `posted` records seller-confirmed handoff to a postal service only. There is no recipient-delivery confirmation until a verified provider event contract is implemented.
 
+## Postal provider recovery
+
+- Leave `POSTAL_DELIVERY_PROVIDER` empty to disable all provider claims while preserving manual seller fulfillment.
+- The HTTP adapter requires an HTTPS endpoint and public base URL, a server-only bearer token and a webhook secret of at least 32 characters. Never expose values in logs or issue comments.
+- `retryable_failed` rows are reclaimed by the delivery cron after bounded exponential delay. `failed`, `cancelled` and `delivered` are terminal.
+- Cancellation is accepted only before provider acceptance (`queued` or `retryable_failed`). A timeout after provider acceptance is resolved by idempotent retry or signed callback, never by creating another submission.
+- Callback events are unique by provider and event ID. Replays return their prior action without mutating the submission.
+
 ## Local setup
 
 Use Node 24 and pnpm 10.30.3. Copy `.env.example` to `.env.local` only if the local file does not already exist. Set `MONGODB_URI`; optionally set `MONGODB_DB`. Configure the DoneIsBetter SSO variables for human login. Keep `OPERATIONS_TOKEN` only for readiness probes, and set `CRON_SECRET` before enabling Vercel Cron. Do not paste credentials into source or issue comments.

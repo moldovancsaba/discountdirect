@@ -1,5 +1,11 @@
 # Release notes
 
+## 2026-09-20 - Postal provider adapter foundation
+
+- Added a disabled-by-default provider-neutral HTTP adapter for immutable postal PDF submissions.
+- Added durable claims, ten-second provider timeouts, bounded retries, permanent failure states, cancellation before acceptance and append-only status evidence.
+- Added timestamped HMAC callback verification, replay deduplication and monotonic provider-state ingestion.
+
 ## 2026-09-20 - Seller postal fulfillment queue
 
 - Added a seller-authorized queue for private PDF download and the strict `ready -> printed -> posted` workflow.
