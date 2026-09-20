@@ -1,0 +1,19 @@
+# Reporting read model
+
+Status: implemented foundation (DD-035). Schema version: `1`.
+
+Reporting is derived only from MongoDB source-of-truth collections. `metric_rollups` is disposable and must never authorize, reserve stock, send a message, redeem a coupon, or mutate a purchase. Seller dashboards read only the generation named by `metric_projection_checkpoints.activeGenerationId`.
+
+The hourly `GET /api/cron/metrics` route requires `Authorization: Bearer $CRON_SECRET`. It recomputes a bounded 90-day seller window plus the latest 500 campaign measurements. Every rebuild writes a fresh generation, then publishes its identifier. A failed run removes its partial generation and preserves the previous active generation.
+
+## Operational states
+
+- `ready`: the seller dashboard may read the active generation.
+- `running`: the previous active generation remains readable while replacement is built.
+- `failed`: the operator view exposes the failure; the previous generation remains available but becomes visibly stale.
+- No generation: the seller UI displays an unavailable state, never fabricated zeroes.
+- Source queries are capped at 20,000 records per source and cron batches at 50 sellers. Larger tenants require pagination before increasing these limits.
+
+Recovery is to correct the source record or code, rerun the projector, and verify the checkpoint. Rollback is to stop the cron and retain the previous active generation. Derived collections may be dropped and rebuilt without transactional data loss.
+
+Reducer tests cover deterministic totals, refunds, revenue, UTC day boundaries, and stale-state behavior. Release verification also requires index creation, one authenticated cron run, operator health inspection, and a seller dashboard check against source counts.

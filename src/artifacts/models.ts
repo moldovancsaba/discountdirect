@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { sellerScopedSchema } from "@/lib/tenant-core.ts";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 const {Schema,model,models}=mongoose;
 const schema=new Schema({sellerId:{type:Schema.Types.ObjectId,required:true,ref:"Seller",index:true},kind:{type:String,enum:["letter-pdf","privacy-export","audit-snapshot"],required:true,index:true},idempotencyKey:{type:String,required:true,maxlength:180},blobKey:{type:String,required:true,maxlength:900,unique:true},sha256:{type:String,required:true,match:/^[a-f0-9]{64}$/},size:{type:Number,required:true,min:1,max:10*1024*1024},mimeType:{type:String,enum:["application/pdf","application/json","application/zip"],required:true},status:{type:String,enum:["uploading","ready","failed","expired","deleted"],required:true,default:"uploading",index:true},retentionUntil:{type:Date,required:true,index:true},readyAt:{type:Date,default:null},deletedAt:{type:Date,default:null},lastErrorCode:{type:String,default:null,maxlength:80},createdByUserId:{type:Schema.Types.ObjectId,required:true,ref:"User"},version:{type:Number,required:true,default:1,min:1}},{timestamps:true,versionKey:false,collection:"artifacts"});
 schema.index({sellerId:1,idempotencyKey:1},{unique:true}); schema.index({status:1,retentionUntil:1}); schema.plugin(sellerScopedSchema);

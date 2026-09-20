@@ -9,6 +9,7 @@ import { redemptionSummary } from "@/redemptions/service";
 import { adminAccessOverview } from "@/auth/admin-access";
 import { disableUserAction, revokeBuyerRelationshipAction, revokeMembershipAction, revokeUserSessionsAction, signOut } from "./actions";
 import { businessLabel } from "@/presentation/labels";
+import { projectionHealth } from "@/reporting/service";
 
 export const metadata: Metadata = { title: "Üzemeltetés", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -39,13 +40,14 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
     </AuthShell></div>
   </Shell>;
 
-  const [database, deliveries, deliveryChannels, automations, redemptions, access] = await Promise.all([
+  const [database, deliveries, deliveryChannels, automations, redemptions, access, reporting] = await Promise.all([
     databaseHealth(),
     deliverySummary(),
     deliveryChannelSummary(),
     automationSummary(),
     redemptionSummary(),
     adminAccessOverview(),
+    projectionHealth(),
   ]);
   const checkedAt = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "medium", timeZone: "Europe/Budapest" }).format(new Date());
   const deliveryTotal = Object.values(deliveries).reduce((sum, value) => sum + value, 0);
@@ -61,6 +63,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
       <MetricCard label="Csatorna footprint" value={String(deliveryChannels.in_app ?? 0)} description={`${deliveryChannels.email ?? 0} e-mail · ${deliveryChannels.postal ?? 0} postai`} icon={<GdsIcon name="Connectivity" decorative />} />
       <MetricCard label="Aktív automatizmusok" value={String(automations.automations.active ?? 0)} description={`${automations.runs.completed ?? 0} sikeres futás · ${automations.activeLists} aktív lista`} icon={<GdsIcon name="Calendar" decorative />} />
       <MetricCard label="Kuponok" value={String(couponTotal)} description={`${redemptions.issued ?? 0} kiadva · ${redemptions.redeemed ?? 0} beváltva`} icon={<GdsIcon name="Tag" decorative />} />
+      <MetricCard label="Riportprojekciók" value={`${reporting.ready}/${reporting.total}`} trend={{ label: reporting.failed ? `${reporting.failed} hibás` : reporting.stale ? `${reporting.stale} késik` : "Üzemkész", tone: reporting.failed || reporting.stale ? "negative" : "positive" }} description={reporting.lastCompletedAt ? `Utolsó kész: ${new Intl.DateTimeFormat("hu-HU", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Budapest" }).format(new Date(reporting.lastCompletedAt))}` : "Még nincs lezárt generáció"} icon={<GdsIcon name="Analytics" decorative />} />
     </GdsGrid>
     <SectionPanel title="Hozzáférések és munkamenetek" description="Operátori revokációs felület auditnaplóval. A műveletek növelik az authVersion értéket és visszavonják a nyitott munkameneteket.">
       <div className="table-wrap"><SimpleDataTable rows={access.users.map((user) => ({

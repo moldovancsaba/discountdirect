@@ -228,6 +228,8 @@ pnpm test:realtime-production -- --base-url=https://discountdirect.vercel.app --
 
 ## Maintenance rule
 
+DD-035 adds schema-versioned, generation-based MongoDB reporting projections, an authenticated hourly projector, operator health indicators, and a GDS seller results page. Live release acceptance requires index creation and a source-versus-projection production evidence run.
+
 Every change that affects stack, deployment, routes, environment variables,
 domain models, provider contracts or durable business state must update this
 inventory in the same pull request. If the external Calvus SSOT or technical

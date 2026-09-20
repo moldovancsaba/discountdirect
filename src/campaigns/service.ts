@@ -19,6 +19,7 @@ import { SellerSettingsModel } from "@/settings/models";
 import { validateSellerSettings } from "@/settings/validation";
 import { Purchase } from "@/purchases/models";
 import { campaignLift, isHoldout } from "./holdout";
+import { campaignMetrics } from "@/reporting/service";
 
 export class CampaignError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 48 * 60 * 60 * 1000;
@@ -135,7 +136,7 @@ async function measurementFor(row: any) {
   return campaignLift({ treatmentSize: treatmentIds.size, treatmentConversions: [...treatmentIds].filter((id) => converted.has(id)).length, holdoutSize: holdoutIds.size, holdoutConversions: [...holdoutIds].filter((id) => converted.has(id)).length });
 }
 
-export async function listCampaigns(userId: string, sellerSlug: string) { const seller = await sellerContext(userId, sellerSlug); const initial = await Campaign.find({ sellerId: seller._id, status: "active", expiresAt: { $lte: new Date() } }).select({ _id: 1 }).lean(); for (const campaign of initial) await expireCampaignIfNeeded(campaign._id, seller._id); const rows = await Campaign.find({ sellerId: seller._id }).sort({ createdAt: -1, _id: -1 }).limit(50).lean(); const campaigns = await Promise.all(rows.map(async (row) => campaignOutput(row, undefined, await measurementFor(row)))); return { seller: { id: seller._id.toString(), slug: seller.slug, name: seller.name }, campaigns }; }
+export async function listCampaigns(userId: string, sellerSlug: string) { const seller = await sellerContext(userId, sellerSlug); const initial = await Campaign.find({ sellerId: seller._id, status: "active", expiresAt: { $lte: new Date() } }).select({ _id: 1 }).lean(); for (const campaign of initial) await expireCampaignIfNeeded(campaign._id, seller._id); const rows = await Campaign.find({ sellerId: seller._id }).sort({ createdAt: -1, _id: -1 }).limit(50).lean(); const projected = await campaignMetrics(seller._id.toString(), rows.map((row) => row._id.toString())); const campaigns = rows.map((row) => campaignOutput(row, undefined, projected.get(row._id.toString()))); return { seller: { id: seller._id.toString(), slug: seller.slug, name: seller.name }, campaigns, reportingReady: rows.length === 0 || projected.size > 0 }; }
 export async function getCampaign(userId: string, sellerSlug: string, campaignId: string) { const seller = await sellerContext(userId, sellerSlug); if (!mongoose.isValidObjectId(campaignId)) throw new CampaignError("NOT_FOUND"); const initial = await Campaign.findOne({ _id: campaignId, sellerId: seller._id }).lean(); if (!initial) throw new CampaignError("NOT_FOUND"); if (initial.status === "active" && initial.expiresAt <= new Date()) await expireCampaignIfNeeded(initial._id, seller._id); const row = await Campaign.findOne({ _id: initial._id, sellerId: seller._id }).lean(); if (!row) throw new CampaignError("NOT_FOUND"); return { campaign: campaignOutput(row, await Offer.countDocuments({ sellerId: seller._id, campaignId: row._id }), await measurementFor(row)), reservations: await CampaignReservation.countDocuments({ sellerId: seller._id, campaignId: row._id, status: "reserved" }) }; }
 
 export async function reserveFlashOffer(session: mongoose.ClientSession, row: any, now: Date) {

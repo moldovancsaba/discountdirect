@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { sellerScopedSchema } from "@/lib/tenant-core.ts";
+import { sellerScopedSchema } from "../lib/tenant-core.ts";
 const { Schema, model, models } = mongoose;
 
 const connectorInstallationSchema = new Schema({
