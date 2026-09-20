@@ -14,7 +14,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   const nextPath = safeReturnTo(returnTo);
   if (await currentUser()) redirect(nextPath);
   const message = error && messages[error as keyof typeof messages];
-  return <Shell active="sign-in">
+  return <Shell active="sign-in"><div className="auth-shell-boundary">
     <AuthShell
       title="Bejelentkezés"
       description="A saját eladói vagy vásárlói munkaterületedhez."
@@ -24,6 +24,6 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       helper="A munkamenet 30 perc tétlenség vagy legfeljebb 12 óra után lejár."
     >
       <GdsButton component="a" href={`/api/auth/login?returnTo=${encodeURIComponent(nextPath)}`} fullWidth leftSection={<GdsIcon name="Login" decorative />}>Bejelentkezés DoneIsBetter SSO-val</GdsButton>
-    </AuthShell>
+    </AuthShell></div>
   </Shell>;
 }

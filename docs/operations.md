@@ -15,6 +15,13 @@
 - Generation must be disabled if Blob is unavailable. Existing private artifacts remain governed by seller authorization and retention.
 - The deployment bundle must contain the official Google Noto Sans regular and bold TTF files declared in `next.config.ts`; missing font files are a release-blocking build or runtime failure.
 
+## Postal fulfillment recovery
+
+- Disable the fulfillment mutation route to stop state changes while preserving PDF reads and all audit evidence.
+- A version conflict means another agent advanced the row first. Refresh the queue; never force or move a row backwards.
+- A repeated idempotency key returns the transition it already owns. Do not invent a replacement event for an already successful operation.
+- `posted` records seller-confirmed handoff to a postal service only. There is no recipient-delivery confirmation until a verified provider event contract is implemented.
+
 ## Local setup
 
 Use Node 24 and pnpm 10.30.3. Copy `.env.example` to `.env.local` only if the local file does not already exist. Set `MONGODB_URI`; optionally set `MONGODB_DB`. Configure the DoneIsBetter SSO variables for human login. Keep `OPERATIONS_TOKEN` only for readiness probes, and set `CRON_SECRET` before enabling Vercel Cron. Do not paste credentials into source or issue comments.

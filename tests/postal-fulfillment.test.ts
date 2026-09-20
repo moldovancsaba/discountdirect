@@ -1,0 +1,3 @@
+import test from "node:test";import assert from "node:assert/strict";import{nextFulfillmentStatus}from"../src/postal/fulfillment-core.ts";
+test("postal fulfillment follows ready printed posted order",()=>{assert.equal(nextFulfillmentStatus("ready","mark_printed"),"printed");assert.equal(nextFulfillmentStatus("printed","mark_posted"),"posted");});
+test("postal fulfillment rejects skips repeats and backwards changes",()=>{assert.throws(()=>nextFulfillmentStatus("ready","mark_posted"),/POSTAL_TRANSITION_INVALID/);assert.throws(()=>nextFulfillmentStatus("printed","mark_printed"),/POSTAL_TRANSITION_INVALID/);assert.throws(()=>nextFulfillmentStatus("posted","mark_posted"),/POSTAL_TRANSITION_INVALID/);});

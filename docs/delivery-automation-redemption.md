@@ -26,6 +26,8 @@ Buyers can open `/buyer/lists` to view generated lists. Each list keeps the orig
 
 Sellers can generate a private PDF artifact for an accepted postal offer through `POST /api/sellers/{sellerSlug}/offers/{offerId}/print`. The operation requires current seller access, active postal consent, a current buyer postal address, an unexpired offer and an issued coupon. It freezes reference-price evidence and an address hash in `PrintSnapshot`, renders one tagged A4 document with Google Noto Sans, and stores it through the immutable artifact ledger. Repeating a successful request returns the same snapshot. A failed snapshot can be reclaimed atomically; its next attempt uses a distinct artifact idempotency key.
 
+The seller delivery page exposes the resulting fulfillment queue. PDF download retains the artifact route's seller authorization and short-lived signed URL. Printed and postal-service handoff confirmations are forward-only, versioned and audit-event backed. Reprinting does not alter state. The interface consistently distinguishes postal-service handoff from confirmed recipient delivery.
+
 ## Redemption
 
 Accepting an offer issues one `RedemptionCoupon` with a public `DD-XXXXXXXXXX` code. Sellers confirm a code at `/seller/{sellerSlug}/redemptions`. Confirmation is transactional: issued becomes redeemed exactly once, expired codes become expired, and redeemed codes stay redeemed for audit.

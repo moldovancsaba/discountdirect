@@ -1,5 +1,11 @@
 # Release notes
 
+## 2026-09-20 - Seller postal fulfillment queue
+
+- Added a seller-authorized queue for private PDF download and the strict `ready -> printed -> posted` workflow.
+- Added optimistic versions, idempotency keys and append-only fulfillment events inside one Atlas transaction.
+- Added explicit Hungarian UI language that postal-service handoff is not recipient delivery confirmation.
+
 ## 2026-09-19 - Deterministic postal offer PDFs
 
 - Added seller-authorized generation of immutable, print-ready A4 offer letters for accepted postal offers with active consent and an issued coupon.

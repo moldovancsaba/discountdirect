@@ -201,8 +201,9 @@ These gaps are intentional inventory facts, not regressions:
 - Incremental margin measurement, membership perks,
   birthday/back-in-stock/price-drop journeys and a separate reporting read
   model are not implemented.
-- Deterministic print-ready offer PDF generation is implemented. Postal partner
-  submission and printed/posted lifecycle statuses remain unimplemented.
+- Deterministic print-ready offer PDF generation and the seller-operated
+  ready/printed/posted fulfillment lifecycle are implemented. Postal partner
+  submission and verified recipient-delivery events remain unimplemented.
 
 ## Verification commands
 

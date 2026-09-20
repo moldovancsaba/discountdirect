@@ -65,6 +65,13 @@ form {
   overflow-x: auto;
 }
 
+.auth-shell-boundary,
+.auth-shell-boundary > * {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
 .print-letter {
   display: grid;
   gap: var(--mantine-spacing-md);

@@ -33,10 +33,10 @@ function ReasonAction({ id, action, label, tone = "default" }: { id: string; act
 export default async function Admin({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string }> }) {
   const user = await currentUser().catch(() => null);
   const { error, saved } = await searchParams;
-  if (!user || user.systemRole !== "operator") return <Shell active="admin">
+  if (!user || user.systemRole !== "operator") return <Shell active="admin"><div className="auth-shell-boundary">
     <AuthShell title="Üzemeltetői hozzáférés" description="Jóváhagyott DoneIsBetter SSO admin jogosultság szükséges." intent="sign-in" brand={<GdsIcon name="Lock" size="lg" decorative />} error={error ? "Az operátori művelet nem engedélyezett." : user ? "A bejelentkezett SSO-fiók nem operátor." : undefined} helper="A munkamenet 30 perc tétlenség vagy legfeljebb 12 óra után lejár.">
       <GdsButton component="a" href="/api/auth/login?returnTo=/admin" fullWidth leftSection={<GdsIcon name="Login" decorative />}>Bejelentkezés DoneIsBetter SSO-val</GdsButton>
-    </AuthShell>
+    </AuthShell></div>
   </Shell>;
 
   const [database, deliveries, deliveryChannels, automations, redemptions, access] = await Promise.all([
