@@ -17,6 +17,14 @@
 - Run `GET /api/cron/journeys?limit=1` with the configured cron bearer token to verify one bounded claim. Never put the token in logs or issue comments.
 - Resume the definition only after confirming its current version, pending step states and cancelled-delivery evidence. Historical versions and frozen snapshots are immutable.
 
+## Checkout hand-off recovery
+
+- Set `HANDOFF_ENABLED=false` and redeploy to stop issuing and consuming checkout hand-offs without changing accepted offers.
+- With the flag disabled, run `pnpm handoff:revoke` in the correctly linked environment to revoke every unconsumed `issued` or `processing` token. The command refuses to run while the feature is enabled.
+- A consumed token is terminal and cannot be replayed. A two-minute processing lease permits recovery after a worker interruption; retryable connector failures return the token to `issued` until its original expiry.
+- The buyer relationship and accepted offer are revalidated at consumption. Revoked relationships fail closed, and the public recovery screen contains no buyer, seller, price or provider details.
+- Re-enable the feature only after connector health and the production hand-off recovery states have been verified.
+
 ## Private artifact recovery
 
 - `artifacts.status=failed` means metadata exists but the immutable Blob write did not complete. Keep the row as evidence and regenerate with a new idempotency key after Blob health recovers.

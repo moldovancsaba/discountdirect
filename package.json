@@ -28,7 +28,8 @@
     "db:indexes": "node --experimental-strip-types --env-file=.env.local scripts/create-auth-indexes.ts",
     "db:restore-drill": "node --env-file=.env.local scripts/restore-drill.mjs",
     "auth:provision": "node --experimental-strip-types --env-file=.env.local scripts/provision-user.ts",
-    "fixtures:prototype": "node --experimental-strip-types --env-file=.env.local scripts/seed-prototype.ts"
+    "fixtures:prototype": "node --experimental-strip-types --env-file=.env.local scripts/seed-prototype.ts",
+    "handoff:revoke": "node --experimental-strip-types --env-file=.env.local scripts/revoke-handoffs.ts"
   },
   "dependencies": {
     "@expo-google-fonts/noto-sans": "0.4.2",

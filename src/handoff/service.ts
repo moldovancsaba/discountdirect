@@ -10,12 +10,15 @@ import { ProviderError } from "@/connectors/transport";
 import { OfferHandoff } from "./models";
 import { signHandoff, verifyHandoff } from "./core";
 
-export class HandoffError extends Error { constructor(public code: "NOT_FOUND"|"FORBIDDEN"|"INVALID"|"CONFLICT"|"EXPIRED"|"UNAVAILABLE") { super(code); } }
+export class HandoffError extends Error { constructor(public code: "NOT_FOUND"|"FORBIDDEN"|"INVALID"|"CONFLICT"|"EXPIRED"|"USED"|"UNAVAILABLE") { super(code); } }
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 function secret() { const value=process.env.HANDOFF_SIGNING_SECRET; if (!value || value.length<32) throw new HandoffError("UNAVAILABLE"); return value; }
 function publicBase() { const value=process.env.APP_URL; if (!value) throw new HandoffError("UNAVAILABLE"); return new URL(value); }
+function enabled() { return process.env.HANDOFF_ENABLED !== "false"; }
+function claimsFor(token:string) { try { return verifyHandoff(token,secret()); } catch(error) { throw new HandoffError(error instanceof Error && error.message==="HANDOFF_EXPIRED"?"EXPIRED":"INVALID"); } }
 
 export async function issueOfferHandoff(userId:string, offerId:string) {
+  if(!enabled()) throw new HandoffError("UNAVAILABLE");
   if(!mongoose.isValidObjectId(offerId)) throw new HandoffError("INVALID"); await connectDatabase();
   const offer=await Offer.findOne({_id:offerId,buyerUserId:userId}).lean();
   if(!offer) throw new HandoffError("NOT_FOUND");
@@ -27,14 +30,17 @@ export async function issueOfferHandoff(userId:string, offerId:string) {
   const row=prior ?? (await OfferHandoff.create({sellerId:offer.sellerId,offerId:offer._id,buyerUserId:userId,priceHuf:offer.priceHuf,nonceHash:hash(nonce),expiresAt})).toObject();
   const effectiveNonce=prior ? randomBytes(24).toString("base64url") : nonce;
   if(prior) await OfferHandoff.updateOne({_id:row._id,sellerId:offer.sellerId,status:"issued"},{$set:{nonceHash:hash(effectiveNonce)},$inc:{version:1}});
-  const token=signHandoff({handoffId:row._id.toString(),offerId:offer._id.toString(),sellerId:offer.sellerId.toString(),buyerUserId:userId,priceHuf:offer.priceHuf,expiresAt:expiresAt.getTime(),nonce:effectiveNonce},secret());
-  const url=new URL(`/handoff/${token}`,publicBase()); return {redirectUrl:url.toString(),expiresAt};
+  const effectiveExpiry=new Date(row.expiresAt);
+  const token=signHandoff({handoffId:row._id.toString(),offerId:offer._id.toString(),sellerId:offer.sellerId.toString(),buyerUserId:userId,priceHuf:offer.priceHuf,expiresAt:effectiveExpiry.getTime(),nonce:effectiveNonce},secret());
+  const url=new URL(`/handoff/${token}`,publicBase()); return {redirectUrl:url.toString(),expiresAt:effectiveExpiry};
 }
 
 export async function consumeOfferHandoff(token:string): Promise<string> {
-  const claims=verifyHandoff(token,secret()); await connectDatabase();
+  const claims=claimsFor(token); await connectDatabase();
+  if(!enabled()){await OfferHandoff.updateOne({_id:claims.handoffId,sellerId:claims.sellerId,status:"issued"},{$set:{status:"revoked",lastErrorCode:"HANDOFF_DISABLED"},$inc:{version:1}});throw new HandoffError("UNAVAILABLE");}
   const now=new Date(); const staleLease=new Date(now.getTime()-2*60_000); const row=await OfferHandoff.findOneAndUpdate({_id:claims.handoffId,sellerId:claims.sellerId,offerId:claims.offerId,buyerUserId:claims.buyerUserId,priceHuf:claims.priceHuf,nonceHash:hash(claims.nonce),$or:[{status:"issued"},{status:"processing",processingStartedAt:{$lt:staleLease}}],expiresAt:{$gt:now}},{$set:{status:"processing",processingStartedAt:now,lastErrorCode:null},$inc:{version:1}},{new:true}).lean();
-  if(!row) throw new HandoffError("EXPIRED");
+  if(!row){const existing=await OfferHandoff.findOne({_id:claims.handoffId,sellerId:claims.sellerId}).select("status expiresAt").lean();if(existing?.status==="consumed") throw new HandoffError("USED");throw new HandoffError("EXPIRED");}
+  if(!await BuyerRelationship.exists({sellerId:claims.sellerId,buyerUserId:claims.buyerUserId,status:"active"})){await OfferHandoff.updateOne({_id:row._id,sellerId:claims.sellerId,status:"processing"},{$set:{status:"revoked",processingStartedAt:null,lastErrorCode:"RELATIONSHIP_REVOKED"},$inc:{version:1}});throw new HandoffError("FORBIDDEN");}
   const installation=await activeInstallation(claims.sellerId); if(!installation){ await OfferHandoff.updateOne({_id:row._id,sellerId:claims.sellerId,status:"processing"},{$set:{status:"issued",processingStartedAt:null,lastErrorCode:"CONNECTOR_UNAVAILABLE"}}); throw new HandoffError("UNAVAILABLE"); }
   const offer=await Offer.findOne({_id:claims.offerId,sellerId:claims.sellerId,buyerUserId:claims.buyerUserId,status:"accepted"}).lean();
   if(!offer){await OfferHandoff.updateOne({_id:row._id,sellerId:claims.sellerId,status:"processing"},{$set:{status:"failed",processingStartedAt:null,lastErrorCode:"OFFER_UNAVAILABLE"}});throw new HandoffError("CONFLICT");}
