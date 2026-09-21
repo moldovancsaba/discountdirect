@@ -65,6 +65,7 @@ const offerAutomationRunSchema = new Schema(
     reasonCode: { type: String, required: true, maxlength: 120 },
     offerListId: { type: Schema.Types.ObjectId, default: null, ref: "OfferList" },
     deliveryId: { type: Schema.Types.ObjectId, default: null, ref: "DeliveryOutbox" },
+    newsletterSnapshotId: { type: Schema.Types.ObjectId, default: null, ref: "NewsletterSnapshot" },
     startedAt: { type: Date, required: true },
     completedAt: { type: Date, default: null },
     failedAt: { type: Date, default: null },
@@ -72,6 +73,36 @@ const offerAutomationRunSchema = new Schema(
   { ...timestamps, collection: "offer_automation_runs" },
 );
 offerAutomationRunSchema.index({ automationId: 1, scheduledFor: 1 }, { unique: true });
+
+const newsletterSnapshotSchema = new Schema({
+  sellerId: { type: Schema.Types.ObjectId, required: true, ref: "Seller", index: true },
+  automationId: { type: Schema.Types.ObjectId, required: true, ref: "OfferAutomation", index: true },
+  automationRunId: { type: Schema.Types.ObjectId, required: true, ref: "OfferAutomationRun", unique: true },
+  offerListId: { type: Schema.Types.ObjectId, required: true, ref: "OfferList", unique: true },
+  buyerUserId: { type: Schema.Types.ObjectId, required: true, ref: "User", index: true },
+  customerId: { type: Schema.Types.ObjectId, required: true, ref: "Customer" },
+  channel: { type: String, enum: ["email", "postal"], required: true },
+  templateVersion: { type: Number, required: true, min: 1 },
+  eligibilityReasonCode: { type: String, required: true, maxlength: 120 },
+  consentCheckedAt: { type: Date, required: true },
+  items: [{
+    productId: { type: Schema.Types.ObjectId, required: true, ref: "Product" }, productVersion: { type: Number, required: true, min: 1 },
+    productSku: { type: String, required: true, maxlength: 64 }, productName: { type: String, required: true, maxlength: 160 },
+    priceHuf: { type: Number, required: true, min: 0 }, reasonCode: { type: String, required: true, maxlength: 80 }, reasonText: { type: String, required: true, maxlength: 300 },
+    evidencePurchaseIds: [{ type: Schema.Types.ObjectId, required: true, ref: "Purchase" }],
+  }],
+  availableUntil: { type: Date, required: true },
+  contentHash: { type: String, required: true, minlength: 64, maxlength: 64 },
+  deliveryId: { type: Schema.Types.ObjectId, default: null, ref: "DeliveryOutbox" },
+}, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false, collection: "newsletter_snapshots" });
+newsletterSnapshotSchema.index({ sellerId: 1, createdAt: -1, _id: -1 });
+
+const newsletterTestSendSchema = new Schema({
+  sellerId: { type: Schema.Types.ObjectId, required: true, ref: "Seller", index: true }, previewId: { type: Schema.Types.ObjectId, required: true, ref: "OfferAutomationPreview" }, actorUserId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
+  recipient: { type: String, required: true, maxlength: 254 }, contentHash: { type: String, required: true, minlength: 64, maxlength: 64 }, templateVersion: { type: Number, required: true },
+  status: { type: String, enum: ["processing", "sent", "failed"], required: true }, providerMessageId: { type: String, default: null, maxlength: 160 }, reasonCode: { type: String, required: true, maxlength: 120 }, completedAt: { type: Date, default: null },
+}, { timestamps: true, versionKey: false, collection: "newsletter_test_sends" });
+newsletterTestSendSchema.index({ sellerId: 1, previewId: 1, actorUserId: 1, contentHash: 1 }, { unique: true });
 
 const offerListSchema = new Schema(
   {
@@ -105,10 +136,14 @@ offerListSchema.index({ sellerId: 1, createdAt: -1, _id: -1 });
 offerAutomationSchema.plugin(sellerScopedSchema);
 offerAutomationPreviewSchema.plugin(sellerScopedSchema);
 offerAutomationRunSchema.plugin(sellerScopedSchema);
+newsletterSnapshotSchema.plugin(sellerScopedSchema);
+newsletterTestSendSchema.plugin(sellerScopedSchema);
 offerListSchema.plugin(sellerScopedSchema);
 
 export const OfferAutomation = models.OfferAutomation || model("OfferAutomation", offerAutomationSchema);
 export const OfferAutomationPreview = models.OfferAutomationPreview || model("OfferAutomationPreview", offerAutomationPreviewSchema);
 export const OfferAutomationRun = models.OfferAutomationRun || model("OfferAutomationRun", offerAutomationRunSchema);
+export const NewsletterSnapshot = models.NewsletterSnapshot || model("NewsletterSnapshot", newsletterSnapshotSchema);
+export const NewsletterTestSend = models.NewsletterTestSend || model("NewsletterTestSend", newsletterTestSendSchema);
 export const OfferList = models.OfferList || model("OfferList", offerListSchema);
-export const automationModels = [OfferAutomation, OfferAutomationPreview, OfferAutomationRun, OfferList];
+export const automationModels = [OfferAutomation, OfferAutomationPreview, OfferAutomationRun, OfferList, NewsletterSnapshot, NewsletterTestSend];

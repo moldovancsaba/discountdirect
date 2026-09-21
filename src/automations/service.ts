@@ -8,6 +8,13 @@ import { createDeliveryRecord } from "@/delivery/service";
 import { Customer } from "@/purchases/models";
 import { createRecommendationPreview } from "@/recommendations/service";
 import { OfferAutomation, OfferAutomationPreview, OfferAutomationRun, OfferList } from "./models";
+import { NewsletterSnapshot, NewsletterTestSend } from "./models";
+import { maySendMarketing } from "@/consent/service";
+import { NEWSLETTER_TEMPLATE_VERSION, newsletterContentHash, newsletterItems } from "./newsletter-core";
+import { SellerSettingsModel } from "@/settings/models";
+import { validateSellerSettings } from "@/settings/validation";
+import { isHoldout } from "@/campaigns/holdout";
+import { emailTransportReadiness, sendResendTestEmail } from "@/delivery/email";
 
 export class AutomationError extends Error {
   constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT") { super(code); }
@@ -104,6 +111,7 @@ function outputRun(row: any) {
     scheduledFor: row.scheduledFor,
     offerListId: row.offerListId?.toString?.() ?? null,
     deliveryId: row.deliveryId?.toString?.() ?? null,
+    newsletterSnapshotId: row.newsletterSnapshotId?.toString?.() ?? null,
     startedAt: row.startedAt,
     completedAt: row.completedAt ?? null,
     failedAt: row.failedAt ?? null,
@@ -177,6 +185,21 @@ export async function getAutomationPreview(userId: string, sellerSlug: string, p
   const row = await OfferAutomationPreview.findOne({ _id: previewId, sellerId: seller._id }).lean();
   if (!row) throw new AutomationError("NOT_FOUND");
   return outputAutomationPreview(row);
+}
+
+export async function sendAutomationPreviewTest(userId: string, sellerSlug: string, previewId: string) {
+  const seller = await sellerAccess(userId, sellerSlug); const user = await User.findOne({ _id: userId, status: "active" }).lean();
+  if (!user || !mongoose.isValidObjectId(previewId)) throw new AutomationError("NOT_FOUND");
+  const preview = await OfferAutomationPreview.findOne({ _id: previewId, sellerId: seller._id, status: "ready", channel: "email" }).lean();
+  if (!preview?.products.length) throw new AutomationError("CONFLICT");
+  const items = newsletterItems(preview.products.map((item: any) => ({ productId: item.productId.toString(), productVersion: item.productVersion, productSku: item.productSku, productName: item.productName, priceHuf: item.priceHuf, reasonCode: item.reasonCode, reasonText: item.reasonText, evidencePurchaseIds: item.evidencePurchaseIds.map((id: any) => id.toString()) })));
+  const contentHash = newsletterContentHash({ sellerId: seller._id.toString(), buyerUserId: userId, runId: preview._id.toString(), items, availableUntil: preview.nextRunAt });
+  const existing = await NewsletterTestSend.findOne({ sellerId: seller._id, previewId: preview._id, actorUserId: userId, contentHash }).lean(); if (existing?.status === "sent") return { status: "sent", recipient: user.emailNormalized };
+  const config = emailTransportReadiness(); if (!config.enabled) throw new AutomationError("CONFLICT");
+  const row = existing ? await NewsletterTestSend.findOneAndUpdate({ _id: existing._id, sellerId: seller._id }, { $set: { status: "processing", reasonCode: "TEST_SEND_PROCESSING" } }, { new: true }) : await NewsletterTestSend.create({ sellerId: seller._id, previewId: preview._id, actorUserId: userId, recipient: user.emailNormalized, contentHash, templateVersion: NEWSLETTER_TEMPLATE_VERSION, status: "processing", reasonCode: "TEST_SEND_PROCESSING" });
+  const lines = items.map((item) => `${item.productName} · ${item.priceHuf} Ft · ${item.reasonText}`); const subject = `[TESZT] ${seller.name}: személyre szabott ajánlatlista`; const text = [`Ez egy tesztküldés, vásárló nem kapta meg.`, ...lines].join("\n\n"); const html = `<p><strong>Ez egy tesztküldés, vásárló nem kapta meg.</strong></p><ul>${lines.map((line) => `<li>${line.replace(/[&<>]/g, (value) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[value]!)}</li>`).join("")}</ul>`;
+  try { const sent = await sendResendTestEmail(config, { idempotencyKey: `newsletter-test:${row!._id}:${contentHash}`, recipient: user.emailNormalized, subject, text, html }); await NewsletterTestSend.updateOne({ _id: row!._id, sellerId: seller._id }, { $set: { status: "sent", reasonCode: "TEST_SEND_SENT", providerMessageId: sent.id, completedAt: new Date() } }); return { status: "sent", recipient: user.emailNormalized }; }
+  catch (error) { await NewsletterTestSend.updateOne({ _id: row!._id, sellerId: seller._id }, { $set: { status: "failed", reasonCode: error instanceof Error ? error.message.slice(0, 120) : "TEST_SEND_FAILED", completedAt: new Date() } }); throw new AutomationError("CONFLICT"); }
 }
 
 export async function scheduleAutomationPreview(userId: string, sellerSlug: string, previewId: string, clientRequestId: unknown) {
@@ -254,7 +277,12 @@ async function runAutomation(automation: any, actorUserId: string, sellerSlug?: 
   if (automation.status !== "active") throw new AutomationError("CONFLICT");
   const seller = await Seller.findById(automation.sellerId).lean();
   if (!seller) throw new AutomationError("NOT_FOUND");
-  const preview = await createRecommendationPreview(actorUserId, sellerSlug ?? seller.slug, automation.customerId.toString(), automation.channel);
+  const sendDecision = await maySendMarketing(automation.sellerId.toString(), automation.buyerUserId.toString(), automation.channel);
+  const storedSettings = await SellerSettingsModel.findOne({ sellerId: automation.sellerId }).lean();
+  const settings = validateSellerSettings(storedSettings?.settings ?? {});
+  const heldOut = isHoldout({ sellerId: automation.sellerId.toString(), buyerUserId: automation.buyerUserId.toString(), holdoutPct: settings.holdout_pct, mode: settings.holdout_mode, campaignKey: `newsletter:${automation._id}:${automation.nextRunAt.toISOString()}` });
+  const eligibility = sendDecision.allowed && heldOut ? { allowed: false as const, reasonCode: "NEWSLETTER_HOLDOUT" } : sendDecision;
+  const preview = eligibility.allowed ? await createRecommendationPreview(actorUserId, sellerSlug ?? seller.slug, automation.customerId.toString(), automation.channel) : { status: "excluded", recommendations: [], exclusionReasons: [eligibility.reasonCode] };
   const products = preview.status === "eligible" ? preview.recommendations.slice(0, automation.productLimit) : [];
   const now = new Date();
   const database = await connectDatabase();
@@ -264,13 +292,17 @@ async function runAutomation(automation: any, actorUserId: string, sellerSlug?: 
     let offerList: any = null;
     let delivery: any = null;
     if (products.length) {
-      const [created] = await OfferList.create([{ sellerId: automation.sellerId, buyerUserId: automation.buyerUserId, customerId: automation.customerId, automationId: automation._id, automationRunId: run._id, recommendationPreviewId: preview.id, channel: automation.channel, title: "Személyre szabott ajánlatlista", products: products.map((item: any) => ({ productId: item.productId, productVersion: item.productVersion, productSku: item.productSku, productName: item.productName, priceHuf: item.priceHuf, reasonCode: item.reasonCode, reasonText: item.reasonText, evidencePurchaseIds: item.evidencePurchaseIds })), availableUntil: addCadence(now, automation.cadence), createdByUserId: actorUserId }], { session });
+      const [created] = await OfferList.create([{ sellerId: automation.sellerId, buyerUserId: automation.buyerUserId, customerId: automation.customerId, automationId: automation._id, automationRunId: run._id, recommendationPreviewId: "id" in preview ? preview.id : null, channel: automation.channel, title: "Személyre szabott ajánlatlista", products: products.map((item: any) => ({ productId: item.productId, productVersion: item.productVersion, productSku: item.productSku, productName: item.productName, priceHuf: item.priceHuf, reasonCode: item.reasonCode, reasonText: item.reasonText, evidencePurchaseIds: item.evidencePurchaseIds })), availableUntil: addCadence(now, automation.cadence), createdByUserId: actorUserId }], { session });
       offerList = created;
-      const contentSnapshot = { title: created.title, productCount: products.length, availableUntil: created.availableUntil, products: products.map((item: any) => ({ productName: item.productName, priceHuf: item.priceHuf, reasonText: item.reasonText })) };
+      const frozenItems = newsletterItems(products.map((item: any) => ({ productId: item.productId.toString(), productVersion: item.productVersion, productSku: item.productSku, productName: item.productName, priceHuf: item.priceHuf, reasonCode: item.reasonCode, reasonText: item.reasonText, evidencePurchaseIds: item.evidencePurchaseIds.map((id: any) => id.toString()) })));
+      const [newsletter] = await NewsletterSnapshot.create([{ sellerId: automation.sellerId, automationId: automation._id, automationRunId: run._id, offerListId: created._id, buyerUserId: automation.buyerUserId, customerId: automation.customerId, channel: automation.channel, templateVersion: NEWSLETTER_TEMPLATE_VERSION, eligibilityReasonCode: eligibility.reasonCode, consentCheckedAt: now, items: frozenItems, availableUntil: created.availableUntil, contentHash: newsletterContentHash({ sellerId: automation.sellerId.toString(), buyerUserId: automation.buyerUserId.toString(), runId: run._id.toString(), items: frozenItems, availableUntil: created.availableUntil }) }], { session });
+      const contentSnapshot = { newsletterSnapshotId: newsletter._id.toString(), templateVersion: NEWSLETTER_TEMPLATE_VERSION, contentHash: newsletter.contentHash, title: created.title, productCount: frozenItems.length, availableUntil: created.availableUntil, products: frozenItems.map((item) => ({ productName: item.productName, priceHuf: item.priceHuf, reasonText: item.reasonText })) };
       await createDeliveryRecord(session, { sellerId: automation.sellerId, buyerUserId: automation.buyerUserId, customerId: automation.customerId, automationId: automation._id, automationRunId: run._id, offerListId: created._id, kind: "automated_list", channel: "in_app", idempotencyKey: `automation:${automation._id}:${run._id}:in_app`, contentSnapshot, createdByUserId: actorUserId });
-      delivery = await createDeliveryRecord(session, { sellerId: automation.sellerId, buyerUserId: automation.buyerUserId, customerId: automation.customerId, automationId: automation._id, automationRunId: run._id, offerListId: created._id, kind: "automated_list", channel: automation.channel, idempotencyKey: `automation:${automation._id}:${run._id}:${automation.channel}`, contentSnapshot, createdByUserId: actorUserId });
+      delivery = await createDeliveryRecord(session, { sellerId: automation.sellerId, buyerUserId: automation.buyerUserId, customerId: automation.customerId, automationId: automation._id, automationRunId: run._id, offerListId: created._id, newsletterSnapshotId: newsletter._id, kind: "automated_list", channel: automation.channel, idempotencyKey: `automation:${automation._id}:${run._id}:${automation.channel}`, contentSnapshot, createdByUserId: actorUserId });
+      newsletter.deliveryId = delivery._id; await newsletter.save({ session });
       run.offerListId = created._id;
       run.deliveryId = delivery._id;
+      run.newsletterSnapshotId = newsletter._id;
       await run.save({ session });
     }
     await OfferAutomation.updateOne({ _id: automation._id, sellerId: automation.sellerId }, { $set: { lastRunAt: now, nextRunAt: addCadence(automation.nextRunAt > now ? automation.nextRunAt : now, automation.cadence) } }, { session });

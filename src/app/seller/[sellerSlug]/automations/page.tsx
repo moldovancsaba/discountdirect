@@ -5,12 +5,12 @@ import { getAutomationPreview, listAutomations } from "@/automations/service";
 import { Shell } from "@/components/shell";
 import { businessLabel } from "@/presentation/labels";
 import { listCustomers } from "@/purchases/service";
-import { automationStatusAction, previewAutomationAction, runAutomationAction, scheduleAutomationAction } from "./actions";
+import { automationStatusAction, previewAutomationAction, runAutomationAction, scheduleAutomationAction, testAutomationAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 const date = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Budapest" });
 const cadenceLabel: Record<string, string> = { weekly: "Hetente", fortnightly: "Kéthetente", monthly: "Havonta" };
-const messages: Record<string, string> = { created: "Az automatizmus létrejött.", run: "Az automatizmus futása rögzítve.", status: "Az automatizmus állapota frissült." };
+const messages: Record<string, string> = { created: "Az automatizmus létrejött.", run: "Az automatizmus futása rögzítve.", status: "Az automatizmus állapota frissült.", test: "A teszt hírlevél elküldve a bejelentkezett eladó jóváhagyott e-mail-címére." };
 const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
 
 function datetimeLocal(value: Date) {
@@ -46,7 +46,7 @@ export default async function AutomationsPage({ params, searchParams }: { params
         <GdsButton type="submit" leftSection={<GdsIcon name="Preview" decorative />}>Előnézet készítése</GdsButton>
       </form> : <EmptyState title="Nincs alkalmas vásárló" description="Aktív, e-mailes, hozzájáruló vásárlóra van szükség." />}
     </SectionPanel>
-    {preview ? <SectionPanel title="Jóváhagyásra váró automatizmus" description={`Első futás: ${date.format(new Date(preview.nextRunAt))}. Az ütemezés ugyanilyen szabályokkal fut újra a választott gyakoriság szerint.`} action={preview.status === "ready" ? <form action={scheduleAutomationAction.bind(null, sellerSlug, preview.id)}><GdsButton type="submit" leftSection={<GdsIcon name="Calendar" decorative />}>Ütemezés mentése</GdsButton></form> : <StatusBadge status={preview.status === "scheduled" ? "success" : "warning"}>{businessLabel(preview.status)}</StatusBadge>}>
+    {preview ? <SectionPanel title="Jóváhagyásra váró automatizmus" description={`Első futás: ${date.format(new Date(preview.nextRunAt))}. Az ütemezés ugyanilyen szabályokkal fut újra a választott gyakoriság szerint.`} action={preview.status === "ready" ? <div className="button-row">{preview.channel === "email" ? <form action={testAutomationAction.bind(null, sellerSlug, preview.id)}><GdsButton type="submit" variant="default" leftSection={<GdsIcon name="Send" decorative />}>Teszt küldése nekem</GdsButton></form> : null}<form action={scheduleAutomationAction.bind(null, sellerSlug, preview.id)}><GdsButton type="submit" leftSection={<GdsIcon name="Calendar" decorative />}>Ütemezés mentése</GdsButton></form></div> : <StatusBadge status={preview.status === "scheduled" ? "success" : "warning"}>{businessLabel(preview.status)}</StatusBadge>}>
       {preview.status === "blocked" ? <BannerNotice severity="warning" variant="compact" message={preview.exclusionReasons.length ? `Az előnézet nem ütemezhető: ${preview.exclusionReasons.map((reason: string) => businessLabel(reason)).join(", ")}.` : "Az előnézet nem ütemezhető, mert nincs megfelelő ajánlás."} /> : null}
       {preview.products.length ? <GdsGrid columns={{ base: 1, md: 2 }}>
         {preview.products.map((product: { productId: string; productName: string; reasonText: string; priceHuf: number; productSku: string; reasonCode: string; evidencePurchaseIds: string[] }) => <ListingCard key={product.productId} title={product.productName} description={product.reasonText} price={money.format(product.priceHuf)} mediaSeed={product.productId} mediaOverlay={businessLabel(product.reasonCode)} metadata={[{ id: "sku", label: "Cikkszám", value: product.productSku }, { id: "evidence", label: "Ajánlás alapja", value: `${product.evidencePurchaseIds.length} vásárlási tétel` }]} />)}
@@ -60,6 +60,9 @@ export default async function AutomationsPage({ params, searchParams }: { params
     </SectionPanel>
     <SectionPanel title="Legutóbbi ajánlatlisták" description="A vevői felületen és a nyomtatható levélben is ezek a pillanatképek jelennek meg.">
       {!data.lists.length ? <EmptyState title="Még nincs létrehozott lista" description="Futtass egy automatizmust ellenőrzött ajánlási előnézettel." /> : <SimpleDataTable rows={data.lists.map((list) => ({ customer: list.customerName, products: list.products.length, channel: list.channel === "email" ? "E-mail" : "Postai", status: businessLabel(list.status), until: date.format(new Date(list.availableUntil)) }))} columns={[{ key: "customer", header: "Vásárló" }, { key: "products", header: "Termékek" }, { key: "channel", header: "Csatorna" }, { key: "status", header: "Állapot" }, { key: "until", header: "Elérhető" }]} />}
+    </SectionPanel>
+    <SectionPanel title="Legutóbbi futások" description="A futásnapló külön jelzi a kihagyott, sikeres és hibás döntéseket. A hírlevél-azonosító csak lezárt, változtathatatlan tartalomnál jelenik meg.">
+      {!data.runs.length ? <EmptyState title="Még nincs futás" description="Az első kézi vagy időzített futás eredménye itt jelenik meg." /> : <SimpleDataTable rows={data.runs.map((run) => ({ started: date.format(new Date(run.startedAt)), status: businessLabel(run.status), reason: businessLabel(run.reasonCode), snapshot: run.newsletterSnapshotId ? run.newsletterSnapshotId.slice(-8) : "Nem készült", delivery: run.deliveryId ? run.deliveryId.slice(-8) : "Nincs" }))} columns={[{ key: "started", header: "Indítás" }, { key: "status", header: "Állapot" }, { key: "reason", header: "Döntés" }, { key: "snapshot", header: "Hírlevél-pillanatkép" }, { key: "delivery", header: "Kézbesítés" }]} />}
     </SectionPanel>
   </Shell>;
 }

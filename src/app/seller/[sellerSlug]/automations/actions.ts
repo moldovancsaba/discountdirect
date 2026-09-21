@@ -1,7 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/auth/service";
-import { createAutomationPreview, runAutomationNow, scheduleAutomationPreview, setAutomationStatus } from "@/automations/service";
+import { createAutomationPreview, runAutomationNow, scheduleAutomationPreview, sendAutomationPreviewTest, setAutomationStatus } from "@/automations/service";
 
 async function identity() {
   const user = await currentUser();
@@ -37,6 +37,7 @@ export async function scheduleAutomationAction(sellerSlug: string, previewId: st
   }
   redirect(target);
 }
+export async function testAutomationAction(sellerSlug: string, previewId: string) { const user = await identity(); let target = `/seller/${sellerSlug}/automations?preview=${previewId}&saved=test`; try { await sendAutomationPreviewTest(user.id, sellerSlug, previewId); } catch (error) { target = `/seller/${sellerSlug}/automations?preview=${previewId}&error=${encodeURIComponent(error instanceof Error ? error.message : "INVALID")}`; } redirect(target); }
 
 export async function runAutomationAction(sellerSlug: string, automationId: string) {
   const user = await identity();

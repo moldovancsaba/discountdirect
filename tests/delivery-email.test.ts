@@ -6,6 +6,7 @@ import {
   emailTransportReadiness,
   replyAddress,
   sendResendEmail,
+  sendResendTestEmail,
   unsubscribeToken,
   verifyResendWebhook,
   verifyUnsubscribeToken,
@@ -45,6 +46,14 @@ test("email transport readiness stays disabled until every Resend setting is pre
   });
   assert.equal(ready.enabled, true);
   assert.equal(ready.enabled ? ready.stagedRecipients?.has("buyer@example.com") : false, true);
+});
+
+test("newsletter test send is staged and does not impersonate a buyer delivery", async () => {
+  const captured: RequestInit[] = []; const staged = { ...config, stagedRecipients: new Set(["seller@example.com"]) };
+  const fetcher = async (_url: string | URL | Request, init?: RequestInit) => { captured.push(init ?? {}); return new Response(JSON.stringify({ id: "test_provider_id" }), { status: 200 }); };
+  await assert.rejects(() => sendResendTestEmail(staged, { idempotencyKey: "test:1", recipient: "buyer@example.com", subject: "Teszt", text: "Teszt", html: "<p>Teszt</p>" }, fetcher as typeof fetch), /RECIPIENT_NOT_STAGED/);
+  const sent = await sendResendTestEmail(staged, { idempotencyKey: "test:2", recipient: "seller@example.com", subject: "Teszt", text: "Teszt", html: "<p>Teszt</p>" }, fetcher as typeof fetch);
+  assert.equal(sent.id, "test_provider_id"); const body = JSON.parse(String(captured[0].body)); assert.equal(body.to[0], "seller@example.com"); assert.equal(body.headers, undefined); assert.equal(body.reply_to, undefined);
 });
 
 test("Resend webhook verification rejects forged and replayed payloads", () => {

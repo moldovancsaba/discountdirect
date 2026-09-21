@@ -208,6 +208,15 @@ export async function sendResendEmail(
   return { id };
 }
 
+export async function sendResendTestEmail(config: EmailTransportConfig, input: { idempotencyKey: string; recipient: string; subject: string; text: string; html: string }, fetcher: FetchLike = fetch) {
+  if (!recipientAllowedByStage(config, input.recipient)) throw new Error("RECIPIENT_NOT_STAGED");
+  const response = await fetcher(`${config.apiBaseUrl}/emails`, { method: "POST", headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json", "Idempotency-Key": input.idempotencyKey.slice(0, 256) }, body: JSON.stringify({ from: config.from, to: [input.recipient], subject: input.subject, text: input.text, html: input.html, tags: [{ name: "delivery_type", value: "newsletter_test" }] }) });
+  const bodyText = await response.text(); const body = bodyText ? JSON.parse(bodyText) : {};
+  if (!response.ok) throw new Error(typeof body?.name === "string" ? body.name : `RESEND_${response.status}`);
+  const id = typeof body?.id === "string" ? body.id : typeof body?.data?.id === "string" ? body.data.id : null;
+  if (!id) throw new Error("RESEND_RESPONSE_MISSING_ID"); return { id };
+}
+
 export async function getResendReceivedEmail(config: EmailTransportConfig, emailId: string, fetcher: FetchLike = fetch) {
   const response = await fetcher(`${config.apiBaseUrl}/emails/receiving/${encodeURIComponent(emailId)}`, {
     headers: { Authorization: `Bearer ${config.apiKey}` },

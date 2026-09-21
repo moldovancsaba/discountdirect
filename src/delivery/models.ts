@@ -15,6 +15,7 @@ const deliveryOutboxSchema = new Schema(
     automationId: { type: Schema.Types.ObjectId, default: null, ref: "OfferAutomation", index: true },
     automationRunId: { type: Schema.Types.ObjectId, default: null, ref: "OfferAutomationRun", index: true },
     offerListId: { type: Schema.Types.ObjectId, default: null, ref: "OfferList", index: true },
+    newsletterSnapshotId: { type: Schema.Types.ObjectId, default: null, ref: "NewsletterSnapshot", index: true },
     kind: { type: String, enum: ["personal_offer", "flash_campaign", "automated_list", "printable_letter"], required: true },
     channel: { type: String, enum: ["in_app", "email", "postal"], required: true },
     status: { type: String, enum: deliveryStatuses, required: true, index: true },

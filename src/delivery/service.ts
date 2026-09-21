@@ -124,6 +124,7 @@ export async function createDeliveryRecord(session: mongoose.ClientSession, inpu
   automationId?: unknown;
   automationRunId?: unknown;
   offerListId?: unknown;
+  newsletterSnapshotId?: unknown;
   kind: DeliveryKind;
   channel: DeliveryChannel;
   idempotencyKey: string;
@@ -153,6 +154,7 @@ export async function createDeliveryRecord(session: mongoose.ClientSession, inpu
     automationId: input.automationId ?? null,
     automationRunId: input.automationRunId ?? null,
     offerListId: input.offerListId ?? null,
+    newsletterSnapshotId: input.newsletterSnapshotId ?? null,
     kind: input.kind,
     channel: input.channel,
     idempotencyKey: input.idempotencyKey,

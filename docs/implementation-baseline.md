@@ -230,6 +230,8 @@ pnpm test:realtime-production -- --base-url=https://discountdirect.vercel.app --
 
 DD-035 adds schema-versioned, generation-based MongoDB reporting projections, an authenticated hourly projector, operator health indicators, and a GDS seller results page. Live release acceptance requires index creation and a source-versus-projection production evidence run.
 
+DD-038 extends automated offer lists with immutable newsletter snapshots. Consent, frequency caps, suppression and deterministic holdout are enforced before enqueue; consent and suppression are checked again at dispatch. Snapshot, list, run and delivery identifiers provide replay-safe provider evidence without storing mutable template state.
+
 Every change that affects stack, deployment, routes, environment variables,
 domain models, provider contracts or durable business state must update this
 inventory in the same pull request. If the external Calvus SSOT or technical

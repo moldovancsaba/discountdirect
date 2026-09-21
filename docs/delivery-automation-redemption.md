@@ -37,3 +37,8 @@ Coupons prove DiscountDirect acceptance and seller-side redemption confirmation 
 ## Privacy recovery
 
 Restriction and erasure workflows withdraw marketing consent and cancel queued, processing or retryable delivery rows for that seller-buyer pair. Completed, suppressed and unsupported rows remain as audit evidence.
+# Newsletter snapshot contract
+
+Every successful automated list run now creates one immutable `NewsletterSnapshot` before the outbound delivery is queued. It freezes the buyer and seller scope, ordered product/version/price/reason items, availability window, eligibility reason, consent-check time, Google-font-safe Unicode content hash and template version. The run, list, snapshot and delivery are linked in one Atlas transaction. Holdout buyers and buyers failing consent or frequency rules create a skipped run without a list, snapshot or outbound record. The delivery worker repeats consent, suppression and frequency checks immediately before Resend and retains provider outcomes in the existing delivery ledger.
+
+Recovery never edits a snapshot. A failed transaction leaves no partial newsletter; a transport retry reuses the same delivery and snapshot. Pausing the automation or email transport prevents new sends while preserving evidence.
