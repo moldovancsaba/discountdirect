@@ -1,0 +1,9 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { evidenceHash, reclaimable, retryAt, scheduledAt, validateJourneyConfig } from "../src/journeys/core.ts";
+
+const config = { name: "Visszatérő vásárló", trigger: { kind: "purchase_age_days", ageDays: 30 }, steps: [{ key: "first", delayMinutes: 0, channel: "in_app", title: "Első ajánlat" }, { key: "follow-up", delayMinutes: 1440, channel: "email", title: "Emlékeztető" }] };
+test("journey configuration is bounded and preserves Unicode", () => { const value = validateJourneyConfig(config); assert.equal(value.name, "Visszatérő vásárló"); assert.equal(value.steps.length, 2); assert.throws(() => validateJourneyConfig({ ...config, steps: [] })); });
+test("step schedules accumulate delays in UTC milliseconds", () => { const start = new Date("2026-10-25T00:30:00.000Z"); const steps = validateJourneyConfig(config).steps; assert.equal(scheduledAt(start, steps, 1).toISOString(), "2026-10-26T00:30:00.000Z"); });
+test("evidence and retries are deterministic and bounded", () => { assert.equal(evidenceHash({ purchaseId: "1" }), evidenceHash({ purchaseId: "1" })); const now = new Date("2026-01-01T00:00:00Z"); assert.equal(retryAt(now, 1).toISOString(), "2026-01-01T00:05:00.000Z"); assert.equal(retryAt(now, 9).toISOString(), "2026-01-01T02:00:00.000Z"); });
+test("expired processing leases are reclaimable", () => { const now = new Date("2026-01-01T01:00:00Z"); assert.equal(reclaimable("processing", new Date("2026-01-01T00:59:59Z"), now), true); assert.equal(reclaimable("processing", new Date("2026-01-01T01:01:00Z"), now), false); assert.equal(reclaimable("completed", null, now), false); });

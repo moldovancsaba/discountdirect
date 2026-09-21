@@ -59,6 +59,11 @@ assert.equal(deliveryCronDenied.response.status, 401, "delivery cron must reject
 assert.equal(deliveryCronDenied.body.error?.code, "UNAUTHORIZED", "delivery cron unauthorized response must be explicit");
 findings.push({ check: "delivery_cron_unauthorized", status: "ok", latencyMs: deliveryCronDenied.latencyMs });
 
+const journeyCronDenied = await readJson("/api/cron/journeys?limit=1");
+assert.equal(journeyCronDenied.response.status, 401, "journey cron must reject missing token");
+assert.equal(journeyCronDenied.body.error?.code, "UNAUTHORIZED", "journey cron unauthorized response must be explicit");
+findings.push({ check: "journey_cron_unauthorized", status: "ok", latencyMs: journeyCronDenied.latencyMs });
+
 if (!env.CRON_SECRET) throw new Error("CRON_SECRET unavailable for production monitor");
 const cron = await readJson("/api/cron/automations?limit=1", { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } });
 assert.equal(cron.response.status, 200, "cron must return HTTP 200 with token");
@@ -69,5 +74,10 @@ const deliveryCron = await readJson("/api/cron/deliveries?limit=1", { headers: {
 assert.equal(deliveryCron.response.status, 200, "delivery cron must return HTTP 200 with token");
 assert.ok(Array.isArray(deliveryCron.body.results), "delivery cron response must include bounded results array");
 findings.push({ check: "delivery_cron_authorized", status: "ok", latencyMs: deliveryCron.latencyMs, processed: deliveryCron.body.processed });
+
+const journeyCron = await readJson("/api/cron/journeys?limit=1", { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } });
+assert.equal(journeyCron.response.status, 200, "journey cron must return HTTP 200 with token");
+assert.ok(Array.isArray(journeyCron.body.results), "journey cron response must include bounded results array");
+findings.push({ check: "journey_cron_authorized", status: "ok", latencyMs: journeyCron.latencyMs, processed: journeyCron.body.processed });
 
 console.log(JSON.stringify({ service: "discountdirect", base, checkedAt: new Date().toISOString(), status: "ok", findings }, null, 2));

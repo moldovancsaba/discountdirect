@@ -33,6 +33,7 @@ const labels: Record<string, string> = {
   flash_campaign: "Villámkampány",
   offer_list: "Ajánlatlista",
   personal_offer: "Személyes ajánlat",
+  journey_step: "Ügyfélút lépés",
   COMPATIBLE_ACCESSORY: "Kompatibilis kiegészítő",
   REPLENISHMENT: "Ismételt vásárlás",
   SAME_CATEGORY: "Kapcsolódó kategória",

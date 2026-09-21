@@ -8,6 +8,15 @@
 - A stale seller-settings update returns a conflict and must be retried after reloading current provenance. Never bypass the version check.
 - To verify recovery, preview the proposed resolution first, confirm its legal locks and changed paths, then save it and compare the resulting resolution-event hash. Do not mutate unrelated sellers.
 
+## Journey scheduler recovery
+
+- Pause a journey definition before operational intervention. The pause transaction cancels only that definition's queued, processing and retryable delivery rows and retains delivery events.
+- A claimed step has a two-minute lease. Do not force-unlock it; let the lease expire so another cron invocation can reclaim it safely.
+- Later steps wait for earlier non-terminal steps. `WAITING_PREVIOUS_STEP` is a postponement, not a failed attempt.
+- Retryable execution failures use 5, 30 and 120 minute delays. After three failed execution attempts the step is terminal and requires investigation before a new definition/enrollment is created.
+- Run `GET /api/cron/journeys?limit=1` with the configured cron bearer token to verify one bounded claim. Never put the token in logs or issue comments.
+- Resume the definition only after confirming its current version, pending step states and cancelled-delivery evidence. Historical versions and frozen snapshots are immutable.
+
 ## Private artifact recovery
 
 - `artifacts.status=failed` means metadata exists but the immutable Blob write did not complete. Keep the row as evidence and regenerate with a new idempotency key after Blob health recovers.
@@ -60,7 +69,7 @@ Browser verification covers desktop/mobile layouts, navigation, login, logout, t
 
 ## Deployment
 
-The repository's `vercel.json` selects Next.js with frozen-lockfile installation, runs `/api/cron/automations` every 30 minutes, runs `/api/cron/deliveries` every 15 minutes and gives `api/socket-io.ts` a 300-second function duration. Vercel is already linked to `narimato/discountdirect`. Configure `MONGODB_URI`, `MONGODB_DB`, SSO variables, `OPERATIONS_TOKEN`, `CRON_SECRET` and `REALTIME_ENABLED` in Production; repeat for Preview when enabling protected preview access. Set `REALTIME_ENABLED=false` to disable sockets without disabling durable conversations. Frequency-cap acceleration requires `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`; MongoDB sent-delivery history remains authoritative if Redis is unavailable or a key expires. Blob-backed private artifacts require `BLOB_READ_WRITE_TOKEN` or Vercel OIDC with `BLOB_STORE_ID` when those artifact flows are enabled. E-mail delivery additionally requires the Resend variables listed in [email-delivery-provider-evidence-2026-09-12.md](email-delivery-provider-evidence-2026-09-12.md); Production uses `EMAIL_DELIVERY_PROVIDER=resend` with staged-recipient controls. GDS 6.7.0 is pinned to official public release assets, so package installation does not require `GITHUB_TOKEN`.
+The repository's `vercel.json` selects Next.js with frozen-lockfile installation, runs `/api/cron/automations` every 30 minutes, `/api/cron/deliveries` every 15 minutes and `/api/cron/journeys` every 10 minutes, and gives `api/socket-io.ts` a 300-second function duration. Vercel is already linked to `narimato/discountdirect`. Configure `MONGODB_URI`, `MONGODB_DB`, SSO variables, `OPERATIONS_TOKEN`, `CRON_SECRET` and `REALTIME_ENABLED` in Production; repeat for Preview when enabling protected preview access. Set `REALTIME_ENABLED=false` to disable sockets without disabling durable conversations. Frequency-cap acceleration requires `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`; MongoDB sent-delivery history remains authoritative if Redis is unavailable or a key expires. Blob-backed private artifacts require `BLOB_READ_WRITE_TOKEN` or Vercel OIDC with `BLOB_STORE_ID` when those artifact flows are enabled. E-mail delivery additionally requires the Resend variables listed in [email-delivery-provider-evidence-2026-09-12.md](email-delivery-provider-evidence-2026-09-12.md); Production uses `EMAIL_DELIVERY_PROVIDER=resend` with staged-recipient controls. GDS 6.7.0 is pinned to official public release assets, so package installation does not require `GITHUB_TOKEN`.
 
 1. Run all checks and inspect `git diff --check`.
 2. Commit and push the reviewed release to main.

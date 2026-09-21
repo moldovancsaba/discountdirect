@@ -28,6 +28,7 @@ export function Shell({ children }: { children: React.ReactNode; active?: string
     { href: `/seller/${sellerSlug}/campaigns`, label: "Villámkampányok", icon: "Send" },
     { href: `/seller/${sellerSlug}/metrics`, label: "Eredmények", icon: "Analytics" },
     { href: `/seller/${sellerSlug}/automations`, label: "Automatizmusok", icon: "Calendar" },
+    { href: `/seller/${sellerSlug}/journeys`, label: "Ügyfélutak", icon: "Calendar" },
     { href: `/seller/${sellerSlug}/deliveries`, label: "Kézbesítések", icon: "Connectivity" },
     { href: `/seller/${sellerSlug}/redemptions`, label: "Kuponbeváltás", icon: "Tag" },
   ] : [];

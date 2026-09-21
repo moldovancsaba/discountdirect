@@ -1,0 +1,3 @@
+import { errorResponse } from "@/auth/http";
+import { JourneyError } from "./service";
+export function journeyError(error: unknown) { if (error instanceof JourneyError) { const values = { FORBIDDEN: ["FORBIDDEN", "Ehhez az ügyfélúthoz nincs hozzáférésed.", 403], NOT_FOUND: ["NOT_FOUND", "Az ügyfélút nem található.", 404], INVALID: ["INVALID_JOURNEY", "Az ügyfélút beállítása érvénytelen.", 400], CONFLICT: ["JOURNEY_CONFLICT", "Az ügyfélút állapota időközben megváltozott.", 409] } as const; const [code, message, status] = values[error.code]; return errorResponse(code, message, status); } return errorResponse("JOURNEY_UNAVAILABLE", "Az ügyfélutak átmenetileg nem érhetők el.", 503); }

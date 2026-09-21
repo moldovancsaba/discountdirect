@@ -13,7 +13,7 @@ const date = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: 
 const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
 const channelLabel: Record<string, string> = { in_app: "Alkalmazáson belül", email: "E-mail", postal: "Postai" };
 const deliveryStatusLabel: Record<string, string> = { queued: "Küldésre vár", processing: "Küldés folyamatban", sent: "Elküldve", unsupported: "Nem elérhető", suppressed: "Nem küldhető", retryable_failed: "Újrapróbálásra vár", cancelled: "Törölve", bounced: "Visszapattant", complained: "Panasz miatt leállítva" };
-const deliveryKindLabel: Record<string, string> = { personal_offer: "Személyes ajánlat", flash_campaign: "Villámkampány", automated_list: "Ajánlatlista", printable_letter: "Nyomtatható levél" };
+const deliveryKindLabel: Record<string, string> = { personal_offer: "Személyes ajánlat", flash_campaign: "Villámkampány", automated_list: "Ajánlatlista", printable_letter: "Nyomtatható levél", journey_step: "Ügyfélút üzenet" };
 
 export default async function BuyerHubPage() {
   const user = await currentUser();

@@ -17,14 +17,14 @@ contracts materially change.
 | Interface | SovereignSquad GDS `6.7.0`, Mantine packages under the GDS layer, Hungarian locale |
 | Authentication | DoneIsBetter OAuth/OIDC SSO only; local password/activation endpoints fail closed with `SSO_ONLY` |
 | Realtime | Socket.IO endpoint on Vercel plus durable Atlas `RealtimeEvent` replay and HTTP fallback |
-| Jobs | Vercel Cron invokes `/api/cron/automations` every 30 minutes and `/api/cron/deliveries` every 15 minutes |
+| Jobs | Vercel Cron invokes `/api/cron/automations` every 30 minutes, `/api/cron/deliveries` every 15 minutes and `/api/cron/journeys` every 10 minutes |
 | E-mail | Resend adapter for outbound mail, signed inbound replies, suppressions and unsubscribe handling |
 | Accelerators and artifacts | Upstash Redis client/key-policy foundations exist and frequency-cap counters are wired with MongoDB as authority; general rate limits, flash counters and locks remain planned. Vercel Blob has an immutable private-key and signed-read foundation and print-ready offer PDFs now persist through it. No separate reporting projection exists. |
 
 ## Deployment and environment
 
 `vercel.json` declares the Next.js framework, frozen-lockfile install, `pnpm build`,
-two cron paths and a 300-second `api/socket-io.ts` function budget. The required or
+three cron paths and a 300-second `api/socket-io.ts` function budget. The required or
 recognized environment variables are:
 
 | Area | Variables |
@@ -80,7 +80,7 @@ Human-facing App Router surfaces:
   `/buyer/redemptions`
 - Seller: `/seller/{sellerSlug}`, `/seller/{sellerSlug}/customers`,
   `/seller/{sellerSlug}/conversations`, `/seller/{sellerSlug}/campaigns`,
-  `/seller/{sellerSlug}/automations`, `/seller/{sellerSlug}/deliveries`,
+  `/seller/{sellerSlug}/automations`, `/seller/{sellerSlug}/journeys`, `/seller/{sellerSlug}/deliveries`,
   `/seller/{sellerSlug}/privacy`, `/seller/{sellerSlug}/redemptions`
 
 Route Handler groups:
@@ -95,7 +95,7 @@ Route Handler groups:
   `/api/buyer/...`
 - Conversations/offers: `/api/conversations`, conversation messages/realtime
   replay and `/api/offers/{offerId}/respond`
-- Jobs/providers: `/api/cron/automations`, `/api/cron/deliveries`,
+- Jobs/providers: `/api/cron/automations`, `/api/cron/deliveries`, `/api/cron/journeys`,
   `/api/email/inbound`, `/api/email/unsubscribe`
 
 Server Actions exist for account, admin, buyer preferences/offers, conversation
@@ -235,6 +235,8 @@ DD-038 extends automated offer lists with immutable newsletter snapshots. Consen
 DD-039 adds a buyer-owned inbox preference and a consolidated marketplace inbox contract. Aggregate and per-seller reads derive scope from current active relationships, carry seller identity on every row and use stable bounded conversation cursors. Revoked selections recover to aggregate mode without mutating business records.
 
 DD-040 adds immutable rule-template versions and seller override provenance while retaining the validated effective settings snapshot used by runtime services. Predefined and advanced modes resolve deterministically; consent scope, secure checkout mode and channel-frequency maxima remain non-overridable. Resolution events make every saved output reproducible and rollback-safe.
+
+DD-041 adds versioned multi-step customer journeys with manual and purchase-age trigger evidence. Seller owners preview, activate and pause definitions; each enrollment schedules ordered, idempotent step runs. A separately authorized bounded cron leases due work, rechecks current authorization, creates frozen delivery evidence and applies three bounded retry attempts. Buyers can read their enrollment evidence but cannot mutate orchestration state.
 
 Every change that affects stack, deployment, routes, environment variables,
 domain models, provider contracts or durable business state must update this

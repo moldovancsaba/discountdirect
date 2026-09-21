@@ -34,7 +34,7 @@ export class DeliveryError extends Error {
 
 type OutboundDeliveryChannel = "email" | "postal";
 type DeliveryChannel = "in_app" | OutboundDeliveryChannel;
-type DeliveryKind = "personal_offer" | "flash_campaign" | "automated_list" | "printable_letter";
+type DeliveryKind = "personal_offer" | "flash_campaign" | "automated_list" | "printable_letter" | "journey_step";
 type DeliveryStatus = "queued" | "processing" | "sent" | "unsupported" | "suppressed" | "retryable_failed" | "cancelled" | "bounced" | "complained";
 type SuppressionReason = "unsubscribe" | "objection" | "hard_bounce" | "complaint" | "provider_suppression";
 type FetchLike = typeof fetch;
@@ -125,6 +125,9 @@ export async function createDeliveryRecord(session: mongoose.ClientSession, inpu
   automationRunId?: unknown;
   offerListId?: unknown;
   newsletterSnapshotId?: unknown;
+  journeyDefinitionId?: unknown;
+  journeyEnrollmentId?: unknown;
+  journeyStepRunId?: unknown;
   kind: DeliveryKind;
   channel: DeliveryChannel;
   idempotencyKey: string;
@@ -155,6 +158,9 @@ export async function createDeliveryRecord(session: mongoose.ClientSession, inpu
     automationRunId: input.automationRunId ?? null,
     offerListId: input.offerListId ?? null,
     newsletterSnapshotId: input.newsletterSnapshotId ?? null,
+    journeyDefinitionId: input.journeyDefinitionId ?? null,
+    journeyEnrollmentId: input.journeyEnrollmentId ?? null,
+    journeyStepRunId: input.journeyStepRunId ?? null,
     kind: input.kind,
     channel: input.channel,
     idempotencyKey: input.idempotencyKey,
@@ -203,6 +209,17 @@ export async function cancelBuyerDeliveries(session: mongoose.ClientSession, sel
     row.nextAttemptAt = null;
     row.lockedUntil = null;
     row.lockedBy = null;
+    await row.save({ session });
+    await recordEvent(session, { deliveryId: row._id, sellerId, status: "cancelled", reasonCode, occurredAt: now, actorUserId });
+  }
+  return rows.length;
+}
+
+export async function cancelJourneyDeliveries(session: mongoose.ClientSession, sellerId: unknown, journeyDefinitionId: unknown, reasonCode: string, actorUserId: string) {
+  const now = new Date();
+  const rows = await DeliveryOutbox.find({ sellerId, journeyDefinitionId, status: { $in: ["queued", "processing", "retryable_failed"] } }).session(session);
+  for (const row of rows) {
+    row.status = "cancelled"; row.reasonCode = reasonCode; row.cancelledAt = now; row.nextAttemptAt = null; row.lockedUntil = null; row.lockedBy = null;
     await row.save({ session });
     await recordEvent(session, { deliveryId: row._id, sellerId, status: "cancelled", reasonCode, occurredAt: now, actorUserId });
   }
@@ -260,9 +277,18 @@ function renderListEmail(row: any, seller: any, buyer: any, optOutUrl: string) {
   return { subject, text, html };
 }
 
+function renderJourneyEmail(row: any, seller: any, buyer: any, optOutUrl: string) {
+  const title = typeof row.contentSnapshot?.title === "string" ? row.contentSnapshot.title : "Új üzenet";
+  const subject = `${seller.name}: ${title}`;
+  const text = [`Kedves ${buyer.displayName}!`, title, "A részleteket a DiscountDirect vásárlói felületén találod.", `Leiratkozás: ${optOutUrl}`].join("\n\n");
+  const html = `<p>Kedves ${htmlEscape(buyer.displayName)}!</p><p><strong>${htmlEscape(title)}</strong></p><p>A részleteket a DiscountDirect vásárlói felületén találod.</p><p><a href="${htmlEscape(optOutUrl)}">Leiratkozás</a></p>`;
+  return { subject, text, html };
+}
+
 function composeEmail(row: any, seller: any, buyer: any, config: EmailTransportConfig) {
   const optOutUrl = unsubscribeUrl(row._id.toString(), config);
   if (row.kind === "automated_list") return renderListEmail(row, seller, buyer, optOutUrl);
+  if (row.kind === "journey_step") return renderJourneyEmail(row, seller, buyer, optOutUrl);
   const content = renderOfferEmail(row, seller, buyer, optOutUrl);
   if (row.kind === "printable_letter") return { ...content, subject: `${seller.name}: nyomtatható ajánlatlevél` };
   return content;
