@@ -234,6 +234,8 @@ DD-038 extends automated offer lists with immutable newsletter snapshots. Consen
 
 DD-039 adds a buyer-owned inbox preference and a consolidated marketplace inbox contract. Aggregate and per-seller reads derive scope from current active relationships, carry seller identity on every row and use stable bounded conversation cursors. Revoked selections recover to aggregate mode without mutating business records.
 
+DD-040 adds immutable rule-template versions and seller override provenance while retaining the validated effective settings snapshot used by runtime services. Predefined and advanced modes resolve deterministically; consent scope, secure checkout mode and channel-frequency maxima remain non-overridable. Resolution events make every saved output reproducible and rollback-safe.
+
 Every change that affects stack, deployment, routes, environment variables,
 domain models, provider contracts or durable business state must update this
 inventory in the same pull request. If the external Calvus SSOT or technical

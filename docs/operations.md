@@ -1,5 +1,13 @@
 # Operations
 
+## Rule-template recovery
+
+- A seller can return to the active predefined template from the settings page. This writes a new optimistic seller-settings version and audit event; it does not delete the former override evidence.
+- If an advanced override produces an unacceptable result, disable advanced use by reverting affected sellers to predefined mode. Existing effective snapshots remain available for investigation.
+- Published template versions are immutable. Publish a corrected higher version rather than editing a historical record. Only inactive versions may be retired.
+- A stale seller-settings update returns a conflict and must be retried after reloading current provenance. Never bypass the version check.
+- To verify recovery, preview the proposed resolution first, confirm its legal locks and changed paths, then save it and compare the resulting resolution-event hash. Do not mutate unrelated sellers.
+
 ## Private artifact recovery
 
 - `artifacts.status=failed` means metadata exists but the immutable Blob write did not complete. Keep the row as evidence and regenerate with a new idempotency key after Blob health recovers.

@@ -3,7 +3,7 @@ import { BannerNotice, Button as GdsButton, Checkbox, GdsIcon, NumberInput, Page
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { getSellerSettings } from "@/settings/service";
-import { saveSettingsAction } from "./actions";
+import { revertSettingsAction, saveSettingsAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +21,15 @@ export default async function SellerSettingsPage({ params, searchParams }: { par
     {query.saved ? <BannerNotice variant="compact" severity="success" message="A beállítások mentve." /> : null}
     {query.error ? <BannerNotice variant="compact" severity="error" message={query.error === "STALE" ? "A beállítások megváltoztak. Frissítsd az oldalt." : query.error === "FORBIDDEN" ? "Csak az eladó tulajdonosa módosíthatja ezeket a beállításokat." : "Ellenőrizd a megadott értékeket."} /> : null}
     {!owner ? <BannerNotice severity="info" title="Csak olvasható" message="A beállításokat csak az eladó tulajdonosa módosíthatja." /> : null}
+    <BannerNotice severity="info" title={`Szabálysablon v${result.rules.templateVersion}`} message={`${result.rules.overrideMode === "advanced" ? `${result.rules.changedPaths.length} felülírt terület` : "Előre definiált mód"}. A hozzájárulási hatókör, a biztonságos átadás és a csatornalimitek jogi zárai nem lazíthatók.`} />
     <form className="catalog-form" action={saveSettingsAction.bind(null, sellerSlug, result.version)}>
+      <SectionPanel title="Szabálymód" description="Az előre definiált mód követi a közzétett sablont. A haladó mód csak a nem zárolt értékeket írhatja felül.">
+        <GdsSelect name="overrideMode" label="Beállítási mód" defaultValue={result.rules.overrideMode} disabled={!owner} data={[{ value: "predefined", label: "Előre definiált" }, { value: "advanced", label: "Haladó felülírás" }]} />
+        <StatusBadge status={result.rules.clamped ? "warning" : "success"}>{result.rules.clamped ? "Jogi korlát alkalmazva" : "Szabályok érvényesek"}</StatusBadge>
+      </SectionPanel>
       <SectionPanel title="Működési mód" description="A vásárlói postaláda, adatkezelési hatókör és nyomtatás alapmódja." divided>
         <GdsSelect name="inboxMode" label="Postaláda mód" defaultValue={settings.inbox_mode} disabled={!owner} data={[{ value: "per_seller", label: "Eladónként külön" }, { value: "marketplace", label: "Közös piactéri postaláda" }]} />
-        <GdsSelect name="consentScope" label="Hozzájárulás hatóköre" defaultValue={settings.consent_scope} disabled={!owner} data={[{ value: "per_seller", label: "Eladónként" }, { value: "inbox", label: "Teljes postaláda" }]} />
+        <GdsSelect name="consentScope" label="Hozzájárulás hatóköre · jogilag zárolt" defaultValue={settings.consent_scope} disabled data={[{ value: "per_seller", label: "Eladónként" }, { value: "inbox", label: "Teljes postaláda" }]} />
         <GdsSelect name="printMode" label="Nyomtatási mód" defaultValue={settings.print_mode} disabled={!owner} data={[{ value: "seller", label: "Eladói nyomtatás" }, { value: "platform_service", label: "Platformszolgáltatás" }]} />
       </SectionPanel>
       <SectionPanel title="Kedvezmény szabályok" description="A rendszer csak a megadott, egész százalékos tartományban hozhat létre ajánlatot." divided>
@@ -42,7 +47,7 @@ export default async function SellerSettingsPage({ params, searchParams }: { par
         <NumberInput name="rcsCap" label="RCS / 7 nap" defaultValue={settings.frequency_cap.rcs_per_7d} disabled={!owner} min={0} max={100} step={1} allowDecimal={false} required />
         <NumberInput name="holdoutPct" label="Kontrollcsoport (%)" defaultValue={settings.holdout_pct} disabled={!owner} min={0} max={20} step={1} allowDecimal={false} required />
       </SectionPanel>
-      {owner ? <GdsButton type="submit" leftSection={<GdsIcon name="Save" decorative />}>Beállítások mentése</GdsButton> : null}
+      {owner ? <div className="button-row"><GdsButton type="submit" leftSection={<GdsIcon name="Save" decorative />}>Beállítások mentése</GdsButton>{result.rules.overrideMode === "advanced" ? <GdsButton type="submit" variant="default" formAction={revertSettingsAction.bind(null, sellerSlug, result.version)} leftSection={<GdsIcon name="Reset" decorative />}>Visszaállítás sablonra</GdsButton> : null}</div> : null}
     </form>
   </Shell>;
 }

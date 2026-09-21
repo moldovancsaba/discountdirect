@@ -34,6 +34,7 @@ export function accessPolicyForSurface(file: string, handler: string): AccessPol
   if (path.includes("/api/cron/") || path.endsWith("/api/email/inbound/route.ts") || path.endsWith("/api/postal/provider-events/route.ts") || path.endsWith("/api/health/ready/route.ts")) return "machine";
   if (path.endsWith("/account/actions.ts") || (path.endsWith("/api/auth/session/route.ts") && handler === "DELETE") || path.endsWith("/api/me/route.ts")) return "authenticated";
   if (path.endsWith("/admin/actions.ts")) return handler === "signOut" ? "authenticated" : ["platform_ops"];
+  if (path.includes("/api/admin/")) return ["platform_ops"];
   if (path.includes("/api/buyer/") || path.includes("/buyer/")) return ["buyer"];
   if (path.endsWith("/api/offers/route.ts") || path.includes("/api/offers/[offerId]/")) return ["buyer"];
   if (path.includes("/api/sellers/") || path.includes("/seller/")) return SELLER_ROLES;
