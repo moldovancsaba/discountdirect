@@ -8,7 +8,8 @@ import { Customer } from "@/purchases/models";
 import { recordRealtimeEvent } from "@/realtime/service";
 import { participant } from "./access.ts";
 import { MessagingError } from "./errors.ts";
-import { Conversation, ConversationEvent } from "./models";
+import { Conversation, ConversationEvent, InboxPreference } from "./models";
+import { inboxPreferenceInput } from "./inbox-core";
 
 export { MessagingError } from "./errors.ts";
 
@@ -159,6 +160,32 @@ export async function buyerConversations(userId: string, cursor?: string | null)
   const sellerIds = await activeBuyerSellerIds(userId);
   if (!sellerIds.length) return { conversations: [], nextCursor: null };
   return listConversations({ buyerUserId: userId, sellerId: { $in: sellerIds } }, cursor);
+}
+
+async function buyerInboxScope(userId: string) {
+  await connectDatabase();
+  const relationships = await BuyerRelationship.find({ buyerUserId: userId, status: "active" }).select({ sellerId: 1 }).lean();
+  const sellers = relationships.length ? await Seller.find({ _id: { $in: relationships.map((row) => row.sellerId) }, status: "active" }).select({ name: 1, slug: 1 }).sort({ name: 1, _id: 1 }).lean() : [];
+  const allowed = new Set(sellers.map((seller) => seller._id.toString())); const stored = await InboxPreference.findOne({ buyerUserId: userId }).lean();
+  const selected = stored?.selectedSellerId?.toString?.() ?? null;
+  const validSelection = stored?.mode === "per_seller" && selected && allowed.has(selected);
+  return { sellers, preference: { mode: validSelection ? "per_seller" as const : "aggregate" as const, sellerId: validSelection ? selected : null, version: stored?.version ?? 0 }, resetRequired: Boolean(stored && stored.mode === "per_seller" && !validSelection) };
+}
+
+export async function buyerInbox(userId: string, cursor?: string | null) {
+  const scope = await buyerInboxScope(userId); const sellerIds = scope.preference.mode === "per_seller" ? [scope.preference.sellerId] : scope.sellers.map((seller) => seller._id);
+  const listed = sellerIds.length ? await listConversations({ buyerUserId: userId, sellerId: { $in: sellerIds } }, cursor) : { conversations: [], nextCursor: null };
+  return { ...listed, preference: scope.preference, preferenceRecovered: scope.resetRequired, sellers: scope.sellers.map((seller) => ({ id: seller._id.toString(), name: seller.name, slug: seller.slug })) };
+}
+
+export async function saveBuyerInboxPreference(userId: string, input: unknown, expectedVersion: unknown) {
+  const value = inboxPreferenceInput(input); if (!Number.isInteger(expectedVersion) || Number(expectedVersion) < 0) throw new MessagingError("INVALID");
+  const scope = await buyerInboxScope(userId); if (value.sellerId && !scope.sellers.some((seller) => seller._id.toString() === value.sellerId)) throw new MessagingError("FORBIDDEN");
+  const filter: Record<string, unknown> = { buyerUserId: userId }; if (Number(expectedVersion) > 0) filter.version = Number(expectedVersion);
+  const update = { $set: { mode: value.mode, selectedSellerId: value.sellerId }, $inc: { version: 1 } };
+  try { const row = Number(expectedVersion) === 0 ? await InboxPreference.findOneAndUpdate(filter, update, { new: true, upsert: true, setDefaultsOnInsert: true }) : await InboxPreference.findOneAndUpdate(filter, update, { new: true });
+    if (!row) throw new MessagingError("CONFLICT"); return { mode: row.mode, sellerId: row.selectedSellerId?.toString?.() ?? null, version: row.version };
+  } catch (error: any) { if (error instanceof MessagingError) throw error; if (error?.code === 11000) throw new MessagingError("CONFLICT"); throw error; }
 }
 
 export async function conversationTimeline(userId: string, conversationId: string, cursorValue?: string | null) {

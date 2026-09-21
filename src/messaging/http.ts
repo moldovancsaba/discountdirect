@@ -7,6 +7,7 @@ export function messagingError(error: unknown) {
       FORBIDDEN: ["FORBIDDEN", "Ehhez a beszélgetéshez nincs hozzáférésed.", 403],
       NOT_FOUND: ["NOT_FOUND", "A keresett beszélgetés nem található.", 404],
       INVALID: ["INVALID_CONVERSATION", "A beszélgetési kérés érvénytelen.", 400],
+      CONFLICT: ["INBOX_PREFERENCE_CONFLICT", "A postaláda beállítása időközben megváltozott.", 409],
     } as const;
     const [code, message, status] = map[error.code];
     return errorResponse(code, message, status);

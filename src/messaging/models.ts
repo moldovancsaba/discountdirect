@@ -38,6 +38,13 @@ const conversationEventSchema = new Schema(
   },
   { versionKey: false, collection: "conversation_events" },
 );
+
+const inboxPreferenceSchema = new Schema({
+  buyerUserId: { type: Schema.Types.ObjectId, required: true, ref: "User", unique: true },
+  mode: { type: String, enum: ["aggregate", "per_seller"], required: true, default: "aggregate" },
+  selectedSellerId: { type: Schema.Types.ObjectId, default: null, ref: "Seller" },
+  version: { type: Number, required: true, default: 1, min: 1 },
+}, { ...timestamps, collection: "inbox_preferences" });
 conversationEventSchema.index({ conversationId: 1, createdAt: -1, _id: -1 });
 conversationEventSchema.index(
   { conversationId: 1, senderUserId: 1, clientRequestId: 1 },
@@ -49,4 +56,5 @@ conversationEventSchema.plugin(sellerScopedSchema);
 
 export const Conversation = models.Conversation || model("Conversation", conversationSchema);
 export const ConversationEvent = models.ConversationEvent || model("ConversationEvent", conversationEventSchema);
-export const messagingModels = [Conversation, ConversationEvent];
+export const InboxPreference = models.InboxPreference || model("InboxPreference", inboxPreferenceSchema);
+export const messagingModels = [Conversation, ConversationEvent, InboxPreference];

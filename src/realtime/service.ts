@@ -47,7 +47,7 @@ export async function realtimeConversationAccess(userId: string, conversationId:
   if (!mongoose.isValidObjectId(conversationId)) throw new RealtimeError("INVALID");
   try { return await participant(userId, conversationId); }
   catch (error) {
-    if (error instanceof MessagingError) throw new RealtimeError(error.code === "INVALID" ? "INVALID" : error.code);
+    if (error instanceof MessagingError) throw new RealtimeError(error.code === "FORBIDDEN" || error.code === "NOT_FOUND" ? error.code : "INVALID");
     throw error;
   }
 }

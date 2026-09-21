@@ -1,0 +1,3 @@
+import { currentUser } from "@/auth/service"; import { errorResponse } from "@/auth/http"; import { buyerMarketplaceInbox } from "@/inbox/service"; import { messagingError } from "@/messaging/http";
+export const runtime = "nodejs"; export const dynamic = "force-dynamic";
+export async function GET(request: Request) { const user = await currentUser(); if (!user) return errorResponse("UNAUTHORIZED", "Bejelentkezés szükséges.", 401); try { return Response.json(await buyerMarketplaceInbox(user.id, new URL(request.url).searchParams.get("cursor")), { headers: { "Cache-Control": "no-store" } }); } catch (error) { return messagingError(error); } }

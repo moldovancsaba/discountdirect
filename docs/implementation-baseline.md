@@ -232,6 +232,8 @@ DD-035 adds schema-versioned, generation-based MongoDB reporting projections, an
 
 DD-038 extends automated offer lists with immutable newsletter snapshots. Consent, frequency caps, suppression and deterministic holdout are enforced before enqueue; consent and suppression are checked again at dispatch. Snapshot, list, run and delivery identifiers provide replay-safe provider evidence without storing mutable template state.
 
+DD-039 adds a buyer-owned inbox preference and a consolidated marketplace inbox contract. Aggregate and per-seller reads derive scope from current active relationships, carry seller identity on every row and use stable bounded conversation cursors. Revoked selections recover to aggregate mode without mutating business records.
+
 Every change that affects stack, deployment, routes, environment variables,
 domain models, provider contracts or durable business state must update this
 inventory in the same pull request. If the external Calvus SSOT or technical
