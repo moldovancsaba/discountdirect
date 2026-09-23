@@ -191,10 +191,16 @@ These gaps are intentional inventory facts, not regressions:
   atomically advances an independent capability cursor. Expired leases and two
   bounded retries provide deployment recovery. The owner UI stores only a strict
   environment-variable reference and durable health state.
+  The Shoprenter adapter declares its OAuth read/webhook scopes, caches access
+  tokens in memory with expiry skew and ingests order callbacks through a
+  constant-time callback-secret check, exact-shop validation and replay-safe
+  event ledger. Recorded fixtures and isolated Atlas verification are complete;
+  live Shoprenter sandbox acceptance remains blocked until approved credentials
+  are present in the deployment secret store.
   Signed hand-off uses a recoverable processing lease and a validated same-origin
   product URL template. Automated provider cart creation, order write-back and
-  stock webhooks remain open because neither published provider contract supplies
-  the required browser-cart creation primitive.
+  stock callbacks remain open because the published provider contract does not
+  supply the required browser-cart creation primitive or a stock event.
 - The richer SSOT offer states are not fully modeled locally: there is no
   `draft`, `sold_out`, `withdrawn` or `redeemed` offer status yet.
 - Channel scope is still narrower than the SSOT: marketing preferences and

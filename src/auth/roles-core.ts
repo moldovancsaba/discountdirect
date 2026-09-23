@@ -31,7 +31,7 @@ export function accessPolicyForSurface(file: string, handler: string): AccessPol
   if (path.endsWith("/api/email/unsubscribe/route.ts")) return "public";
   if (path.includes("/handoff/[token]/page.tsx")) return "public";
   if (path.endsWith("/api/auth/activate/route.ts") || (path.endsWith("/api/auth/session/route.ts") && handler === "POST")) return "sso_only_refusal";
-  if (path.includes("/api/cron/") || path.endsWith("/api/email/inbound/route.ts") || path.endsWith("/api/postal/provider-events/route.ts") || path.endsWith("/api/health/ready/route.ts")) return "machine";
+  if (path.includes("/api/cron/") || path.endsWith("/api/email/inbound/route.ts") || path.endsWith("/api/postal/provider-events/route.ts") || path.includes("/api/connectors/shoprenter/events/") || path.endsWith("/api/health/ready/route.ts")) return "machine";
   if (path.endsWith("/account/actions.ts") || (path.endsWith("/api/auth/session/route.ts") && handler === "DELETE") || path.endsWith("/api/me/route.ts")) return "authenticated";
   if (path.endsWith("/admin/actions.ts")) return handler === "signOut" ? "authenticated" : ["platform_ops"];
   if (path.includes("/api/admin/")) return ["platform_ops"];

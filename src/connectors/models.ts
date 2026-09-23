@@ -46,8 +46,22 @@ const connectorRecordSchema = new Schema({
   lastRunId: { type: Schema.Types.ObjectId, required: true, ref: "ConnectorRun" },
 }, { timestamps: true, versionKey: false, collection: "connector_records" });
 connectorRecordSchema.index({ sellerId: 1, installationId: 1, kind: 1, providerId: 1 }, { unique: true });
-connectorInstallationSchema.plugin(sellerScopedSchema); connectorRunSchema.plugin(sellerScopedSchema); connectorRecordSchema.plugin(sellerScopedSchema);
+const connectorWebhookEventSchema = new Schema({
+  sellerId: { type: Schema.Types.ObjectId, required: true, ref: "Seller", index: true },
+  installationId: { type: Schema.Types.ObjectId, required: true, ref: "ConnectorInstallation", index: true },
+  provider: { type: String, enum: ["shoprenter"], required: true },
+  event: { type: String, enum: ["order_confirm", "order_status_change"], required: true },
+  payloadHash: { type: String, required: true, maxlength: 64 },
+  providerOrderId: { type: String, required: true, maxlength: 160 },
+  status: { type: String, enum: ["processed", "rejected"], required: true },
+  reasonCode: { type: String, default: null, maxlength: 80 },
+  receivedAt: { type: Date, required: true },
+}, { timestamps: true, versionKey: false, collection: "connector_webhook_events" });
+connectorWebhookEventSchema.index({ sellerId: 1, provider: 1, payloadHash: 1 }, { unique: true });
+connectorWebhookEventSchema.index({ receivedAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
+connectorInstallationSchema.plugin(sellerScopedSchema); connectorRunSchema.plugin(sellerScopedSchema); connectorRecordSchema.plugin(sellerScopedSchema); connectorWebhookEventSchema.plugin(sellerScopedSchema);
 export const ConnectorInstallation = models.ConnectorInstallation || model("ConnectorInstallation", connectorInstallationSchema);
 export const ConnectorRun = models.ConnectorRun || model("ConnectorRun", connectorRunSchema);
 export const ConnectorRecord = models.ConnectorRecord || model("ConnectorRecord", connectorRecordSchema);
-export const connectorModels = [ConnectorInstallation, ConnectorRun, ConnectorRecord];
+export const ConnectorWebhookEvent = models.ConnectorWebhookEvent || model("ConnectorWebhookEvent", connectorWebhookEventSchema);
+export const connectorModels = [ConnectorInstallation, ConnectorRun, ConnectorRecord, ConnectorWebhookEvent];

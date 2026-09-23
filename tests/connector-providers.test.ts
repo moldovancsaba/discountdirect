@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ShoprenterConnector } from "../src/connectors/providers/shoprenter.ts";
+import { SHOPRENTER_REQUIRED_SCOPES, ShoprenterConnector } from "../src/connectors/providers/shoprenter.ts";
+import { ProviderError } from "../src/connectors/transport.ts";
 import { UnasConnector } from "../src/connectors/providers/unas.ts";
 
 const configuration = { shopName: "demo", shopUrl: "https://demo.example/", checkoutUrlTemplate: "https://demo.example/search?q={sku}&ref={handoffId}" };
@@ -11,6 +12,32 @@ test("Shoprenter uses OAuth API2 and maps a bounded product page", async () => {
   const connector = new ShoprenterConnector({clientId:"client-id",clientSecret:"client-secret-value"}, configuration, fetcher);
   const page = await connector.listProducts(null,new AbortController().signal);
   assert.equal(page.items[0]?.priceHuf,12990); assert.equal(page.nextCursor,"1"); assert.match(calls[0]!.url,/oauth\.app\.shoprenter\.net\/demo\/app\/token/); assert.match(calls[1]!.url,/demo\.api2\.myshoprenter\.hu\/api\/products/); assert.equal((calls[1]!.init?.headers as Record<string,string>).Authorization,"Bearer token-token-token-token");
+});
+
+test("Shoprenter documents least-privilege scopes and reuses an unexpired token", async () => {
+  assert.deepEqual(SHOPRENTER_REQUIRED_SCOPES, ["product.product:read", "order.order:read", "store.webhook:read", "store.webhook:write"]);
+  let tokenCalls = 0;
+  const fetcher: typeof fetch = async (input) => {
+    if (String(input).includes("/app/token")) { tokenCalls += 1; return Response.json({ access_token: "token-token-token-token", expires_in: 3600 }); }
+    return Response.json({ items: [] });
+  };
+  const connector = new ShoprenterConnector({clientId:"client-id",clientSecret:"client-secret-value"}, configuration, fetcher);
+  await connector.listProducts(null, new AbortController().signal);
+  await connector.listOrders(null, new AbortController().signal);
+  assert.equal(tokenCalls, 1);
+});
+
+test("Shoprenter rejects non-HUF orders and malformed fractional HUF", async () => {
+  const bodies = [
+    {items:[{id:"o1",currency:"EUR",totalGross:"12",dateCreated:"2026-09-20T10:00:00Z"}]},
+    {items:[{id:"o2",currency:"HUF",totalGross:"12.5",dateCreated:"2026-09-20T10:00:00Z"}]},
+  ];
+  const fetcher: typeof fetch = async (input) => String(input).includes("/app/token")
+    ? Response.json({access_token:"token-token-token-token",expires_in:3600})
+    : Response.json(bodies.shift());
+  const connector = new ShoprenterConnector({clientId:"client-id",clientSecret:"client-secret-value"}, configuration, fetcher);
+  await assert.rejects(connector.listOrders(null,new AbortController().signal),(error:unknown)=>error instanceof ProviderError&&error.code==="INVALID_RESPONSE");
+  await assert.rejects(connector.listOrders(null,new AbortController().signal),(error:unknown)=>error instanceof ProviderError&&error.code==="INVALID_RESPONSE");
 });
 
 test("UNAS logs in with API key and maps XML stock", async () => {
