@@ -2,13 +2,14 @@ import "server-only";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Mongoose dynamic model results are normalized at this boundary. */
 import { createHash } from "node:crypto";
 import mongoose from "mongoose";
-import { connectDatabase } from "@/lib/database";
-import { Membership, Seller } from "@/auth/models";
-import { ImportBatch, Product, ProductRevision } from "./models";
-import { productInputErrors, validateProductInput, type ProductInput } from "./validation";
+import { connectDatabase } from "../lib/database.ts";
+import { Membership, Seller } from "../auth/models.ts";
+import { ImportBatch, Product, ProductRevision } from "./models.ts";
+import { productInputErrors, validateProductInput, type ProductInput } from "./validation.ts";
 
 export class CatalogError extends Error {
-  constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "STALE" | "TOO_LARGE") { super(code); }
+  code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "STALE" | "TOO_LARGE";
+  constructor(code: CatalogError["code"]) { super(code); this.code = code; }
 }
 
 function validated(value: unknown) {

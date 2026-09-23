@@ -79,6 +79,10 @@ Local CSS only composes layout around GDS variables for color, typography, spaci
 
 Use pnpm 10.30.3 and the committed lockfile. TypeScript 6.0 and ESLint 9 match the current Next.js ESLint plugin peer ranges; ESLint 9 has an upstream deprecation notice. Track a compatible tooling update rather than forcing incompatible ESLint 10/TypeScript 7 peers. Install scripts are permitted only for `sharp` and `unrs-resolver`.
 
+## Connector synchronization
+
+Each connector synchronization invocation reads one bounded provider page, stores only normalized canonical records, and records a durable run. Catalog, order and stock cursors advance independently in the same MongoDB transaction as the records and successful run state. A two-minute lease permits recovery after deployment replacement; idempotency keys, three total attempts and terminal safe error codes prevent duplicate progress and unbounded retries. Provider payload envelopes and credentials are never persisted.
+
 ## Remaining product work
 
 Business reporting uses versioned MongoDB read models rather than querying transactional collections in page requests. An hourly Vercel Cron rebuilds bounded seller and campaign rollups into a new generation and publishes it through a per-seller checkpoint only after completion. Seller and operator interfaces read the published generation; transactional workflows never depend on it. Failed projections cannot affect offers, inventory, delivery, purchases, or redemptions. See `docs/reporting.md` for runtime and recovery details.

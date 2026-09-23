@@ -186,8 +186,11 @@ These gaps are intentional inventory facts, not regressions:
   models. Moving all request entry points from explicit `sellerId` constraints
   to mandatory async-local seller context remains a later hardening step.
 - The provider-neutral connector contract and Shoprenter/UNAS adapters implement
-  live connection tests and bounded product, order and stock reads. The owner UI
-  stores only a strict environment-variable reference and durable health state.
+  live connection tests and bounded product, order and stock reads. Each manual
+  page writes normalized provider records plus a durable idempotent run and
+  atomically advances an independent capability cursor. Expired leases and two
+  bounded retries provide deployment recovery. The owner UI stores only a strict
+  environment-variable reference and durable health state.
   Signed hand-off uses a recoverable processing lease and a validated same-origin
   product URL template. Automated provider cart creation, order write-back and
   stock webhooks remain open because neither published provider contract supplies

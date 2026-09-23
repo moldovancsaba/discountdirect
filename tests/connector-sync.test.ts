@@ -1,0 +1,9 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { connectorRunKey, connectorSyncKind, normalizedSyncItem, retryAt, safeNextCursor } from "../src/connectors/sync-core.ts";
+import { providerRetryDelay } from "../src/connectors/transport.ts";
+
+test("connector sync kinds and idempotency keys are bounded",()=>{assert.equal(connectorSyncKind("catalog_sync"),"catalog_sync");assert.equal(connectorSyncKind("unknown"),null);assert.equal(connectorRunKey("sync:catalog:1234"),"sync:catalog:1234");assert.equal(connectorRunKey("short"),null);});
+test("connector records are normalized and hashed without provider envelopes",()=>{const value=normalizedSyncItem("catalog_sync",{providerId:" p-1 ",sku:"SKU-1",name:"Árvíztűrő termék",priceHuf:12990,active:true,updatedAt:new Date("2026-09-20T10:00:00Z")});assert.equal(value.providerId,"p-1");assert.equal(value.payload.name,"Árvíztűrő termék");assert.match(value.checksum,/^[a-f0-9]{64}$/);assert.throws(()=>normalizedSyncItem("stock_sync",{providerId:"p",sku:"SKU",quantity:-1,updatedAt:null}),/INVALID_PROVIDER_VALUE/);});
+test("cursor advancement rejects loops and oversized values",()=>{assert.equal(safeNextCursor("1","2"),"2");assert.equal(safeNextCursor("1",null),null);assert.throws(()=>safeNextCursor("1","1"),/INVALID_CURSOR/);assert.throws(()=>safeNextCursor(null,"x".repeat(501)),/INVALID_CURSOR/);});
+test("run and transport retries are bounded",()=>{assert.equal(retryAt(1,0)?.getTime(),60_000);assert.equal(retryAt(2,0)?.getTime(),300_000);assert.equal(retryAt(3,0),null);assert.equal(providerRetryDelay(0,0),150);assert.equal(providerRetryDelay(1,1),400);});

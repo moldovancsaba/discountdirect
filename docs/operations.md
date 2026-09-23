@@ -25,6 +25,15 @@
 - The buyer relationship and accepted offer are revalidated at consumption. Revoked relationships fail closed, and the public recovery screen contains no buyer, seller, price or provider details.
 - Re-enable the feature only after connector health and the production hand-off recovery states have been verified.
 
+## Commerce connector recovery
+
+- Each manual sync invocation processes one provider page with at most 100 normalized records. The run owns a two-minute lease and advances its capability-specific cursor only in the same transaction that stores records and marks the run successful.
+- Provider transport retries twice with bounded exponential backoff and jitter. A failed run may be reclaimed twice after 1 and 5 minutes; the third failed attempt is terminal and retains its safe error code.
+- Reusing an idempotency key returns the successful run. A replacement deployment may reclaim an expired running lease; it must not create a second run or advance the cursor twice.
+- Disable the installation to stop tests, synchronization and new checkout hand-offs. Durable connector records and run evidence remain retained for investigation.
+- `AUTH` and `CONFIGURATION` require credential/configuration repair. Transient timeout, rate-limit and provider failures mark the installation degraded. Test the corrected installation before resuming synchronization.
+- Never rewind a cursor in production without documenting the provider range and using a new idempotency key. Record upserts are provider-ID based, but a rewind can still increase provider load.
+
 ## Private artifact recovery
 
 - `artifacts.status=failed` means metadata exists but the immutable Blob write did not complete. Keep the row as evidence and regenerate with a new idempotency key after Blob health recovers.

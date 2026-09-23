@@ -1,8 +1,8 @@
 import "server-only";
-import type { CommerceConnector, ConnectorConfiguration, ConnectorProvider } from "./contracts";
-import { ShoprenterConnector, type ShoprenterCredentials } from "./providers/shoprenter";
-import { UnasConnector, type UnasCredentials } from "./providers/unas";
-import { ProviderError, type ProviderFetch } from "./transport";
+import type { CommerceConnector, ConnectorConfiguration, ConnectorProvider } from "./contracts.ts";
+import { ShoprenterConnector, type ShoprenterCredentials } from "./providers/shoprenter.ts";
+import { UnasConnector, type UnasCredentials } from "./providers/unas.ts";
+import { ProviderError, type ProviderFetch } from "./transport.ts";
 
 function credentials<T>(reference: string): T {
   if (!/^[A-Z][A-Z0-9_]{2,79}$/.test(reference)) throw new ProviderError("CONFIGURATION", false);
