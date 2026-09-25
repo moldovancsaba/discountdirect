@@ -51,6 +51,12 @@ const labels: Record<string, string> = {
   READY_FOR_RESEND: "E-mail küldésre kész",
   READY_FOR_CONFIGURED_TRANSPORT: "Küldésre kész",
   TRANSPORT_NOT_CONFIGURED: "A csatorna nincs beállítva",
+  WHATSAPP_PROVIDER_NOT_CONFIGURED: "A WhatsApp szolgáltató nincs beállítva",
+  RCS_PROVIDER_NOT_CONFIGURED: "Az RCS szolgáltató nincs beállítva",
+  REDIS_LOCK_BUSY: "Egy másik feldolgozás már fut",
+  REDIS_UNAVAILABLE:
+    "A gyorsító szolgáltatás nem érhető el; biztonságos tartalékútvonal fut",
+  POSTAL_PROVIDER_NOT_CONFIGURED: "A postai szolgáltató nincs beállítva",
   DELIVERY_SEND_IN_PROGRESS: "A küldés folyamatban van",
   EMAIL_HARD_BOUNCE: "A címzett levelezőrendszere elutasította",
   EMAIL_COMPLAINT: "A címzett kéretlen levélként jelölte",
@@ -59,7 +65,10 @@ const labels: Record<string, string> = {
   BUYER_RELATIONSHIP_INACTIVE: "A vásárlói kapcsolat nem aktív",
 };
 
-export function businessLabel(value: string | null | undefined, fallback = "Nincs megadva") {
+export function businessLabel(
+  value: string | null | undefined,
+  fallback = "Nincs megadva",
+) {
   if (!value) return fallback;
   if (labels[value]) return labels[value];
   const readable = value.toLocaleLowerCase("hu-HU").replaceAll("_", " ");
