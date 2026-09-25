@@ -391,7 +391,7 @@ try {
   const preferencesPath = "/api/buyer/allowed-seller/preferences";
   const initialPreferences = await fetch(`${base}${preferencesPath}`, { headers: { cookie } });
   assert.equal(initialPreferences.status, 200);
-  assert.deepEqual((await initialPreferences.json()).preferences.map((item: { subscribed: boolean }) => item.subscribed), [false, false]);
+  assert.deepEqual((await initialPreferences.json()).preferences.map((item: { subscribed: boolean }) => item.subscribed), [false, false, false, false]);
   assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 403);
   const preferenceUpdate = await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) });
   assert.equal(preferenceUpdate.status, 200);
