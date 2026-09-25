@@ -755,21 +755,18 @@ export async function runBirthdayJourneyTriggers(limit = 50, now = new Date()) {
         Customer.find({
           sellerId: definition.sellerId,
           privacyStatus: "active",
-          birthDate: {
-            $gte: new Date(
-              Date.UTC(
-                now.getUTCFullYear(),
-                now.getUTCMonth(),
-                now.getUTCDate(),
-              ),
-            ),
-            $lt: new Date(
-              Date.UTC(
-                now.getUTCFullYear(),
-                now.getUTCMonth(),
-                now.getUTCDate() + 1,
-              ),
-            ),
+          $expr: {
+            $and: [
+              { $eq: [{ $month: "$birthDate" }, now.getUTCMonth() + 1] },
+              {
+                $in: [
+                  { $dayOfMonth: "$birthDate" },
+                  now.getUTCMonth() === 1 && now.getUTCDate() === 28
+                    ? [28, 29]
+                    : [now.getUTCDate()],
+                ],
+              },
+            ],
           },
         })
           .limit(bounded)
