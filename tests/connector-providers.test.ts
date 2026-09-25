@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { SHOPRENTER_REQUIRED_SCOPES, ShoprenterConnector } from "../src/connectors/providers/shoprenter.ts";
 import { ProviderError } from "../src/connectors/transport.ts";
 import { UnasConnector } from "../src/connectors/providers/unas.ts";
+import { reconcileProviderOrder } from "../src/connectors/reconciliation.ts";
 
 const configuration = { shopName: "demo", shopUrl: "https://demo.example/", checkoutUrlTemplate: "https://demo.example/search?q={sku}&ref={handoffId}" };
 
@@ -58,6 +59,15 @@ test("UNAS reuses a bearer token until its documented expiry", async () => {
   await connector.listProducts(null, new AbortController().signal);
   await connector.listProducts("100", new AbortController().signal);
   assert.equal(loginCalls, 1);
+});
+
+test("provider reconciliation is attribution-first, idempotent, and explicit about unknown states", () => {
+  const completed = reconcileProviderOrder({ provider: "shoprenter", providerOrderId: "order-1", status: "paid", totalHuf: 12000, updatedAt: new Date("2026-09-25T10:00:00Z"), handoffId: "handoff-1", offerId: "offer-1" });
+  assert.equal(completed.state, "completed");
+  assert.equal(completed.reasonCode, "VERIFIED_OFFER_REFERENCE");
+  assert.equal(reconcileProviderOrder({ provider: "unas", providerOrderId: "order-2", status: "paid", totalHuf: 12000, updatedAt: null }).state, "unmatched");
+  assert.equal(reconcileProviderOrder({ provider: "unas", providerOrderId: "order-3", status: "mystery", totalHuf: 0, updatedAt: null }).state, "reconciliation_required");
+  assert.equal(reconcileProviderOrder({ provider: "unas", providerOrderId: "order-4", status: "refunded", totalHuf: 12000, updatedAt: null, offerId: "offer-4" }).state, "refunded");
 });
 
 test("provider checkout URL expands only the configured template",async()=>{const connector=new ShoprenterConnector({clientId:"client-id",clientSecret:"client-secret-value"},configuration,fetch);const result=await connector.createCheckout({handoffId:"handoff",offerId:"offer",productSku:"A B",quantity:1,priceHuf:1000,expiresAt:new Date()},new AbortController().signal);assert.equal(result.url,"https://demo.example/search?q=A%20B&ref=handoff");});
