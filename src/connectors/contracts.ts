@@ -6,7 +6,7 @@ export type CheckoutRequest = { handoffId: string; offerId: string; productSku: 
 export type CheckoutResult = { url: string; providerReference: string };
 export type ConnectorPage<T> = { items: T[]; nextCursor: string | null };
 export type CanonicalProduct = { providerId: string; sku: string; name: string; priceHuf: number; active: boolean; updatedAt: Date | null };
-export type CanonicalOrder = { providerId: string; status: string; totalHuf: number; createdAt: Date; updatedAt: Date | null };
+export type CanonicalOrder = { providerId: string; status: string; totalHuf: number; createdAt: Date; updatedAt: Date | null; handoffId?: string | null; offerId?: string | null };
 export type CanonicalStock = { providerId: string; sku: string; quantity: number; updatedAt: Date | null };
 export type ConnectorConfiguration = { shopName?: string; shopUrl: string; checkoutUrlTemplate: string };
 
