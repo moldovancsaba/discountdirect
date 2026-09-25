@@ -224,6 +224,7 @@ export async function scheduleAutomationPreview(userId: string, sellerSlug: stri
 export async function createAutomation(userId: string, sellerSlug: string, input: unknown) {
   const value = createInput(input);
   const seller = await sellerAccess(userId, sellerSlug);
+  return withSellerTenant(seller._id, async () => {
   const existing = await OfferAutomation.findOne({ sellerId: seller._id, createdByUserId: userId, clientRequestId: value.clientRequestId }).lean();
   if (existing) return outputAutomation(existing);
   const { customer, buyer } = await automationCustomer(seller._id, value.customerId);
@@ -237,6 +238,7 @@ export async function createAutomation(userId: string, sellerSlug: string, input
     }
     throw error;
   }
+  });
 }
 
 export async function listAutomations(userId: string, sellerSlug: string) {
