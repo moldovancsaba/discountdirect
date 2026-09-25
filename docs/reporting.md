@@ -33,3 +33,9 @@ count, net attributed revenue, margin only where an effective cost revision is
 available, and an explicit missing-cost count. The query is bounded to the
 campaign product and campaign time window; it never turns missing evidence into
 zero margin.
+
+Seller metrics can be exported from
+`/api/sellers/:sellerSlug/metrics/export` with the same optional `from` and `to`
+date parameters as the dashboard. The export is limited to the active bounded
+projection, contains aggregate daily counters only, and returns `409` while no
+ready generation exists.
