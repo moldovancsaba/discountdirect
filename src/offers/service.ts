@@ -15,6 +15,7 @@ import { discountDecision } from "@/pricing/service";
 import { discountedPrice } from "@/pricing/reference-price";
 import { productReferencePrice } from "@/pricing/reference-price-service";
 import { offerTransition } from "./lifecycle";
+import { withSellerTenant } from "@/lib/tenant";
 
 export class OfferError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "EXPIRED" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
@@ -39,6 +40,7 @@ async function activeBuyerSellerIds(userId: string) {
 
 export async function createOffer(userId: string, sellerSlug: string, input: unknown) {
   const value = createInput(input); const seller = await sellerContext(userId, sellerSlug);
+  return withSellerTenant(seller._id, async () => {
   const existing = await Offer.findOne({ sellerId: seller._id, createdByUserId: userId, clientRequestId: value.clientRequestId }).lean(); if (existing) return output(existing);
   const preview = await RecommendationPreview.findOne({ _id: value.previewId, sellerId: seller._id, status: "eligible" }).lean();
   if (!preview?.buyerUserId) throw new OfferError("NOT_FOUND");
@@ -79,6 +81,7 @@ export async function createOffer(userId: string, sellerSlug: string, input: unk
     }
     throw error;
   }
+  });
 }
 
 export async function buyerOffers(userId: string) { await connectDatabase(); const sellerIds = await activeBuyerSellerIds(userId); if (!sellerIds.length) return { offers: [] }; const now = new Date(); await Offer.updateMany({ sellerId: { $in: sellerIds }, buyerUserId: userId, status: "pending", expiresAt: { $lte: now } }, { $set: { status: "expired", decidedAt: now }, $inc: { version: 1 } }); const rows = await Offer.find({ sellerId: { $in: sellerIds }, buyerUserId: userId }).sort({ expiresAt: 1, _id: 1 }).limit(100).lean(); return { offers: rows.map(output) }; }
