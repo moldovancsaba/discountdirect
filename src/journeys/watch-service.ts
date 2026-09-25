@@ -48,7 +48,7 @@ export async function upsertProductWatch(userId: string, sellerSlug: string, raw
   const { seller, customer, product } = await buyerContext(userId, sellerSlug, value.productId);
   const row = await ProductWatch.findOneAndUpdate(
     { sellerId: seller._id, buyerUserId: userId, productId: product._id, triggerKind: value.triggerKind },
-    { $set: { customerId: customer._id, status: "active" }, $setOnInsert: { version: 1 }, $inc: { version: 1 } },
+    { $set: { customerId: customer._id, status: "active" }, $setOnInsert: { version: 0 }, $inc: { version: 1 } },
     { upsert: true, new: true, runValidators: true },
   ).lean();
   return { watch: { id: row!._id.toString(), productId: row!.productId.toString(), triggerKind: row!.triggerKind, status: row!.status, version: row!.version } };
