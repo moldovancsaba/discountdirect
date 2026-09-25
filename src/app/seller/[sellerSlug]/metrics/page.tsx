@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { BannerNotice, GdsGrid, GdsIcon, MetricCard, PageHeader, SectionPanel, SimpleDataTable } from "@discountdirect/gds-client";
+import { BannerNotice, Button as GdsButton, GdsGrid, GdsIcon, MetricCard, PageHeader, SectionPanel, SimpleDataTable } from "@discountdirect/gds-client";
 import { currentUser } from "@/auth/service";
 import { Shell } from "@/components/shell";
 import { sellerMetrics } from "@/reporting/service";
@@ -15,7 +15,8 @@ export default async function MetricsPage({ params, searchParams }: { params: Pr
   let data; try { data = await sellerMetrics(user.id, sellerSlug, { from: query.from ? new Date(`${query.from}T00:00:00.000Z`) : undefined, to: query.to ? new Date(`${query.to}T23:59:59.999Z`) : undefined }); } catch { redirect("/account?error=forbidden"); }
   return <Shell><PageHeader eyebrow="Eladói munkatér" title="Eredmények" description="A lezárt riportgeneráció összesített üzleti mutatói. A tranzakciós adatok változatlanul az elsődleges források." />
     {!data.ready ? <BannerNotice severity="warning" message="A riport még nem készült el. Az üzleti adatok helyett nem jelenítünk meg félkész vagy nulla értékeket." /> : <>
-      {data.stale ? <BannerNotice severity="warning" message={`A riport frissítése késik. Utolsó sikeres számítás: ${date.format(new Date(data.computedAt))}.`} /> : <BannerNotice severity="success" variant="compact" message={`Utolsó sikeres számítás: ${date.format(new Date(data.computedAt))}.`} />}
+      {data.stale ? <BannerNotice severity="warning" message={`A riport frissítése késik. Utolsó sikeres számítás: ${date.format(new Date(data.computedAt))}.`} /> : <BannerNotice severity="success" variant="compact" message={`Utolsó sikeres számítás: ${date.format(new Date(data.computedAt))}. Definíció: ${data.definitionVersion}.`} />}
+      <div className="button-row"><GdsButton component="a" href={`/api/sellers/${encodeURIComponent(sellerSlug)}/metrics/export${query.from || query.to ? `?${new URLSearchParams({ ...(query.from ? { from: query.from } : {}), ...(query.to ? { to: query.to } : {}) }).toString()}` : ""}`} variant="default" leftSection={<GdsIcon name="Download" decorative />}>CSV export</GdsButton></div>
       <GdsGrid columns={{ base: 1, md: 3 }}>
         <MetricCard label="Kampányok" value={number.format(data.totals.campaigns)} description={`${number.format(data.totals.offers)} ajánlat`} icon={<GdsIcon name="Send" decorative />} />
         <MetricCard label="Elfogadott ajánlatok" value={number.format(data.totals.acceptedOffers)} description={`${number.format(data.totals.declinedOffers)} elutasított`} icon={<GdsIcon name="Check" decorative />} />
