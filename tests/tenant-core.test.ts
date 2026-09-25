@@ -67,10 +67,42 @@ test("tenant bypass requires a named reason", () => {
 });
 
 test("Mongoose 9 query middleware rejects an actual unscoped query", async () => {
-  const schema = new mongoose.Schema({ sellerId: mongoose.Schema.Types.ObjectId }, { bufferCommands: false });
+  const schema = new mongoose.Schema({ sellerId: String }, { bufferCommands: false });
   schema.plugin(sellerScopedSchema);
   const name = `TenantGuardProbe${Date.now()}`;
   const Model = mongoose.model(name, schema);
   await assert.rejects(Model.findOne({}).exec(), (error: unknown) => error instanceof Error && error.message === "TENANT_CONTEXT_REQUIRED");
+  mongoose.deleteModel(name);
+});
+
+test("explicit seller filters cannot bypass the required tenant context", async () => {
+  const schema = new mongoose.Schema({ sellerId: mongoose.Schema.Types.ObjectId }, { bufferCommands: false });
+  schema.plugin(sellerScopedSchema);
+  const name = `TenantExplicitFilterProbe${Date.now()}`;
+  const Model = mongoose.model(name, schema);
+  await assert.rejects(
+    Model.find({ sellerId: "seller_1" }).exec(),
+    (error: unknown) => error instanceof Error && error.message === "TENANT_CONTEXT_REQUIRED",
+  );
+  await assert.rejects(
+    Model.aggregate([{ $match: { sellerId: "seller_1" } }]).exec(),
+    (error: unknown) => error instanceof Error && error.message === "TENANT_CONTEXT_REQUIRED",
+  );
+  mongoose.deleteModel(name);
+});
+
+test("seller writes require context and cannot claim another seller", async () => {
+  const schema = new mongoose.Schema({ sellerId: String }, { bufferCommands: false });
+  schema.plugin(sellerScopedSchema);
+  const name = `TenantWriteProbe${Date.now()}`;
+  const Model = mongoose.model(name, schema);
+  await assert.rejects(
+    new Model({ sellerId: "seller_1" }).save(),
+    (error: unknown) => error instanceof Error && error.message === "TENANT_CONTEXT_REQUIRED",
+  );
+  await assert.rejects(
+    withSellerTenant("seller_1", () => new Model({ sellerId: "seller_2" }).save()),
+    (error: unknown) => error instanceof Error && error.message === "TENANT_MISMATCH",
+  );
   mongoose.deleteModel(name);
 });

@@ -105,7 +105,7 @@ function setDocValue(document: Record<string, unknown>, path: string, value: unk
   else document[path] = value;
 }
 
-function guardDocument(document: Record<string, unknown>, context: TenantContext | null, allowExplicitSellerId: boolean) {
+function guardDocument(document: Record<string, unknown>, context: TenantContext | null) {
   if (context?.mode === "bypass") return;
   const currentSellerId = docValue(document, "sellerId");
   if (context?.mode === "seller") {
@@ -116,13 +116,10 @@ function guardDocument(document: Record<string, unknown>, context: TenantContext
     if (!sellerIdsMatch(currentSellerId, context.sellerId)) throw new TenantScopeError("TENANT_MISMATCH");
     return;
   }
-  if (allowExplicitSellerId && currentSellerId != null) return;
   throw new TenantScopeError("TENANT_CONTEXT_REQUIRED");
 }
 
-export function sellerScopedSchema(schema: Schema, options: { allowExplicitSellerId?: boolean } = {}) {
-  const allowExplicitSellerId = options.allowExplicitSellerId ?? true;
-
+export function sellerScopedSchema(schema: Schema) {
   for (const operation of queryOperations) {
     (schema as any).pre(operation, function tenantQueryGuard(this: unknown) {
       const context = currentTenantContext();
@@ -134,8 +131,6 @@ export function sellerScopedSchema(schema: Schema, options: { allowExplicitSelle
         query.setQuery(tenantScopedQueryFilter(filter, context.sellerId));
         return;
       }
-
-      if (allowExplicitSellerId && hasSellerConstraint(filter)) return;
 
       throw new TenantScopeError("TENANT_CONTEXT_REQUIRED");
     });
@@ -152,19 +147,17 @@ export function sellerScopedSchema(schema: Schema, options: { allowExplicitSelle
       return;
     }
 
-    if (allowExplicitSellerId && pipelineStartsWithSellerConstraint(pipeline)) return;
-
     throw new TenantScopeError("TENANT_CONTEXT_REQUIRED");
   });
 
   (schema as any).pre("save", function tenantSaveGuard(this: unknown) {
-    guardDocument(this as unknown as Record<string, unknown>, currentTenantContext(), allowExplicitSellerId);
+    guardDocument(this as unknown as Record<string, unknown>, currentTenantContext());
   });
 
   (schema as any).pre("insertMany", function tenantInsertManyGuard(
     this: unknown,
     docs: Record<string, unknown>[],
   ) {
-    for (const doc of docs) guardDocument(doc, currentTenantContext(), allowExplicitSellerId);
+    for (const doc of docs) guardDocument(doc, currentTenantContext());
   });
 }
