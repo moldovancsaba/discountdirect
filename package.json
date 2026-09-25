@@ -23,6 +23,7 @@
     "test:quality-release": "node scripts/quality-audit.mjs",
     "ops:monitor": "node scripts/ops-monitor.mjs",
     "redis:verify": "node --experimental-strip-types scripts/verify-redis.ts",
+    "blob:verify": "node --experimental-strip-types scripts/verify-blob.ts",
     "test:realtime-production": "node --experimental-strip-types --env-file=.env.production.local scripts/realtime-production-probe.ts",
     "test:auth-integration": "node --experimental-strip-types --env-file=.env.local scripts/verify-auth.ts",
     "test:email-integration": "node --experimental-strip-types --env-file=.env.local scripts/verify-email-delivery.ts",

@@ -39,6 +39,7 @@
 - Shoprenter, postal and Resend webhook ingress is rate-limited per source address (120 requests per minute) when Redis is configured. Redis-unavailable mode accepts the request and relies on signature, replay and durable idempotency checks; rate-limit rejection is an explicit `429 RATE_LIMITED` response.
 - Accepted flash offers record a Redis campaign counter with expiry-based recovery retention after the MongoDB transaction commits. MongoDB reservation state remains authoritative; Redis loss only removes the acceleration counter and never changes acceptance or stock decisions.
 - Run `pnpm redis:verify` with the approved Upstash variables to produce a synthetic live drill. It loads every Lua script, performs five concurrent total/per-buyer counter writes, verifies a two-of-three rate-limit window, verifies lock contention, and deletes only its namespaced synthetic keys. Record the JSON result with the deployment and timestamp; never run it with customer identifiers.
+- Run `pnpm blob:verify` with the approved Blob variables to produce a synthetic private-artifact drill. It writes one namespaced text object, reads it through the provider and through a five-minute signed URL, verifies the exact content, and deletes the synthetic object in a `finally` cleanup. Record the JSON result with the deployment and timestamp; never use customer keys or content.
 
 ## Private artifact recovery
 

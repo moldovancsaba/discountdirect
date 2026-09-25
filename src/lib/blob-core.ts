@@ -1,4 +1,5 @@
 import {
+  del,
   get,
   issueSignedToken,
   list,
@@ -20,9 +21,7 @@ export type BlobReadiness =
   | {
       enabled: false;
       authMode: null;
-      reasonCode:
-        | "BLOB_NOT_CONFIGURED"
-        | "BLOB_CONFIGURATION_INCOMPLETE";
+      reasonCode: "BLOB_NOT_CONFIGURED" | "BLOB_CONFIGURATION_INCOMPLETE";
     };
 
 export class BlobConfigurationError extends Error {
@@ -34,7 +33,10 @@ export class BlobConfigurationError extends Error {
   }
 }
 
-export type BlobArtifactKind = "letter-pdf" | "privacy-export" | "audit-snapshot";
+export type BlobArtifactKind =
+  | "letter-pdf"
+  | "privacy-export"
+  | "audit-snapshot";
 
 export const blobRetentionDays = {
   HU: {
@@ -55,19 +57,40 @@ export function blobReadiness(env: BlobEnvironment = process.env) {
   const oidcToken = clean(env.VERCEL_OIDC_TOKEN);
   const storeId = clean(env.BLOB_STORE_ID);
   if (readWriteToken)
-    return { enabled: true, authMode: "read_write_token", reasonCode: null } satisfies BlobReadiness;
+    return {
+      enabled: true,
+      authMode: "read_write_token",
+      reasonCode: null,
+    } satisfies BlobReadiness;
   if (!oidcToken && !storeId)
-    return { enabled: false, authMode: null, reasonCode: "BLOB_NOT_CONFIGURED" } satisfies BlobReadiness;
+    return {
+      enabled: false,
+      authMode: null,
+      reasonCode: "BLOB_NOT_CONFIGURED",
+    } satisfies BlobReadiness;
   if (oidcToken && storeId)
-    return { enabled: true, authMode: "oidc", reasonCode: null } satisfies BlobReadiness;
-  return { enabled: false, authMode: null, reasonCode: "BLOB_CONFIGURATION_INCOMPLETE" } satisfies BlobReadiness;
+    return {
+      enabled: true,
+      authMode: "oidc",
+      reasonCode: null,
+    } satisfies BlobReadiness;
+  return {
+    enabled: false,
+    authMode: null,
+    reasonCode: "BLOB_CONFIGURATION_INCOMPLETE",
+  } satisfies BlobReadiness;
 }
 
 export function blobAuthOptions(env: BlobEnvironment = process.env) {
   const readiness = blobReadiness(env);
-  if (!readiness.enabled) throw new BlobConfigurationError(readiness.reasonCode);
-  if (readiness.authMode === "read_write_token") return { token: clean(env.BLOB_READ_WRITE_TOKEN) };
-  return { oidcToken: clean(env.VERCEL_OIDC_TOKEN), storeId: clean(env.BLOB_STORE_ID) };
+  if (!readiness.enabled)
+    throw new BlobConfigurationError(readiness.reasonCode);
+  if (readiness.authMode === "read_write_token")
+    return { token: clean(env.BLOB_READ_WRITE_TOKEN) };
+  return {
+    oidcToken: clean(env.VERCEL_OIDC_TOKEN),
+    storeId: clean(env.BLOB_STORE_ID),
+  };
 }
 
 export function blobKeyPart(value: string | number) {
@@ -87,7 +110,12 @@ export function blobFilename(value: string) {
 }
 
 export const blobKeys = {
-  sellerArtifact(input: { sellerId: string; kind: BlobArtifactKind; id: string; filename: string }) {
+  sellerArtifact(input: {
+    sellerId: string;
+    kind: BlobArtifactKind;
+    id: string;
+    filename: string;
+  }) {
     return [
       "seller",
       blobKeyPart(input.sellerId),
@@ -98,7 +126,11 @@ export const blobKeys = {
     ].join("/");
   },
   sellerArtifactPrefix(sellerId: string, kind?: BlobArtifactKind) {
-    return ["seller", blobKeyPart(sellerId), "artifacts", kind].filter(Boolean).join("/") + "/";
+    return (
+      ["seller", blobKeyPart(sellerId), "artifacts", kind]
+        .filter(Boolean)
+        .join("/") + "/"
+    );
   },
 } as const;
 
@@ -107,7 +139,11 @@ type PrivatePutBody = Parameters<typeof put>[1];
 export async function putPrivateBlob(
   pathname: string,
   body: PrivatePutBody,
-  options: { contentType?: string; allowOverwrite?: boolean; env?: BlobEnvironment } = {},
+  options: {
+    contentType?: string;
+    allowOverwrite?: boolean;
+    env?: BlobEnvironment;
+  } = {},
 ): Promise<PutBlobResult> {
   return put(pathname, body, {
     ...blobAuthOptions(options.env),
@@ -118,7 +154,17 @@ export async function putPrivateBlob(
   });
 }
 
-export function getPrivateBlob(pathname: string, options: { env?: BlobEnvironment; useCache?: boolean } = {}) {
+export async function deletePrivateBlob(
+  pathname: string,
+  options: { env?: BlobEnvironment } = {},
+) {
+  return del(pathname, blobAuthOptions(options.env));
+}
+
+export function getPrivateBlob(
+  pathname: string,
+  options: { env?: BlobEnvironment; useCache?: boolean } = {},
+) {
   return get(pathname, {
     ...blobAuthOptions(options.env),
     access: "private",
@@ -127,9 +173,14 @@ export function getPrivateBlob(pathname: string, options: { env?: BlobEnvironmen
 }
 
 export type PrivateReadUrlDependencies = {
-  issueSignedToken(input: Parameters<typeof issueSignedToken>[0]): Promise<IssuedSignedToken>;
+  issueSignedToken(
+    input: Parameters<typeof issueSignedToken>[0],
+  ): Promise<IssuedSignedToken>;
   presignUrl(
-    signedToken: Pick<IssuedSignedToken, "clientSigningToken" | "delegationToken">,
+    signedToken: Pick<
+      IssuedSignedToken,
+      "clientSigningToken" | "delegationToken"
+    >,
     options: Parameters<typeof presignUrl>[1],
   ): Promise<{ presignedUrl: string }>;
 };
@@ -145,7 +196,10 @@ export async function privateBlobReadUrl(
   } = {},
 ) {
   const now = options.now ?? new Date();
-  const ttlSeconds = Math.max(60, Math.min(options.ttlSeconds ?? 15 * 60, 24 * 60 * 60));
+  const ttlSeconds = Math.max(
+    60,
+    Math.min(options.ttlSeconds ?? 15 * 60, 24 * 60 * 60),
+  );
   const validUntil = now.getTime() + ttlSeconds * 1000;
   const dependencies = options.dependencies ?? { issueSignedToken, presignUrl };
   const signedToken = await dependencies.issueSignedToken({
@@ -166,16 +220,34 @@ export async function privateBlobReadUrl(
 
 export type BlobHealth =
   | { connected: true; latencyMs: number }
-  | { connected: false; latencyMs: null; reasonCode: BlobReadiness["reasonCode"] | "BLOB_UNAVAILABLE" };
+  | {
+      connected: false;
+      latencyMs: null;
+      reasonCode: BlobReadiness["reasonCode"] | "BLOB_UNAVAILABLE";
+    };
 
-export async function blobHealth(env: BlobEnvironment = process.env): Promise<BlobHealth> {
+export async function blobHealth(
+  env: BlobEnvironment = process.env,
+): Promise<BlobHealth> {
   const readiness = blobReadiness(env);
-  if (!readiness.enabled) return { connected: false, latencyMs: null, reasonCode: readiness.reasonCode };
+  if (!readiness.enabled)
+    return {
+      connected: false,
+      latencyMs: null,
+      reasonCode: readiness.reasonCode,
+    };
   const start = performance.now();
   try {
     await list({ ...blobAuthOptions(env), limit: 1 });
-    return { connected: true, latencyMs: Math.round(performance.now() - start) };
+    return {
+      connected: true,
+      latencyMs: Math.round(performance.now() - start),
+    };
   } catch {
-    return { connected: false, latencyMs: null, reasonCode: "BLOB_UNAVAILABLE" };
+    return {
+      connected: false,
+      latencyMs: null,
+      reasonCode: "BLOB_UNAVAILABLE",
+    };
   }
 }
