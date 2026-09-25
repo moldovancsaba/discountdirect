@@ -472,6 +472,20 @@ try {
   assert.equal(exportPayload.purchases.length, 2);
   assert.equal(exportPayload.preferences.find((item: { channel: string }) => item.channel === "email").status, "subscribed");
 
+  const slaRequest = (await (await post(privacyRequestPath, { type: "access_export" }, cookie)).json()).request;
+  await withTenantBypass("auth-integration-sla-fixture", async () => await PrivacyRequest.updateOne(
+    { _id: slaRequest.id, sellerId: allowedSeller._id },
+    { $set: { dueAt: new Date(Date.now() - 86_400_000), reminderAt: new Date(Date.now() - 2 * 86_400_000), slaStatus: "pending" } },
+  ));
+  const metricsCron = await fetch(`${base}/api/cron/metrics?limit=10`, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
+  assert.equal(metricsCron.status, 200);
+  assert.equal((await PrivacyRequest.findOne({ _id: slaRequest.id, sellerId: allowedSeller._id }).lean())?.slaStatus, "overdue");
+  const acknowledgePath = `/api/sellers/allowed-seller/privacy-requests/${slaRequest.id}/acknowledge`;
+  const acknowledged = await fetch(`${base}${acknowledgePath}`, { method: "POST", headers: { origin: base, cookie } });
+  assert.equal(acknowledged.status, 200);
+  assert.equal((await PrivacyRequest.findOne({ _id: slaRequest.id, sellerId: allowedSeller._id }).lean())?.slaStatus, "acknowledged");
+  assert.equal((await PrivacyRequest.findOne({ _id: slaRequest.id, sellerId: allowedSeller._id }).lean())?.status, "requested");
+
   const restrictionRequest = (await (await post(privacyRequestPath, { type: "restriction" }, cookie)).json()).request;
   const restrictionPath = `/api/sellers/allowed-seller/privacy-requests/${restrictionRequest.id}`;
   assert.equal((await fetch(`${base}${restrictionPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ status: "processing", resolution: "Identity verified" }) })).status, 200);
