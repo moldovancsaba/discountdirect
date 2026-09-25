@@ -71,7 +71,7 @@ export async function heartbeatPresence(userId: string, conversationId: string) 
   return withSellerTenant(access.conversation.sellerId, async () => {
     const now = new Date();
     const prior = await ConversationPresence.findOne({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, userId }).lean();
-    await ConversationPresence.findOneAndUpdate({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, userId }, { $set: { sellerId: access.conversation.sellerId, expiresAt: new Date(now.getTime() + PRESENCE_MS), updatedAt: now } }, { upsert: true, new: true });
+    await ConversationPresence.findOneAndUpdate({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, userId }, { $set: { sellerId: access.conversation.sellerId, expiresAt: new Date(now.getTime() + PRESENCE_MS), updatedAt: now } }, { upsert: true, returnDocument: "after" });
     if (!prior) await recordPresenceChange(access.conversation, now);
     return access;
   });

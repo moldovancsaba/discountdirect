@@ -199,7 +199,7 @@ export async function revokeUserSessionsByOperator(
     const user = await User.findByIdAndUpdate(
       userId,
       { $inc: { authVersion: 1 } },
-      { new: true, session },
+      { returnDocument: "after", session },
     );
     if (!user) throw new AdminAccessError("NOT_FOUND");
     await revokeOpenSessions(session, user._id, now);
@@ -224,7 +224,7 @@ export async function disableUserByOperator(
     const user = await User.findByIdAndUpdate(
       userId,
       { $set: { status: "disabled" }, $inc: { authVersion: 1 } },
-      { new: true, session },
+      { returnDocument: "after", session },
     );
     if (!user) throw new AdminAccessError("NOT_FOUND");
     await revokeOpenSessions(session, user._id, now);
@@ -254,7 +254,7 @@ export async function revokeMembershipByOperator(
     const membership = await Membership.findByIdAndUpdate(
       membershipId,
       { $set: { status: "revoked" } },
-      { new: true, session },
+      { returnDocument: "after", session },
     );
     if (!membership) throw new AdminAccessError("NOT_FOUND");
     await User.updateOne(
@@ -285,7 +285,7 @@ export async function revokeBuyerRelationshipByOperator(
     const relationship = await BuyerRelationship.findByIdAndUpdate(
       relationshipId,
       { $set: { status: "revoked" } },
-      { new: true, session },
+      { returnDocument: "after", session },
     );
     if (!relationship) throw new AdminAccessError("NOT_FOUND");
     await User.updateOne(

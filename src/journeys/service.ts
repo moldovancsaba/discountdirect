@@ -410,7 +410,7 @@ export async function setJourneyStatus(
         status: { $ne: "retired" },
       },
       { $set: { status }, $inc: { version: 1 } },
-      { new: true, session },
+      { returnDocument: "after", session },
     );
     if (!row) throw new JourneyError("CONFLICT");
     if (status === "paused")
@@ -540,7 +540,7 @@ async function runClaimedStep(row: any, workerId: string) {
       await JourneyStepRun.findOneAndUpdate(
         { _id: row._id, lockedBy: workerId, status: "processing" },
         { $inc: { attemptCount: 1 } },
-        { new: true },
+        { returnDocument: "after" },
       ).lean(),
   );
   if (!claimed) return { id: row._id.toString(), status: "lost_lease" };
@@ -720,7 +720,7 @@ export async function runDueJourneySteps(limit = 20) {
               reasonCode: "CLAIMED",
             },
           },
-          { sort: { nextRunAt: 1, _id: 1 }, new: true },
+          { sort: { nextRunAt: 1, _id: 1 }, returnDocument: "after" },
         ).lean(),
     );
     if (!row) break;

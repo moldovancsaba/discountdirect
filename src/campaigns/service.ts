@@ -118,7 +118,7 @@ export async function launchFlashCampaignPreview(userId: string, sellerSlug: str
       if (row.conversationId) {
         const previewText = offerThreadPreview(row);
         await ConversationEvent.create([{ conversationId: row.conversationId, sellerId: seller._id, kind: "offer", senderRole: "seller", senderUserId: userId, body: previewText, offerId: row._id, offerEventType: "created", createdAt: now }], { session });
-        const updated = await Conversation.findOneAndUpdate({ _id: row.conversationId, sellerId: seller._id }, { $set: { lastEventAt: now, lastEventPreview: previewText.slice(0, 240) }, $inc: { pendingOfferCount: 1, buyerUnreadCount: 1, version: 1 } }, { new: true, session });
+        const updated = await Conversation.findOneAndUpdate({ _id: row.conversationId, sellerId: seller._id }, { $set: { lastEventAt: now, lastEventPreview: previewText.slice(0, 240) }, $inc: { pendingOfferCount: 1, buyerUnreadCount: 1, version: 1 } }, { returnDocument: "after", session });
         if (updated) await recordRealtimeEvent(session, { sellerId: seller._id, conversationId: updated._id, type: "offer.updated", version: updated.version, occurredAt: now });
       }
     }
@@ -156,8 +156,8 @@ export async function reserveFlashOffer(session: mongoose.ClientSession, row: an
   const campaign = await Campaign.findOne({ _id: row.campaignId, sellerId: row.sellerId }).session(session); if (!campaign || campaign.status !== "active") throw new CampaignError("SOLD_OUT"); if (campaign.expiresAt <= now) { await releaseReservations(session, campaign, "expired", now); campaign.status = "expired"; await campaign.save({ session }); throw new CampaignError("SOLD_OUT"); }
   const product = await Product.findOne({ _id: row.productId, sellerId: row.sellerId, active: true }).session(session); if (!product || product.stock < 1) throw new CampaignError("SOLD_OUT");
   await CampaignInventoryBalance.updateOne({ sellerId: row.sellerId, productId: row.productId }, { $setOnInsert: { reserved: 0 } }, { upsert: true, session });
-  const balance = await CampaignInventoryBalance.findOneAndUpdate({ sellerId: row.sellerId, productId: row.productId, reserved: { $lt: product.stock } }, { $inc: { reserved: 1 } }, { new: true, session }); if (!balance) throw new CampaignError("SOLD_OUT");
-  const updated = await Campaign.findOneAndUpdate({ _id: campaign._id, sellerId: row.sellerId, status: "active", remaining: { $gt: 0 }, expiresAt: { $gt: now } }, { $inc: { remaining: -1 } }, { new: true, session }); if (!updated) throw new CampaignError("SOLD_OUT");
+  const balance = await CampaignInventoryBalance.findOneAndUpdate({ sellerId: row.sellerId, productId: row.productId, reserved: { $lt: product.stock } }, { $inc: { reserved: 1 } }, { returnDocument: "after", session }); if (!balance) throw new CampaignError("SOLD_OUT");
+  const updated = await Campaign.findOneAndUpdate({ _id: campaign._id, sellerId: row.sellerId, status: "active", remaining: { $gt: 0 }, expiresAt: { $gt: now } }, { $inc: { remaining: -1 } }, { returnDocument: "after", session }); if (!updated) throw new CampaignError("SOLD_OUT");
   await CampaignReservation.create([{ campaignId: campaign._id, offerId: row._id, sellerId: row.sellerId, productId: row.productId, buyerUserId: row.buyerUserId }], { session });
 }
 

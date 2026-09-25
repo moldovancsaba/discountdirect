@@ -312,7 +312,7 @@ export async function createOffer(
               },
               $inc: { pendingOfferCount: 1, buyerUnreadCount: 1, version: 1 },
             },
-            { new: true, session },
+            { returnDocument: "after", session },
           );
           if (updated)
             await recordRealtimeEvent(session, {
@@ -537,7 +537,7 @@ export async function respondToOffer(
                     version: 1,
                   },
                 },
-                { new: true, session },
+                { returnDocument: "after", session },
               );
               if (conversation)
                 await recordRealtimeEvent(session, {
@@ -604,7 +604,7 @@ export async function respondToOffer(
                   version: 1,
                 },
               },
-              { new: true, session },
+              { returnDocument: "after", session },
             );
             if (conversation)
               await recordRealtimeEvent(session, {

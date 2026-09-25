@@ -23,13 +23,13 @@ export async function joinMembership(userId: string, sellerSlug: string) {
   const { seller, relationship } = await context(userId, sellerSlug);
   const tier = deriveMembershipTier(relationship.orderCount, relationship.totalHuf);
   const now = new Date();
-  const row = await withSellerTenant(seller._id, async () => await CustomerMembership.findOneAndUpdate({ sellerId: seller._id, buyerUserId: userId }, { $set: { status: "active", tier, leftAt: null, ruleVersion: MEMBERSHIP_RULE_VERSION }, $setOnInsert: { joinedAt: now, version: 1 } }, { upsert: true, new: true, runValidators: true }));
+  const row = await withSellerTenant(seller._id, async () => await CustomerMembership.findOneAndUpdate({ sellerId: seller._id, buyerUserId: userId }, { $set: { status: "active", tier, leftAt: null, ruleVersion: MEMBERSHIP_RULE_VERSION }, $setOnInsert: { joinedAt: now, version: 1 } }, { upsert: true, returnDocument: "after", runValidators: true }));
   return output(row);
 }
 
 export async function leaveMembership(userId: string, sellerSlug: string, expectedVersion: number) {
   const { seller } = await context(userId, sellerSlug);
-  const row = await withSellerTenant(seller._id, async () => await CustomerMembership.findOneAndUpdate({ sellerId: seller._id, buyerUserId: userId, version: expectedVersion, status: "active" }, { $set: { status: "left", leftAt: new Date() }, $inc: { version: 1 } }, { new: true, runValidators: true }));
+  const row = await withSellerTenant(seller._id, async () => await CustomerMembership.findOneAndUpdate({ sellerId: seller._id, buyerUserId: userId, version: expectedVersion, status: "active" }, { $set: { status: "left", leftAt: new Date() }, $inc: { version: 1 } }, { returnDocument: "after", runValidators: true }));
   if (!row) throw new MembershipError("CONFLICT");
   return output(row);
 }

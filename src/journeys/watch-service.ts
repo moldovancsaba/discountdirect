@@ -51,7 +51,7 @@ export async function upsertProductWatch(userId: string, sellerSlug: string, raw
   const row = await ProductWatch.findOneAndUpdate(
     { sellerId: seller._id, buyerUserId: userId, productId: product._id, triggerKind: value.triggerKind },
     { $set: { customerId: customer._id, status: "active" }, $setOnInsert: { version: 0 }, $inc: { version: 1 } },
-    { upsert: true, new: true, runValidators: true },
+    { upsert: true, returnDocument: "after", runValidators: true },
   ).lean();
   return { watch: { id: row!._id.toString(), productId: row!.productId.toString(), triggerKind: row!.triggerKind, status: row!.status, version: row!.version } };
 }
@@ -64,7 +64,7 @@ export async function cancelProductWatch(userId: string, sellerSlug: string, wat
   const row = await ProductWatch.findOneAndUpdate(
     { _id: watchId, sellerId: seller._id, buyerUserId: userId, version: expectedVersion, status: { $in: ["active", "paused"] } },
     { $set: { status: "cancelled" }, $inc: { version: 1 } },
-    { new: true, runValidators: true },
+    { returnDocument: "after", runValidators: true },
   ).lean();
   if (!row) throw new ProductWatchError("CONFLICT");
   return { watch: { id: row._id.toString(), productId: row.productId.toString(), triggerKind: row.triggerKind, status: row.status, version: row.version } };

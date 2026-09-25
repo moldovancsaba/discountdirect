@@ -129,7 +129,7 @@ export async function persistArtifact(
             $set: { status: "ready", readyAt: new Date(), lastErrorCode: null },
             $inc: { version: 1 },
           },
-          { new: true },
+          { returnDocument: "after" },
         ).lean(),
     );
     if (!row) throw new ArtifactError("UNAVAILABLE");

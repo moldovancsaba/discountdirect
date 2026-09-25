@@ -192,7 +192,7 @@ export async function saveBuyerInboxPreference(userId: string, input: unknown, e
   const scope = await buyerInboxScope(userId); if (value.sellerId && !scope.sellers.some((seller) => seller._id.toString() === value.sellerId)) throw new MessagingError("FORBIDDEN");
   const filter: Record<string, unknown> = { buyerUserId: userId }; if (Number(expectedVersion) > 0) filter.version = Number(expectedVersion);
   const update = { $set: { mode: value.mode, selectedSellerId: value.sellerId }, $inc: { version: 1 } };
-  try { const row = Number(expectedVersion) === 0 ? await InboxPreference.findOneAndUpdate(filter, update, { new: true, upsert: true, setDefaultsOnInsert: true }) : await InboxPreference.findOneAndUpdate(filter, update, { new: true });
+  try { const row = Number(expectedVersion) === 0 ? await InboxPreference.findOneAndUpdate(filter, update, { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }) : await InboxPreference.findOneAndUpdate(filter, update, { returnDocument: "after" });
     if (!row) throw new MessagingError("CONFLICT"); return { mode: row.mode, sellerId: row.selectedSellerId?.toString?.() ?? null, version: row.version };
   } catch (error: any) { if (error instanceof MessagingError) throw error; if (error?.code === 11000) throw new MessagingError("CONFLICT"); throw error; }
 }
@@ -221,7 +221,7 @@ export async function sendConversationMessage(userId: string, conversationId: st
     if (existing) { output = eventOutput(existing); return; }
     const now = new Date();
     const [created] = await ConversationEvent.create([{ conversationId: access.conversation._id, sellerId: access.conversation.sellerId, kind: "message", senderRole: access.role, senderUserId: userId, body: input.body, clientRequestId: input.clientRequestId, createdAt: now }], { session });
-    const updated = await Conversation.findOneAndUpdate({ _id: access.conversation._id, sellerId: access.conversation.sellerId }, { $set: { lastEventAt: now, lastEventPreview: input.body.slice(0, 240) }, $inc: { ...(access.role === "seller" ? { buyerUnreadCount: 1 } : { sellerUnreadCount: 1 }), version: 1 } }, { new: true, session });
+    const updated = await Conversation.findOneAndUpdate({ _id: access.conversation._id, sellerId: access.conversation.sellerId }, { $set: { lastEventAt: now, lastEventPreview: input.body.slice(0, 240) }, $inc: { ...(access.role === "seller" ? { buyerUnreadCount: 1 } : { sellerUnreadCount: 1 }), version: 1 } }, { returnDocument: "after", session });
     if (!updated) throw new MessagingError("NOT_FOUND");
     await recordRealtimeEvent(session, { sellerId: access.conversation.sellerId, conversationId: access.conversation._id, type: "message.created", version: updated.version, messageId: created._id, occurredAt: now });
     output = eventOutput(created.toObject());
@@ -247,7 +247,7 @@ export async function recordInboundBuyerMessage(input: { sellerId: unknown; buye
     if (existing) { output = eventOutput(existing); return; }
     const now = new Date();
     const [created] = await ConversationEvent.create([{ conversationId: conversation._id, sellerId: conversation.sellerId, kind: "message", senderRole: "buyer", senderUserId: input.buyerUserId, body: value.body, clientRequestId: value.clientRequestId, createdAt: now }], { session });
-    const updated = await Conversation.findOneAndUpdate({ _id: conversation._id, sellerId: conversation.sellerId }, { $set: { lastEventAt: now, lastEventPreview: value.body.slice(0, 240) }, $inc: { sellerUnreadCount: 1, version: 1 } }, { new: true, session });
+    const updated = await Conversation.findOneAndUpdate({ _id: conversation._id, sellerId: conversation.sellerId }, { $set: { lastEventAt: now, lastEventPreview: value.body.slice(0, 240) }, $inc: { sellerUnreadCount: 1, version: 1 } }, { returnDocument: "after", session });
     if (!updated) throw new MessagingError("NOT_FOUND");
     await recordRealtimeEvent(session, { sellerId: conversation.sellerId, conversationId: conversation._id, type: "message.created", version: updated.version, messageId: created._id, occurredAt: now });
     output = eventOutput(created.toObject());

@@ -167,7 +167,7 @@ export async function transitionPostalFulfillment(
               version: Number(input.version),
             },
             { $set: set, $inc: { version: 1 } },
-            { new: true, session },
+            { returnDocument: "after", session },
           ).lean();
           if (!updated) throw new FulfillmentError("CONFLICT");
           await PostalFulfillmentEvent.create(

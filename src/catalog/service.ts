@@ -71,7 +71,7 @@ export async function updateProduct(userId: string, sellerSlug: string, productI
       const product = await Product.findOneAndUpdate(
         { _id: productId, sellerId: seller._id, version: expectedVersion },
         { $set: { ...data, updatedByUserId: userId }, $inc: { version: 1 } },
-        { new: true, runValidators: true },
+        { returnDocument: "after", runValidators: true },
       );
       if (!product) {
         const exists = await Product.exists({ _id: productId, sellerId: seller._id });
@@ -149,7 +149,7 @@ export async function applyImport(userId: string, sellerSlug: string, batchId: s
         const product = await Product.findOneAndUpdate(
           { sellerId: seller._id, skuNormalized: data.skuNormalized, version: row.expectedVersion },
           { $set: { ...data, updatedByUserId: userId }, $inc: { version: 1 } },
-          { new: true, session, runValidators: true },
+          { returnDocument: "after", session, runValidators: true },
         );
         if (!product) throw new CatalogError("STALE");
         await revision(product, "import", userId, batch._id, session);

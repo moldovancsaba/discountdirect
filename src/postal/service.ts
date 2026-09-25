@@ -147,7 +147,7 @@ export async function generateOfferLetter(
         await PrintSnapshot.findOneAndUpdate(
           { ...query, status: "failed" },
           { $set: snapshotData },
-          { new: true },
+          { returnDocument: "after" },
         ).lean(),
     );
     if (!claimed) throw new PrintError("UNAVAILABLE");
@@ -199,7 +199,7 @@ export async function generateOfferLetter(
             generationAttempt,
           },
           { $set: { status: "ready", artifactId: artifact._id } },
-          { new: true },
+          { returnDocument: "after" },
         ).lean(),
     );
     if (!ready) throw new PrintError("UNAVAILABLE");

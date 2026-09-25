@@ -269,7 +269,7 @@ export async function applyPurchaseImport(
             },
             $setOnInsert: { privacyStatus: "active" },
           },
-          { upsert: true, new: true, session, runValidators: true },
+          { upsert: true, returnDocument: "after", session, runValidators: true },
         );
         const product = await Product.findOne({
           sellerId: seller._id,
@@ -429,7 +429,7 @@ export async function updatePurchaseStatus(
         },
         $inc: { version: 1 },
       },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     );
     if (!purchase)
       throw new PurchaseError(

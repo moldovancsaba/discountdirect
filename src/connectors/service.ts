@@ -115,7 +115,7 @@ export async function saveConnector(
       $setOnInsert: { createdByUserId: userId },
       $inc: { version: 1 },
     },
-    { upsert: true, new: true, runValidators: true },
+    { upsert: true, returnDocument: "after", runValidators: true },
   ).lean();
   return view(row);
 }
@@ -142,7 +142,7 @@ export async function disableConnector(
       $set: { status: "disabled", updatedByUserId: userId },
       $inc: { version: 1 },
     },
-    { new: true },
+    { returnDocument: "after" },
   ).lean();
   if (!row) throw new ConnectorError("STALE");
   return view(row);
@@ -175,7 +175,7 @@ export async function testConnector(
       $set: { status: "testing", lastErrorCode: null, updatedByUserId: userId },
       $inc: { version: 1 },
     },
-    { new: true },
+    { returnDocument: "after" },
   ).lean();
   if (!row) throw new ConnectorError("STALE");
   const controller = new AbortController();
@@ -201,7 +201,7 @@ export async function testConnector(
         },
         $inc: { version: 1 },
       },
-      { new: true },
+      { returnDocument: "after" },
     ).lean();
     if (!healthy) throw new ConnectorError("STALE");
     return view(healthy);
@@ -334,7 +334,7 @@ export async function syncConnector(
           },
           $inc: { attempt: 1 },
         },
-        { new: true },
+        { returnDocument: "after" },
       ).lean()
     : await ConnectorRun.create({
         sellerId: access.seller._id,
@@ -458,7 +458,7 @@ export async function syncConnector(
               const localProduct = await Product.findOneAndUpdate(
                 { sellerId: access.seller._id, skuNormalized: stock.sku.trim().toUpperCase(), active: true },
                 { $set: { stock: stock.quantity } },
-                { session, runValidators: true, new: true },
+                { session, runValidators: true, returnDocument: "after" },
               ).lean();
               if (localProduct && stock.quantity === 0) {
                 const activeOffers = await Offer.find({

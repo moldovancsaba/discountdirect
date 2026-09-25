@@ -361,7 +361,7 @@ export async function processDueDeliveries(limitValue = 20, fetcher: FetchLike =
           $set: { status: "processing", reasonCode: "DELIVERY_SEND_IN_PROGRESS", lastAttemptAt: now, lockedUntil: new Date(now.getTime() + LOCK_MS), lockedBy: WORKER_ID },
           $inc: { attemptCount: 1 },
         },
-        { sort: { nextAttemptAt: 1, createdAt: 1, _id: 1 }, new: true, runValidators: true },
+        { sort: { nextAttemptAt: 1, createdAt: 1, _id: 1 }, returnDocument: "after", runValidators: true },
       ),
     );
     if (!row) break;

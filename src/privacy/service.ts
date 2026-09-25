@@ -77,7 +77,7 @@ export async function updateBuyerPreferences(userId: string, sellerSlug: string,
       await ChannelPreference.findOneAndUpdate(
         { sellerId: seller._id, buyerUserId: userId, channel, purpose: "marketing" },
         { $set: { customerId: customer?._id ?? null, status, noticeVersion: PRIVACY_NOTICE_VERSION, changedAt: now } },
-        { upsert: true, new: true, session, runValidators: true },
+        { upsert: true, returnDocument: "after", session, runValidators: true },
       );
       if (subscribed || current) {
         await ConsentEvent.create([{ sellerId: seller._id, buyerUserId: userId, customerId: customer?._id ?? null, channel, purpose: "marketing", action: subscribed ? "granted" : "withdrawn", noticeVersion: PRIVACY_NOTICE_VERSION, occurredAt: now, actorUserId: userId }], { session });
@@ -199,7 +199,7 @@ export async function acknowledgePrivacySla(userId: string, sellerSlug: string, 
   const request = await withSellerTenant(seller._id, async () => await PrivacyRequest.findOneAndUpdate(
     { _id: requestId, sellerId: seller._id, status: { $in: ["requested", "processing", "failed"] }, slaStatus: { $in: ["reminder_due", "overdue"] } },
     { $set: { slaStatus: "acknowledged", handledByUserId: userId, lastAlertAt: new Date() } },
-    { new: true, runValidators: true },
+    { returnDocument: "after", runValidators: true },
   ).lean());
   if (!request) throw new PrivacyError("CONFLICT");
   return requestOutput(request);
