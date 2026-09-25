@@ -27,3 +27,9 @@ increasing product-local version and effective timestamp. The endpoint is
 SSO-protected and rejects non-owner access, invalid HUF values, future dates,
 and unknown products. Reporting consumers select the latest revision effective
 at order time and never overwrite historical cost evidence.
+
+Campaign detail responses now include `attribution`: purchase count, refund
+count, net attributed revenue, margin only where an effective cost revision is
+available, and an explicit missing-cost count. The query is bounded to the
+campaign product and campaign time window; it never turns missing evidence into
+zero margin.

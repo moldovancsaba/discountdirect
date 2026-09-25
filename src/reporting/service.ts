@@ -12,6 +12,8 @@ import { withTenantBypass } from "@/lib/tenant-core";
 import { campaignLift } from "@/campaigns/holdout";
 import { emptyCounters, projectionIsFresh, REPORTING_SCHEMA_VERSION, reduceMetricFacts, utcDay, type MetricFact } from "./core";
 import { MetricProjectionCheckpoint, MetricRollup } from "./models";
+import { ProductCostRevision } from "./cost-models";
+import { attributeOrder } from "./attribution";
 
 const LOOKBACK_DAYS = 90;
 const SOURCE_LIMIT = 20_000;
@@ -98,6 +100,21 @@ export async function campaignMetrics(sellerId: string, campaignIds: string[]) {
   if (!checkpoint?.activeGenerationId || checkpoint.status !== "ready") return new Map<string, any>();
   const rows = await MetricRollup.find({ sellerId, generationId: checkpoint.activeGenerationId, scope: "campaign", scopeId: { $in: campaignIds } }).lean();
   return new Map(rows.map((row: any) => [row.scopeId, row.counters]));
+}
+
+export async function campaignAttribution(sellerId: string, campaign: { _id: unknown; productId: unknown; createdAt: Date; expiresAt: Date }) {
+  await connectDatabase();
+  const purchases = await Purchase.find({ sellerId, productId: campaign.productId, status: { $in: ["purchased", "refunded"] }, purchasedAt: { $gte: campaign.createdAt, $lte: campaign.expiresAt } }).select({ orderId: 1, purchasedAt: 1, totalHuf: 1, status: 1 }).limit(SOURCE_LIMIT).lean();
+  const costs = await ProductCostRevision.find({ sellerId, productId: campaign.productId, effectiveAt: { $lte: campaign.expiresAt } }).sort({ effectiveAt: -1, version: -1 }).limit(100).lean();
+  let attributedRevenueHuf = 0; let marginHuf = 0; let marginEvidenceCount = 0; let missingCostCount = 0; let refundCount = 0;
+  for (const purchase of purchases) {
+    if (purchase.status === "refunded") { refundCount += 1; continue; }
+    const cost = costs.find((revision) => revision.effectiveAt <= purchase.purchasedAt) ?? null;
+    const result = attributeOrder({ orderId: purchase.orderId, orderAt: purchase.purchasedAt, revenueHuf: purchase.totalHuf, campaignOfferId: String(campaign._id), campaignCreatedAt: campaign.createdAt, campaignExpiresAt: campaign.expiresAt }, cost ? { unitCostHuf: cost.unitCostHuf, effectiveAt: cost.effectiveAt, version: cost.version } : null);
+    attributedRevenueHuf += result.netRevenueHuf;
+    if (result.marginHuf === null) missingCostCount += 1; else { marginEvidenceCount += 1; marginHuf += result.marginHuf; }
+  }
+  return { ruleVersion: "attribution-2026-09-25-v1", purchaseCount: purchases.length, attributedRevenueHuf, marginHuf: marginEvidenceCount ? marginHuf : null, marginEvidenceCount, missingCostCount, refundCount };
 }
 
 export async function projectionHealth() {
