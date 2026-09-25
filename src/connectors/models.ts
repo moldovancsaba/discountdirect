@@ -130,6 +130,32 @@ const connectorRecordSchema = new Schema(
     providerId: { type: String, required: true, maxlength: 160 },
     checksum: { type: String, required: true, maxlength: 64 },
     payload: { type: Schema.Types.Mixed, required: true },
+    reconciliationState: {
+      type: String,
+      enum: [
+        "completed",
+        "refunded",
+        "cancelled",
+        "unmatched",
+        "reconciliation_required",
+        null,
+      ],
+      default: null,
+      index: true,
+    },
+    reconciliationReasonCode: { type: String, default: null, maxlength: 80 },
+    matchedOfferId: {
+      type: Schema.Types.ObjectId,
+      ref: "Offer",
+      default: null,
+      index: true,
+    },
+    reconciliationKey: {
+      type: String,
+      default: null,
+      maxlength: 300,
+      index: true,
+    },
     sourceUpdatedAt: { type: Date, default: null },
     lastRunId: {
       type: Schema.Types.ObjectId,

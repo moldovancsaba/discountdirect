@@ -12,6 +12,7 @@ import { connectorConfiguration, connectorProvider } from "./contracts.ts";
 import type { CommerceConnector } from "./contracts.ts";
 import { connectorFor } from "./runtime.ts";
 import { ProviderError } from "./transport.ts";
+import { reconcileProviderOrder } from "./reconciliation.ts";
 import {
   connectorRunKey,
   connectorSyncKind,
@@ -364,6 +365,14 @@ export async function syncConnector(
     try {
       await session.withTransaction(async () => {
         for (const item of items) {
+          const reconciliation =
+            kind === "order_sync"
+              ? (
+                  item.payload as {
+                    reconciliation?: ReturnType<typeof reconcileProviderOrder>;
+                  }
+                ).reconciliation
+              : undefined;
           await ConnectorRecord.updateOne(
             {
               sellerId: access.seller._id,
@@ -376,6 +385,10 @@ export async function syncConnector(
                 provider,
                 checksum: item.checksum,
                 payload: item.payload,
+                reconciliationState: reconciliation?.state ?? null,
+                reconciliationReasonCode: reconciliation?.reasonCode ?? null,
+                matchedOfferId: reconciliation?.matchedOfferId ?? null,
+                reconciliationKey: reconciliation?.idempotencyKey ?? null,
                 sourceUpdatedAt: item.sourceUpdatedAt,
                 lastRunId: run._id,
               },
