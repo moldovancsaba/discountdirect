@@ -120,17 +120,20 @@ export async function previewImport(userId: string, sellerSlug: string, value: u
 export async function getImportBatch(userId: string, sellerSlug: string, batchId: string) {
   if (!mongoose.isValidObjectId(batchId)) throw new CatalogError("INVALID");
   const { seller } = await sellerAccess(userId, sellerSlug);
-  const batch = await ImportBatch.findOne({ _id: batchId, sellerId: seller._id }).lean();
-  if (!batch) throw new CatalogError("NOT_FOUND");
-  return batch;
+  return withSellerTenant(seller._id, async () => {
+    const batch = await ImportBatch.findOne({ _id: batchId, sellerId: seller._id }).lean();
+    if (!batch) throw new CatalogError("NOT_FOUND");
+    return batch;
+  });
 }
 
 export async function applyImport(userId: string, sellerSlug: string, batchId: string) {
   const { seller } = await sellerAccess(userId, sellerSlug);
   if (!mongoose.isValidObjectId(batchId)) throw new CatalogError("INVALID");
-  const database = await connectDatabase();
-  let result: any;
-  await database.connection.transaction(async (session) => {
+  return withSellerTenant(seller._id, async () => {
+    const database = await connectDatabase();
+    let result: any;
+    await database.connection.transaction(async (session) => {
     const batch = await ImportBatch.findOne({ _id: batchId, sellerId: seller._id }).session(session);
     if (!batch) throw new CatalogError("NOT_FOUND");
     if (batch.status === "applied") { result = batch; return; }
@@ -156,8 +159,9 @@ export async function applyImport(userId: string, sellerSlug: string, batchId: s
     batch.appliedAt = new Date();
     await batch.save({ session });
     result = batch;
+    });
+    return result;
   });
-  return result;
 }
 
 export const catalogModelsForIndexes = [Product, ProductRevision, ImportBatch];
