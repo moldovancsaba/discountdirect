@@ -64,6 +64,11 @@ assert.equal(journeyCronDenied.response.status, 401, "journey cron must reject m
 assert.equal(journeyCronDenied.body.error?.code, "UNAUTHORIZED", "journey cron unauthorized response must be explicit");
 findings.push({ check: "journey_cron_unauthorized", status: "ok", latencyMs: journeyCronDenied.latencyMs });
 
+const metricsCronDenied = await readJson("/api/cron/metrics?limit=1");
+assert.equal(metricsCronDenied.response.status, 401, "metrics cron must reject missing token");
+assert.equal(metricsCronDenied.body.error?.code, "UNAUTHORIZED", "metrics cron unauthorized response must be explicit");
+findings.push({ check: "metrics_cron_unauthorized", status: "ok", latencyMs: metricsCronDenied.latencyMs });
+
 if (!env.CRON_SECRET) throw new Error("CRON_SECRET unavailable for production monitor");
 const cron = await readJson("/api/cron/automations?limit=1", { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } });
 assert.equal(cron.response.status, 200, "cron must return HTTP 200 with token");
@@ -83,5 +88,11 @@ assert.ok(Number.isInteger(journeyCron.body.triggers.birthday?.enrolled), "journ
 assert.ok(Number.isInteger(journeyCron.body.triggers.productWatches?.enrolled), "journey product-watch trigger count must be present");
 assert.ok(Array.isArray(journeyCron.body.steps?.results ?? []), "journey step results must be bounded");
 findings.push({ check: "journey_cron_authorized", status: "ok", latencyMs: journeyCron.latencyMs, processed: journeyCron.body.processed });
+
+const metricsCron = await readJson("/api/cron/metrics?limit=1", { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } });
+assert.equal(metricsCron.response.status, 200, "metrics cron must return HTTP 200 with token");
+assert.ok(Array.isArray(metricsCron.body.metrics?.results), "metrics cron response must include bounded projection results");
+assert.ok(Number.isInteger(metricsCron.body.privacy?.scanned), "metrics cron response must include bounded privacy scan count");
+findings.push({ check: "metrics_cron_authorized", status: "ok", latencyMs: metricsCron.latencyMs, processed: metricsCron.body.metrics.processed });
 
 console.log(JSON.stringify({ service: "discountdirect", base, checkedAt: new Date().toISOString(), status: "ok", findings }, null, 2));
