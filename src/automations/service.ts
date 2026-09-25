@@ -282,7 +282,8 @@ async function runAutomation(automation: any, actorUserId: string, sellerSlug?: 
   const sendDecision = await maySendMarketing(automation.sellerId.toString(), automation.buyerUserId.toString(), automation.channel);
   const storedSettings = await SellerSettingsModel.findOne({ sellerId: automation.sellerId }).lean();
   const settings = validateSellerSettings(storedSettings?.settings ?? {});
-  const heldOut = isHoldout({ sellerId: automation.sellerId.toString(), buyerUserId: automation.buyerUserId.toString(), holdoutPct: settings.holdout_pct, mode: settings.holdout_mode, campaignKey: `newsletter:${automation._id}:${automation.nextRunAt.toISOString()}` });
+  const activeBuyerCount = await BuyerRelationship.countDocuments({ sellerId: automation.sellerId, status: "active" });
+  const heldOut = activeBuyerCount > 1 && isHoldout({ sellerId: automation.sellerId.toString(), buyerUserId: automation.buyerUserId.toString(), holdoutPct: settings.holdout_pct, mode: settings.holdout_mode, campaignKey: `newsletter:${automation._id}:${automation.nextRunAt.toISOString()}` });
   const eligibility = sendDecision.allowed && heldOut ? { allowed: false as const, reasonCode: "NEWSLETTER_HOLDOUT" } : sendDecision;
   const preview = eligibility.allowed ? await createRecommendationPreview(actorUserId, sellerSlug ?? seller.slug, automation.customerId.toString(), automation.channel) : { status: "excluded", recommendations: [], exclusionReasons: [eligibility.reasonCode] };
   const products = preview.status === "eligible" ? preview.recommendations.slice(0, automation.productLimit) : [];
