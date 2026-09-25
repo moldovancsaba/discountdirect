@@ -11,6 +11,8 @@ const audienceSchema = new Schema({
   reasonCode: { type: String, required: true, maxlength: 80 },
   reasonText: { type: String, required: true, maxlength: 300 },
   evidencePurchaseIds: [{ type: Schema.Types.ObjectId, required: true, ref: "Purchase" }],
+  membershipTier: { type: String, enum: ["member", "silver", "gold"], default: "member" },
+  freeDelivery: { type: Boolean, default: false },
 }, { _id: false, versionKey: false });
 
 const campaignSchema = new Schema({
