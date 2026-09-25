@@ -9,6 +9,7 @@ import { Customer, Purchase } from "@/purchases/models";
 import { ChannelPreference } from "@/privacy/models";
 import { rankRecommendations, RECOMMENDATION_RULE_VERSION } from "./engine";
 import { RecommendationPreview } from "./models";
+import { withSellerTenant } from "@/lib/tenant";
 
 export class RecommendationError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID") { super(code); } }
 function output(row: any) { return { id: row._id.toString(), channel: row.channel, ruleVersion: row.ruleVersion, status: row.status, exclusionReasons: row.exclusionReasons ?? [], recommendations: (row.recommendations ?? []).map((item: any) => ({ productId: item.productId.toString(), productVersion: item.productVersion, productSku: item.productSku, productName: item.productName, priceHuf: item.priceHuf, score: item.score, reasonCode: item.reasonCode, reasonText: item.reasonText, evidencePurchaseIds: item.evidencePurchaseIds.map((id: any) => id.toString()) })), createdAt: row.createdAt }; }
@@ -20,6 +21,7 @@ export async function createRecommendationPreview(userId: string, sellerSlug: st
   const seller = await Seller.findOne({ slug: sellerSlug, status: "active" }).lean();
   if (!seller) throw new RecommendationError("NOT_FOUND");
   if (!await Membership.exists({ sellerId: seller._id, userId, status: "active" })) throw new RecommendationError("FORBIDDEN");
+  return withSellerTenant(seller._id, async () => {
   const customer = await Customer.findOne({ _id: customerId, sellerId: seller._id }).lean();
   if (!customer) throw new RecommendationError("NOT_FOUND");
   const buyer = customer.emailNormalized ? await User.findOne({ emailNormalized: customer.emailNormalized, status: "active" }).lean() : null;
@@ -41,6 +43,7 @@ export async function createRecommendationPreview(userId: string, sellerSlug: st
     if (error?.code === 11000) { const row = await RecommendationPreview.findOne({ sellerId: seller._id, customerId: customer._id, channel, ruleVersion: RECOMMENDATION_RULE_VERSION, inputHash }).lean(); if (row) return output(row); }
     throw error;
   }
+  });
 }
 
 export async function recommendationPreview(userId: string, sellerSlug: string, previewId: string) {
@@ -49,7 +52,9 @@ export async function recommendationPreview(userId: string, sellerSlug: string, 
   const seller = await Seller.findOne({ slug: sellerSlug, status: "active" }).lean();
   if (!seller) throw new RecommendationError("NOT_FOUND");
   if (!await Membership.exists({ sellerId: seller._id, userId, status: "active" })) throw new RecommendationError("FORBIDDEN");
-  const row = await RecommendationPreview.findOne({ _id: previewId, sellerId: seller._id }).lean();
-  if (!row) throw new RecommendationError("NOT_FOUND");
-  return output(row);
+  return withSellerTenant(seller._id, async () => {
+    const row = await RecommendationPreview.findOne({ _id: previewId, sellerId: seller._id }).lean();
+    if (!row) throw new RecommendationError("NOT_FOUND");
+    return output(row);
+  });
 }
