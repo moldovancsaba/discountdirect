@@ -55,32 +55,48 @@ export async function persistArtifact(
       }).lean(),
   );
   if (existing?.status === "ready") return existing;
-  if (existing) throw new ArtifactError("UNAVAILABLE");
-  const id = new mongoose.Types.ObjectId();
-  const blobKey = blobKeys.sellerArtifact({
-    sellerId: input.sellerId,
-    kind: input.kind,
-    id: id.toString(),
-    filename: input.filename,
-  });
+  if (existing?.status === "uploading") throw new ArtifactError("UNAVAILABLE");
+  const id = existing?._id ?? new mongoose.Types.ObjectId();
+  const blobKey =
+    existing?.blobKey ??
+    blobKeys.sellerArtifact({
+      sellerId: input.sellerId,
+      kind: input.kind,
+      id: id.toString(),
+      filename: input.filename,
+    });
   try {
-    await withSellerTenant(
-      input.sellerId,
-      async () =>
-        await Artifact.create({
-          _id: id,
-          sellerId: input.sellerId,
-          kind: input.kind,
-          idempotencyKey: input.idempotencyKey,
-          blobKey,
-          sha256: checked.sha256,
-          size: checked.size,
-          mimeType: input.mimeType,
-          status: "uploading",
-          retentionUntil: retentionUntil(input.kind, now),
-          createdByUserId: input.createdByUserId,
-        }),
-    );
+    await withSellerTenant(input.sellerId, async () => {
+      if (existing?.status === "failed") {
+        const retried = await Artifact.updateOne(
+          {
+            _id: id,
+            sellerId: input.sellerId,
+            status: "failed",
+            sha256: checked.sha256,
+          },
+          {
+            $set: { status: "uploading", lastErrorCode: null },
+            $inc: { version: 1 },
+          },
+        );
+        if (!retried.modifiedCount) throw new ArtifactError("UNAVAILABLE");
+        return;
+      }
+      await Artifact.create({
+        _id: id,
+        sellerId: input.sellerId,
+        kind: input.kind,
+        idempotencyKey: input.idempotencyKey,
+        blobKey,
+        sha256: checked.sha256,
+        size: checked.size,
+        mimeType: input.mimeType,
+        status: "uploading",
+        retentionUntil: retentionUntil(input.kind, now),
+        createdByUserId: input.createdByUserId,
+      });
+    });
   } catch (error) {
     if ((error as { code?: number }).code === 11000) {
       const raced = await withSellerTenant(
@@ -99,7 +115,10 @@ export async function persistArtifact(
     await (dependencies.put ?? putPrivateBlob)(
       blobKey,
       Buffer.from(input.body),
-      { contentType: input.mimeType, allowOverwrite: false },
+      {
+        contentType: input.mimeType,
+        allowOverwrite: Boolean(existing?.status === "failed"),
+      },
     );
     const row = await withSellerTenant(
       input.sellerId,
