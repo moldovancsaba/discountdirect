@@ -159,7 +159,7 @@ export async function reserveFlashOffer(session: mongoose.ClientSession, row: an
 
 export async function cancelCampaign(userId: string, sellerSlug: string, campaignId: string) {
   const seller = await sellerContext(userId, sellerSlug); if (!mongoose.isValidObjectId(campaignId)) throw new CampaignError("NOT_FOUND"); const database = await connectDatabase(); let result: any;
-  await database.connection.transaction(async (session) => { const campaign = await Campaign.findOne({ _id: campaignId, sellerId: seller._id }).session(session); if (!campaign) throw new CampaignError("NOT_FOUND"); if (campaign.status === "cancelled") { result = campaignOutput(campaign.toObject()); return; } if (campaign.status !== "active") throw new CampaignError("CONFLICT"); const now = new Date(); await releaseReservations(session, campaign, "cancelled", now);
+  await withSellerTenant(seller._id, async () => await database.connection.transaction(async (session) => { const campaign = await Campaign.findOne({ _id: campaignId, sellerId: seller._id }).session(session); if (!campaign) throw new CampaignError("NOT_FOUND"); if (campaign.status === "cancelled") { result = campaignOutput(campaign.toObject()); return; } if (campaign.status !== "active") throw new CampaignError("CONFLICT"); const now = new Date(); await releaseReservations(session, campaign, "cancelled", now);
     campaign.status = "cancelled"; campaign.cancelledAt = now; await campaign.save({ session }); result = campaignOutput(campaign.toObject());
-  }); return result;
+  })); return result;
 }
