@@ -10,6 +10,7 @@ import { participant } from "./access.ts";
 import { MessagingError } from "./errors.ts";
 import { Conversation, ConversationEvent, InboxPreference } from "./models";
 import { inboxPreferenceInput } from "./inbox-core";
+import { withSellerTenant } from "@/lib/tenant";
 
 export { MessagingError } from "./errors.ts";
 
@@ -117,6 +118,7 @@ async function conversationOutput(row: any) {
 export async function ensureConversation(userId: string, sellerSlug: string, customerId: string) {
   if (!mongoose.isValidObjectId(customerId)) throw new MessagingError("INVALID");
   const seller = await sellerAccess(userId, sellerSlug);
+  return withSellerTenant(seller._id, async () => {
   const customer = await Customer.findOne({ _id: customerId, sellerId: seller._id, privacyStatus: { $ne: "erased" } }).lean();
   if (!customer?.emailNormalized) throw new MessagingError("NOT_FOUND");
   const buyer = await User.findOne({ emailNormalized: customer.emailNormalized, status: "active" }).lean();
@@ -139,6 +141,7 @@ export async function ensureConversation(userId: string, sellerSlug: string, cus
     if (!replay) throw error;
     return conversationOutput(replay);
   }
+  });
 }
 
 async function listConversations(filter: Record<string, unknown>, cursorValue?: string | null) {
