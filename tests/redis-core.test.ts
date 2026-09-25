@@ -2,11 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   campaignCounterTtlSeconds,
+  acquireRedisLock,
   loadRedisScripts,
   redisKeys,
   redisLuaScripts,
   redisReadiness,
   redisTtlSeconds,
+  redisRateLimit,
+  releaseRedisLock,
 } from "../src/lib/redis-core.ts";
 
 test("redis readiness is explicit and build-safe without secrets", () => {
@@ -55,7 +58,25 @@ test("redis lua scripts are loadable through the Upstash script command", async 
       return `sha:${script.length}`;
     },
   });
-  assert.deepEqual(Object.keys(loaded).sort(), ["campaignAccept", "frequencyCap"]);
-  assert.equal(seen.length, 2);
+  assert.deepEqual(Object.keys(loaded).sort(), ["acquireLock", "campaignAccept", "frequencyCap", "rateLimit", "releaseLock"]);
+  assert.equal(seen.length, 5);
   assert.match(loaded.campaignAccept, /^sha:\d+$/);
+});
+
+test("rate limits and locks use bounded atomic primitives", async () => {
+  const calls: Array<{ script: string; keys: string[]; args: Array<string | number> }> = [];
+  const client = {
+    async eval<T>(script: string, keys: string[], args: Array<string | number>) {
+      calls.push({ script, keys, args });
+      return (script.includes("SET") ? [1, "acquired"] : [1, "allowed", 1]) as T;
+    },
+  } as never;
+  assert.deepEqual(await redisRateLimit("api", "seller/1", 10, client), { enabled: true, accepted: true, reasonCode: "allowed", count: 1 });
+  assert.deepEqual(await acquireRedisLock("worker", "row/1", "token", 600, client), { enabled: true, accepted: true, reasonCode: "acquired" });
+  assert.equal(calls[1].args[1], 60);
+});
+
+test("lock release is token-bound", async () => {
+  const client = { async eval() { return 1; } } as never;
+  assert.deepEqual(await releaseRedisLock("worker", "row/1", "token", client), { enabled: true, released: true });
 });

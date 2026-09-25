@@ -69,6 +69,23 @@ export const redisTtlSeconds = {
   campaignCounterRecovery: 7 * 24 * 60 * 60,
 } as const;
 
+export type RedisPrimitiveClient = {
+  eval<T = unknown>(script: string, keys: string[], args: Array<string | number>): Promise<T>;
+  set(key: string, value: string, options?: { ex?: number; nx?: boolean }): Promise<unknown>;
+  del(key: string): Promise<number>;
+  incr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<number>;
+};
+
+export type RedisPrimitiveResult =
+  | { enabled: true; accepted: boolean; reasonCode: string; count?: number; total?: number; buyer?: number }
+  | { enabled: false; accepted: boolean; reasonCode: "REDIS_UNAVAILABLE" | RedisReadiness["reasonCode"] };
+
+function primitiveFailure(error: unknown): RedisPrimitiveResult {
+  if (error instanceof RedisConfigurationError) return { enabled: false, accepted: false, reasonCode: error.code };
+  return { enabled: false, accepted: false, reasonCode: "REDIS_UNAVAILABLE" };
+}
+
 export function campaignCounterTtlSeconds(expiresAt: Date, now = new Date()) {
   const secondsUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / 1000);
   return Math.max(60, secondsUntilExpiry + redisTtlSeconds.campaignCounterRecovery);
@@ -128,6 +145,24 @@ count = redis.call("INCR", KEYS[1])
 if count == 1 then redis.call("EXPIRE", KEYS[1], ttl) end
 return {1, "allowed", count}
 `.trim(),
+  rateLimit: `
+local count = tonumber(redis.call("GET", KEYS[1]) or "0")
+local limit = tonumber(ARGV[1])
+local ttl = tonumber(ARGV[2])
+if count >= limit then return {0, "rate_limit", count} end
+count = redis.call("INCR", KEYS[1])
+if count == 1 then redis.call("EXPIRE", KEYS[1], ttl) end
+return {1, "allowed", count}
+`.trim(),
+  acquireLock: `
+local created = redis.call("SET", KEYS[1], ARGV[1], "NX", "EX", ARGV[2])
+if created then return {1, "acquired"} end
+return {0, "busy"}
+`.trim(),
+  releaseLock: `
+if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("DEL", KEYS[1]) end
+return 0
+`.trim(),
 } as const;
 
 export type RedisScriptName = keyof typeof redisLuaScripts;
@@ -142,6 +177,38 @@ export async function loadRedisScripts(client: RedisScriptLoader = redisClient()
     loaded[name] = await client.scriptLoad(script);
   }
   return loaded;
+}
+
+export async function redisRateLimit(
+  scope: string,
+  id: string,
+  limit: number,
+  client: RedisPrimitiveClient = redisClient(),
+): Promise<RedisPrimitiveResult> {
+  const boundedLimit = Math.min(Math.max(Math.floor(limit), 1), 100_000);
+  try {
+    const result = await client.eval<[number, string, number]>(redisLuaScripts.rateLimit, [redisKeys.rate(scope, id)], [boundedLimit, redisTtlSeconds.rateLimitWindow]);
+    return { enabled: true, accepted: Number(result[0]) === 1, reasonCode: String(result[1]), count: Number(result[2]) };
+  } catch (error) { return primitiveFailure(error); }
+}
+
+export async function acquireRedisLock(
+  scope: string,
+  id: string,
+  token: string,
+  ttlSeconds: number = redisTtlSeconds.lock,
+  client: RedisPrimitiveClient = redisClient(),
+): Promise<RedisPrimitiveResult> {
+  const ttl = Math.min(Math.max(Math.floor(ttlSeconds), 1), redisTtlSeconds.lock);
+  try {
+    const result = await client.eval<[number, string]>(redisLuaScripts.acquireLock, [redisKeys.lock(scope, id)], [token, ttl]);
+    return { enabled: true, accepted: Number(result[0]) === 1, reasonCode: String(result[1]) };
+  } catch (error) { return primitiveFailure(error); }
+}
+
+export async function releaseRedisLock(scope: string, id: string, token: string, client: RedisPrimitiveClient = redisClient()) {
+  try { return { enabled: true as const, released: Number(await client.eval(redisLuaScripts.releaseLock, [redisKeys.lock(scope, id)], [token])) === 1 }; }
+  catch (error) { const failure = primitiveFailure(error); return { enabled: false as const, released: false, reasonCode: failure.reasonCode }; }
 }
 
 export type RedisHealth =
