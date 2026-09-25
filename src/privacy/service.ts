@@ -110,7 +110,7 @@ export async function createPrivacyRequest(userId: string, sellerSlug: string, t
 
 export async function sellerPrivacyRequests(userId: string, sellerSlug: string) {
   const { seller } = await sellerContext(userId, sellerSlug);
-  const rows = await PrivacyRequest.find({ sellerId: seller._id }).sort({ requestedAt: -1, _id: -1 }).limit(100).populate("buyerUserId", "displayName emailNormalized").lean();
+  const rows = await withSellerTenant(seller._id, async () => await PrivacyRequest.find({ sellerId: seller._id }).sort({ requestedAt: -1, _id: -1 }).limit(100).populate("buyerUserId", "displayName emailNormalized").lean());
   return { seller: { id: seller._id.toString(), name: seller.name, slug: seller.slug }, requests: rows.map((row: any) => ({ ...requestOutput(row), buyerName: row.buyerUserId?.displayName ?? "Ismeretlen vásárló", buyerEmail: row.buyerUserId?.emailNormalized ?? "—" })) };
 }
 
@@ -149,7 +149,7 @@ export async function advancePrivacyRequest(userId: string, sellerSlug: string, 
   const { seller } = await sellerContext(userId, sellerSlug);
   const database = await connectDatabase();
   let result: any;
-  await database.connection.transaction(async (session) => {
+  await withSellerTenant(seller._id, async () => await database.connection.transaction(async (session) => {
     const request = await PrivacyRequest.findOne({ _id: requestId, sellerId: seller._id }).session(session);
     if (!request) throw new PrivacyError("NOT_FOUND");
     if (request.status === nextStatus) { result = requestOutput(request.toObject()); return; }
@@ -189,7 +189,7 @@ export async function advancePrivacyRequest(userId: string, sellerSlug: string, 
     request.resolution = resolution;
     await request.save({ session });
     result = requestOutput(request.toObject());
-  });
+  }));
   return result;
 }
 
