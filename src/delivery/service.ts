@@ -415,8 +415,8 @@ async function upsertSuppression(session: mongoose.ClientSession, delivery: any,
 
 async function markProviderSuppression(input: { messageId: string | null; providerEventId: string; status: "bounced" | "complained" | "suppressed"; reasonCode: string; suppressionReason: SuppressionReason; occurredAt: Date }) {
   if (!input.messageId) return { action: "delivery_not_found", reasonCode: "WEBHOOK_MESSAGE_ID_MISSING", deliveryId: null, sellerId: null, providerMessageId: null };
-  const delivery = await withTenantBypass("resend-webhook-provider-message-lookup", () =>
-    DeliveryOutbox.findOne({ provider: "resend", providerMessageId: input.messageId }).lean(),
+  const delivery = await withTenantBypass("resend-webhook-provider-message-lookup", async () =>
+    await DeliveryOutbox.findOne({ provider: "resend", providerMessageId: input.messageId }).lean(),
   );
   if (!delivery) return { action: "delivery_not_found", reasonCode: "WEBHOOK_DELIVERY_NOT_FOUND", deliveryId: null, sellerId: null, providerMessageId: input.messageId };
   const database = await connectDatabase();
@@ -434,7 +434,7 @@ async function markProviderSuppression(input: { messageId: string | null; provid
 
 async function inboundReceived(input: { config: EmailTransportConfig; data: Record<string, unknown>; providerEventId: string; messageId: string | null; fetcher: FetchLike }) {
   const metadataDeliveryId = deliveryIdFromAddresses(input.data.received_for, input.config.replyDomain) ?? deliveryIdFromAddresses(input.data.to, input.config.replyDomain);
-  const metadataDelivery = metadataDeliveryId ? await withTenantBypass("resend-inbound-metadata-delivery-lookup", () => DeliveryOutbox.findById(metadataDeliveryId).lean()) : null;
+  const metadataDelivery = metadataDeliveryId ? await withTenantBypass("resend-inbound-metadata-delivery-lookup", async () => await DeliveryOutbox.findById(metadataDeliveryId).lean()) : null;
   if (Array.isArray(input.data.attachments) && input.data.attachments.length > 0) {
     return { action: "attachment_rejected", reasonCode: "INBOUND_ATTACHMENT_REJECTED", deliveryId: metadataDelivery?._id ?? null, sellerId: metadataDelivery?.sellerId ?? null, providerMessageId: input.messageId };
   }
@@ -442,8 +442,8 @@ async function inboundReceived(input: { config: EmailTransportConfig; data: Reco
   const email = input.data.text || input.data.html ? input.data : await getResendReceivedEmail(input.config, input.messageId!, input.fetcher);
   const deliveryId = metadataDeliveryId ?? deliveryIdFromAddresses(email.received_for, input.config.replyDomain) ?? deliveryIdFromAddresses(email.to, input.config.replyDomain);
   if (!deliveryId || !mongoose.isValidObjectId(deliveryId)) return { action: "delivery_not_found", reasonCode: "INBOUND_DELIVERY_ID_MISSING", deliveryId: null, sellerId: null, providerMessageId: input.messageId };
-  const delivery = await withTenantBypass("resend-inbound-reply-delivery-lookup", () =>
-    DeliveryOutbox.findOne({ _id: deliveryId, provider: "resend" }).lean(),
+  const delivery = await withTenantBypass("resend-inbound-reply-delivery-lookup", async () =>
+    await DeliveryOutbox.findOne({ _id: deliveryId, provider: "resend" }).lean(),
   );
   if (!delivery) return { action: "delivery_not_found", reasonCode: "WEBHOOK_DELIVERY_NOT_FOUND", deliveryId: null, sellerId: null, providerMessageId: input.messageId };
   const body = inboundMessageBody(email);
@@ -464,8 +464,8 @@ export async function handleResendWebhook(rawPayload: string, headers: Headers |
   await connectDatabase();
   let webhookRow: any;
   try {
-    const [row] = await withTenantBypass("resend-webhook-event-ingest", () =>
-      DeliveryWebhookEvent.create([{
+    const [row] = await withTenantBypass("resend-webhook-event-ingest", async () =>
+      await DeliveryWebhookEvent.create([{
         provider: "resend",
         providerEventId: verified.providerEventId,
         providerMessageId: messageId,
@@ -496,7 +496,7 @@ export async function handleResendWebhook(rawPayload: string, headers: Headers |
   }
   await withTenantBypass(
     "resend-webhook-event-finalize",
-    () => DeliveryWebhookEvent.updateOne(
+    async () => await DeliveryWebhookEvent.updateOne(
       { _id: webhookRow._id },
       { $set: { action: outcome.action, reasonCode: outcome.reasonCode, deliveryId: outcome.deliveryId ?? null, sellerId: outcome.sellerId ?? null, providerMessageId: outcome.providerMessageId ?? messageId ?? null, processedAt: new Date() } },
     ),
@@ -509,8 +509,8 @@ export async function suppressDeliveryBuyer(deliveryId: string, token: string) {
   if (!secret) throw new DeliveryError("UNAVAILABLE");
   if (!mongoose.isValidObjectId(deliveryId) || !verifyUnsubscribeToken(deliveryId, token, secret)) throw new DeliveryError("INVALID");
   await connectDatabase();
-  const delivery = await withTenantBypass("unsubscribe-token-delivery-lookup", () =>
-    DeliveryOutbox.findById(deliveryId).lean(),
+  const delivery = await withTenantBypass("unsubscribe-token-delivery-lookup", async () =>
+    await DeliveryOutbox.findById(deliveryId).lean(),
   );
   if (!delivery) throw new DeliveryError("NOT_FOUND");
   const database = await connectDatabase();
@@ -529,16 +529,16 @@ export async function suppressDeliveryBuyer(deliveryId: string, token: string) {
 
 export async function deliverySummary() {
   await connectDatabase();
-  const rows = await withTenantBypass("operator-delivery-summary", () =>
-    DeliveryOutbox.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+  const rows = await withTenantBypass("operator-delivery-summary", async () =>
+    await DeliveryOutbox.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
   );
   return Object.fromEntries(rows.map((row: { _id: string; count: number }) => [row._id, row.count])) as Record<string, number>;
 }
 
 export async function deliveryChannelSummary() {
   await connectDatabase();
-  const rows = await withTenantBypass("operator-delivery-channel-summary", () =>
-    DeliveryOutbox.aggregate([{ $group: { _id: "$channel", count: { $sum: 1 } } }]),
+  const rows = await withTenantBypass("operator-delivery-channel-summary", async () =>
+    await DeliveryOutbox.aggregate([{ $group: { _id: "$channel", count: { $sum: 1 } } }]),
   );
   return Object.fromEntries(rows.map((row: { _id: string; count: number }) => [row._id, row.count])) as Record<string, number>;
 }

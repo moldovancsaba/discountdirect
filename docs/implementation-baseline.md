@@ -62,9 +62,9 @@ service. The DD-002 tenant guard in `src/lib/tenant-core.ts` is applied to every
 seller-owned business model family: catalog, purchase ledger, privacy,
 recommendations, messaging, offers, campaigns, delivery, automation, realtime
 and redemption. The guard injects the active seller context when present,
-accepts explicit `sellerId` constraints during the compatibility rollout,
-refuses unscoped guarded-model access and requires named bypasses for intentional
-cron, provider-webhook and operator reporting flows. Memberships and buyer
+refuses unscoped guarded-model access and requires named, awaited bypasses for
+intentional cross-seller buyer aggregation, cron, provider-webhook and operator
+reporting flows. Memberships and buyer
 relationships remain explicit authorization scope records rather than guarded
 business data.
 
@@ -182,9 +182,10 @@ These gaps are intentional inventory facts, not regressions:
   read-url foundation. Postal offer generation is wired to the artifact ledger;
   live staging Blob verification is still required before issue closure. Privacy
   exports remain database-backed.
-- Tenant guard compatibility rollout is complete across seller-owned business
-  models. Moving all request entry points from explicit `sellerId` constraints
-  to mandatory async-local seller context remains a later hardening step.
+- Tenant guard enforcement is mandatory across seller-owned business models.
+  Seller request and worker paths enter awaited async-local context; only
+  reviewed cross-seller aggregation, cron, provider-webhook and operator scans
+  use named bypasses with explicit seller constraints.
 - The provider-neutral connector contract and Shoprenter/UNAS adapters implement
   live connection tests and bounded product, order and stock reads. Each manual
   page writes normalized provider records plus a durable idempotent run and

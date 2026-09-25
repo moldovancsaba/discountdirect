@@ -72,7 +72,7 @@ export async function rebuildSellerMetrics(sellerId: string, now = new Date()) {
 
 export async function rebuildDueMetrics(limit = 10) {
   await connectDatabase();
-  const sellers = await withTenantBypass("reporting cron seller scan", () => Seller.find({ status: "active" }).sort({ _id: 1 }).limit(Math.max(1, Math.min(limit, 50))).select({ _id: 1 }).lean());
+  const sellers = await withTenantBypass("reporting cron seller scan", async () => await Seller.find({ status: "active" }).sort({ _id: 1 }).limit(Math.max(1, Math.min(limit, 50))).select({ _id: 1 }).lean());
   const results = [];
   for (const seller of sellers) { try { results.push({ ok: true, ...(await rebuildSellerMetrics(seller._id.toString())) }); } catch (error) { results.push({ ok: false, sellerId: seller._id.toString(), error: error instanceof Error ? error.message : "PROJECTION_FAILED" }); } }
   return { processed: results.length, results };

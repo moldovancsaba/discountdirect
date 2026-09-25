@@ -204,21 +204,21 @@ export async function buyerPrivacyExport(userId: string, sellerSlug: string, req
 export async function evaluatePrivacySla(limit = 100, now = new Date()) {
   await connectDatabase();
   const bounded = Math.min(Math.max(Math.floor(limit), 1), 250);
-  const rows = await withTenantBypass("privacy-sla-cron-scan", () => PrivacyRequest.find({ status: { $in: ["requested", "processing", "failed"] }, slaStatus: { $in: ["pending", "reminder_due", "overdue"] } }).sort({ dueAt: 1, _id: 1 }).limit(bounded).lean());
+  const rows = await withTenantBypass("privacy-sla-cron-scan", async () => await PrivacyRequest.find({ status: { $in: ["requested", "processing", "failed"] }, slaStatus: { $in: ["pending", "reminder_due", "overdue"] } }).sort({ dueAt: 1, _id: 1 }).limit(bounded).lean());
   let updated = 0;
   let alerts = 0;
   for (const row of rows) {
     const state = nextPrivacySlaState({ dueAt: row.dueAt, reminderAt: row.reminderAt, status: row.slaStatus, lastAlertAt: row.lastAlertAt ?? null, policyVersion: row.slaPolicyVersion }, now, false);
     if (state.status !== row.slaStatus) {
-      await withTenantBypass("privacy-sla-state-update", () => PrivacyRequest.updateOne({ _id: row._id, status: { $in: ["requested", "processing", "failed"] } }, { $set: { slaStatus: state.status } }));
+      await withTenantBypass("privacy-sla-state-update", async () => await PrivacyRequest.updateOne({ _id: row._id, status: { $in: ["requested", "processing", "failed"] } }, { $set: { slaStatus: state.status } }));
       updated += 1;
     }
     if (shouldEmitPrivacyAlert(state, now)) {
       const kind = state.status === "overdue" ? "overdue" : "reminder";
       const idempotencyKey = `privacy-sla:${row._id}:${kind}:${now.toISOString().slice(0, 10)}`;
       try {
-        await withTenantBypass("privacy-sla-alert-record", () => PrivacySlaAlert.create({ sellerId: row.sellerId, requestId: row._id, kind, idempotencyKey, createdAt: now }));
-        await withTenantBypass("privacy-sla-alert-marked", () => PrivacyRequest.updateOne({ _id: row._id }, { $set: { lastAlertAt: now } }));
+        await withTenantBypass("privacy-sla-alert-record", async () => await PrivacySlaAlert.create({ sellerId: row.sellerId, requestId: row._id, kind, idempotencyKey, createdAt: now }));
+        await withTenantBypass("privacy-sla-alert-marked", async () => await PrivacyRequest.updateOne({ _id: row._id }, { $set: { lastAlertAt: now } }));
         alerts += 1;
       } catch (error: any) { if (error?.code !== 11000) throw error; }
     }
