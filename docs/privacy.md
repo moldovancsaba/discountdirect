@@ -37,5 +37,6 @@ Delivery code calls the server-side marketing eligibility check immediately befo
 - `GET /api/buyer/{sellerSlug}/privacy-export?requestId=...`
 - `GET /api/sellers/{sellerSlug}/privacy-requests`
 - `PATCH /api/sellers/{sellerSlug}/privacy-requests/{requestId}`
+- `POST /api/sellers/{sellerSlug}/privacy-requests/{requestId}/acknowledge`
 
 Cookie-authenticated writes require the same origin. Responses are never cached. Invalid transitions return conflict rather than silently skipping required workflow states.
