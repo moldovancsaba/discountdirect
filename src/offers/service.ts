@@ -124,7 +124,7 @@ export async function respondToOffer(userId: string, offerId: string, expectedVe
   if (!sellerIds.length) throw new OfferError("NOT_FOUND");
   let result: any;
   try {
-    await database.connection.transaction(async (session) => {
+    await withTenantBypass("buyer-offer-response", async () => await database.connection.transaction(async (session) => {
       const row = await Offer.findOne({ _id: offerId, sellerId: { $in: sellerIds }, buyerUserId: userId }).session(session);
       if (!row) throw new OfferError("NOT_FOUND");
       if (row.buyerUserId.toString() !== userId || !await BuyerRelationship.exists({ sellerId: row.sellerId, buyerUserId: userId, status: "active" })) throw new OfferError("FORBIDDEN");
@@ -161,7 +161,7 @@ export async function respondToOffer(userId: string, offerId: string, expectedVe
         if (conversation) await recordRealtimeEvent(session, { sellerId: row.sellerId, conversationId: conversation._id, type: "offer.updated", version: conversation.version, occurredAt: now });
       }
       result = output(row.toObject());
-    });
+    }));
     return result;
   } catch (error) {
     if (error instanceof CampaignError && error.code === "SOLD_OUT") throw new OfferError("SOLD_OUT");
