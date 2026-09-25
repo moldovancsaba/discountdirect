@@ -886,16 +886,16 @@ export async function runProductWatchTriggers(limit = 50, now = new Date()) {
   let skipped = 0;
   for (const watch of watches) {
     const [product, definitions] = await Promise.all([
-      Product.findOne({ _id: watch.productId, sellerId: watch.sellerId, active: true }).lean(),
-      JourneyDefinition.find({ sellerId: watch.sellerId, status: "active" }).sort({ _id: 1 }).lean(),
+      withTenantBypass("journey-product-watch-product", () => Product.findOne({ _id: watch.productId, sellerId: watch.sellerId, active: true }).lean()),
+      withTenantBypass("journey-product-watch-definitions", () => JourneyDefinition.find({ sellerId: watch.sellerId, status: "active" }).sort({ _id: 1 }).lean()),
     ]);
     if (!product) { skipped += 1; continue; }
     const observation = watch.triggerKind === "back_in_stock"
-      ? await StockObservation.findOne({ sellerId: watch.sellerId, sku: product.sku }).sort({ observedAt: -1, _id: -1 }).lean()
-      : await ConnectorRecord.findOne({ sellerId: watch.sellerId, kind: "catalog_sync", "payload.sku": product.sku }).sort({ sourceUpdatedAt: -1, updatedAt: -1, _id: -1 }).lean();
+      ? await withTenantBypass("journey-product-watch-stock", () => StockObservation.findOne({ sellerId: watch.sellerId, sku: product.sku }).sort({ observedAt: -1, _id: -1 }).lean())
+      : await withTenantBypass("journey-product-watch-catalog", () => ConnectorRecord.findOne({ sellerId: watch.sellerId, kind: "catalog_sync", "payload.sku": product.sku }).sort({ sourceUpdatedAt: -1, updatedAt: -1, _id: -1 }).lean());
     if (!observation) { skipped += 1; continue; }
     for (const definition of definitions) {
-      const version = await JourneyDefinitionVersion.findOne({ definitionId: definition._id, version: definition.activeVersion }).lean();
+      const version = await withTenantBypass("journey-product-watch-version", () => JourneyDefinitionVersion.findOne({ definitionId: definition._id, version: definition.activeVersion }).lean());
       if (!version || version.trigger.kind !== watch.triggerKind || String(version.trigger.productId ?? "") !== String(product._id)) continue;
       const current = watch.triggerKind === "back_in_stock"
         ? (observation as any).quantity
@@ -904,7 +904,7 @@ export async function runProductWatchTriggers(limit = 50, now = new Date()) {
         ? (observation as any).previousQuantity
         : (observation as any).previousPriceHuf;
       if (!Number.isFinite(current) || !Number.isFinite(previous)) { skipped += 1; continue; }
-      const privacy = await Customer.findOne({ _id: watch.customerId, sellerId: watch.sellerId, privacyStatus: "active" }).lean();
+      const privacy = await withTenantBypass("journey-product-watch-privacy", () => Customer.findOne({ _id: watch.customerId, sellerId: watch.sellerId, privacyStatus: "active" }).lean());
       if (!privacy) { skipped += 1; continue; }
       const result = watch.triggerKind === "back_in_stock"
         ? backInStockTrigger(previous, current, "active")
