@@ -331,8 +331,10 @@ export async function buyerOfferLists(userId: string) {
   const sellerIds = await activeBuyerSellerIds(userId);
   if (!sellerIds.length) return { lists: [] };
   const now = new Date();
-  await OfferList.updateMany({ sellerId: { $in: sellerIds }, buyerUserId: userId, status: "active", availableUntil: { $lte: now } }, { $set: { status: "expired" } });
-  const rows = await OfferList.find({ sellerId: { $in: sellerIds }, buyerUserId: userId }).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
+  const rows = await withTenantBypass("buyer-aggregate-offer-lists", async () => {
+    await OfferList.updateMany({ sellerId: { $in: sellerIds }, buyerUserId: userId, status: "active", availableUntil: { $lte: now } }, { $set: { status: "expired" } });
+    return OfferList.find({ sellerId: { $in: sellerIds }, buyerUserId: userId }).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
+  });
   return { lists: rows.map(outputList) };
 }
 
@@ -341,7 +343,7 @@ export async function buyerOfferList(userId: string, listId: string) {
   await connectDatabase();
   const sellerIds = await activeBuyerSellerIds(userId);
   if (!sellerIds.length) throw new AutomationError("NOT_FOUND");
-  const row = await OfferList.findOne({ _id: listId, sellerId: { $in: sellerIds }, buyerUserId: userId }).lean();
+  const row = await withTenantBypass("buyer-offer-list-detail", async () => await OfferList.findOne({ _id: listId, sellerId: { $in: sellerIds }, buyerUserId: userId }).lean());
   if (!row) throw new AutomationError("NOT_FOUND");
   return outputList(row);
 }
