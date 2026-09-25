@@ -123,8 +123,11 @@ export async function launchFlashCampaignPreview(userId: string, sellerSlug: str
 
 export async function createFlashCampaign(userId: string, sellerSlug: string, input: unknown) {
   const value = inputFrom(input);
-  const preview = await createFlashCampaignPreview(userId, sellerSlug, { ...value, expiresAt: value.expiresAt.toISOString() });
-  return launchFlashCampaignPreview(userId, sellerSlug, preview.id, value.clientRequestId);
+  const seller = await sellerContext(userId, sellerSlug);
+  return withSellerTenant(seller._id, async () => {
+    const preview = await createFlashCampaignPreview(userId, sellerSlug, { ...value, expiresAt: value.expiresAt.toISOString() });
+    return launchFlashCampaignPreview(userId, sellerSlug, preview.id, value.clientRequestId);
+  });
 }
 
 async function releaseReservations(session: mongoose.ClientSession, campaign: any, reason: "cancelled" | "expired", now: Date) { const active = await CampaignReservation.find({ sellerId: campaign.sellerId, campaignId: campaign._id, status: "reserved" }).session(session); for (const reservation of active) { reservation.status = "released"; reservation.releasedAt = now; reservation.releaseReason = reason; await reservation.save({ session }); } if (active.length) await CampaignInventoryBalance.updateOne({ sellerId: campaign.sellerId, productId: campaign.productId, reserved: { $gte: active.length } }, { $inc: { reserved: -active.length } }, { session }); campaign.remaining += active.length; return active.length; }
