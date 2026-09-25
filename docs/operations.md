@@ -45,7 +45,11 @@ Redis is an acceleration layer: `redis.connected=false` does not invalidate
 MongoDB-backed delivery history or authorization, but rate limits and counters
 must operate through their bounded fallback paths until Redis recovers.
 
-- `artifacts.status=failed` means metadata exists but the immutable Blob write did not complete. Keep the row as evidence and regenerate with a new idempotency key after Blob health recovers.
+- Automation, journey, and delivery/postal cron routes use a namespaced 60-second Redis lock. A configured lock suppresses overlapping runs with `REDIS_LOCK_BUSY`; it never replaces the MongoDB claim/lease safeguards.
+- When Redis is unavailable, those cron routes continue through MongoDB transactions and leases. Treat this as degraded operation, not as proof that distributed overlap protection is active.
+- Verify recovery with `pnpm ops:monitor`, then run one bounded authorized cron request. Do not flush keys outside the `camp:`, `cap:`, `lock:`, and `rate:` namespaces.
+
+- `artifacts.status=failed` means metadata exists but the Blob write did not complete. Keep the row as evidence and retry the same idempotency key after Blob health recovers; the content hash must match.
 - `artifacts.status=uploading` older than the worker timeout is an orphan candidate. Verify the Blob key before marking it failed; never overwrite an existing immutable object.
 - Disable artifact-producing workflows to roll back creation. Existing `ready` objects remain readable only until `retentionUntil` and only through the authorized signed-read route.
 - Alert on failed writes, stale uploading rows and deletion backlog without logging filenames, content, hashes tied to people, or signed URLs.
