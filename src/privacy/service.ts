@@ -7,7 +7,7 @@ import { connectDatabase } from "@/lib/database";
 import { Customer, Purchase } from "@/purchases/models";
 import { cancelBuyerDeliveries } from "@/delivery/service";
 import { ChannelPreference, ConsentEvent, PrivacyExport, PrivacyRequest, PrivacySlaAlert } from "./models";
-import { withTenantBypass } from "@/lib/tenant";
+import { withSellerTenant, withTenantBypass } from "@/lib/tenant";
 import { nextPrivacySlaState, shouldEmitPrivacyAlert } from "./sla";
 import { isAllowedRequestTransition, MARKETING_CHANNELS, PRIVACY_NOTICE_VERSION, validatePreferenceInput, validatePrivacyRequestType, validateResolution } from "./validation";
 import { calculatePrivacySla, defaultPrivacySlaPolicy } from "./sla";
@@ -24,7 +24,7 @@ async function buyerContext(userId: string, sellerSlug: string) {
   if (!relationship) throw new PrivacyError("FORBIDDEN");
   const user = await User.findById(userId).lean();
   if (!user) throw new PrivacyError("FORBIDDEN");
-  const customer = await Customer.findOne({ sellerId: seller._id, emailNormalized: user.emailNormalized }).lean();
+  const customer = await withSellerTenant(seller._id, async () => await Customer.findOne({ sellerId: seller._id, emailNormalized: user.emailNormalized }).lean());
   return { seller, relationship, user, customer };
 }
 
@@ -47,10 +47,10 @@ function requestOutput(row: any) {
 
 export async function buyerPrivacy(userId: string, sellerSlug: string) {
   const { seller, customer } = await buyerContext(userId, sellerSlug);
-  const [preferences, requests] = await Promise.all([
+  const [preferences, requests] = await withSellerTenant(seller._id, async () => await Promise.all([
     ChannelPreference.find({ sellerId: seller._id, buyerUserId: userId, purpose: "marketing" }).sort({ channel: 1 }).lean(),
     PrivacyRequest.find({ sellerId: seller._id, buyerUserId: userId }).sort({ requestedAt: -1, _id: -1 }).limit(20).lean(),
-  ]);
+  ]));
   const byChannel = new Map(preferences.map((row) => [row.channel, preferenceOutput(row)]));
   return {
     seller: { id: seller._id.toString(), name: seller.name, slug: seller.slug },
@@ -68,7 +68,7 @@ export async function updateBuyerPreferences(userId: string, sellerSlug: string,
   if (customer && customer.privacyStatus !== "active" && (input.email || input.postal)) throw new PrivacyError("CONFLICT");
   const database = await connectDatabase();
   const now = new Date();
-  await database.connection.transaction(async (session) => {
+  await withSellerTenant(seller._id, async () => await database.connection.transaction(async (session) => {
     for (const channel of MARKETING_CHANNELS) {
       const subscribed = input[channel];
       const status = subscribed ? "subscribed" : "unsubscribed";
@@ -83,7 +83,7 @@ export async function updateBuyerPreferences(userId: string, sellerSlug: string,
         await ConsentEvent.create([{ sellerId: seller._id, buyerUserId: userId, customerId: customer?._id ?? null, channel, purpose: "marketing", action: subscribed ? "granted" : "withdrawn", noticeVersion: PRIVACY_NOTICE_VERSION, occurredAt: now, actorUserId: userId }], { session });
       }
     }
-  });
+  }));
   return buyerPrivacy(userId, sellerSlug);
 }
 
@@ -92,16 +92,16 @@ export async function createPrivacyRequest(userId: string, sellerSlug: string, t
   try { type = validatePrivacyRequestType(typeValue); } catch { throw new PrivacyError("INVALID"); }
   const { seller, customer } = await buyerContext(userId, sellerSlug);
   const openKey = `${seller._id}:${userId}:${type}`;
-  const existing = await PrivacyRequest.findOne({ sellerId: seller._id, openKey }).lean();
+  const existing = await withSellerTenant(seller._id, async () => await PrivacyRequest.findOne({ sellerId: seller._id, openKey }).lean());
   if (existing) return requestOutput(existing);
   try {
     const requestedAt = new Date();
     const sla = calculatePrivacySla(requestedAt, defaultPrivacySlaPolicy);
-    const row = await PrivacyRequest.create({ sellerId: seller._id, buyerUserId: userId, customerId: customer?._id ?? null, type, openKey, status: "requested", requestedAt, dueAt: sla.dueAt, reminderAt: sla.reminderAt, lastAlertAt: sla.lastAlertAt, slaPolicyVersion: sla.policyVersion, slaStatus: sla.status });
+    const row = await withSellerTenant(seller._id, async () => await PrivacyRequest.create({ sellerId: seller._id, buyerUserId: userId, customerId: customer?._id ?? null, type, openKey, status: "requested", requestedAt, dueAt: sla.dueAt, reminderAt: sla.reminderAt, lastAlertAt: sla.lastAlertAt, slaPolicyVersion: sla.policyVersion, slaStatus: sla.status }));
     return requestOutput(row.toObject());
   } catch (error: any) {
     if (error?.code === 11000) {
-      const concurrent = await PrivacyRequest.findOne({ sellerId: seller._id, openKey }).lean();
+      const concurrent = await withSellerTenant(seller._id, async () => await PrivacyRequest.findOne({ sellerId: seller._id, openKey }).lean());
       if (concurrent) return requestOutput(concurrent);
     }
     throw error;
