@@ -54,7 +54,7 @@ recognized environment variables are:
 | `src/delivery` | `delivery_outbox`, `delivery_events`, `delivery_suppressions`, `delivery_webhook_events` |
 | `src/automations` | `offer_automations`, `offer_automation_previews`, `offer_automation_runs`, `offer_lists` |
 | `src/redemptions` | `redemption_coupons`, `redemption_events` |
-| `src/connectors` | `connector_installations`, `connector_runs`, `connector_records`, `connector_webhook_events`; normalized order records retain reconciliation state, reason, and idempotency evidence until provider line-level write-back is available |
+| `src/connectors` | `connector_installations`, `connector_runs`, `connector_records`, `connector_stock_observations`, `connector_webhook_events`; normalized order records retain reconciliation state, reason, and idempotency evidence, while stock sync maintains one current observation per seller/provider SKU |
 | `src/handoff` | `offer_handoffs` |
 
 The implementation uses explicit seller and buyer access checks in each domain
