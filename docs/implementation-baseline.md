@@ -213,10 +213,10 @@ These gaps are intentional inventory facts, not regressions:
   as an outbox channel; newsletter, WhatsApp, RCS and marketplace inbox settings
   are not modeled.
 - Incremental margin measurement, membership perks, and automatic
-  back-in-stock/price-drop journey enrollment is not implemented. Stock sync
-  now preserves the previous quantity alongside the current observation so a
-  future enrollment worker can evaluate a factual transition without inferring
-  it from a mutable current value. Birthday
+  back-in-stock/price-drop journey enrollment are implemented as bounded
+  foundations: product watches, durable stock/price transition evidence, and
+  the journey worker are wired, while live provider and production data remain
+  release evidence gates. Birthday
   trigger evaluation, the reporting read model, and provider-neutral trigger
   request validation are implemented foundations.
 - Deterministic print-ready offer PDF generation and the seller-operated
