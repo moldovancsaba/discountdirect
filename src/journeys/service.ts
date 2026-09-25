@@ -723,6 +723,159 @@ export async function runDueJourneySteps(limit = 20) {
   return { processed: results.length, results };
 }
 
+export async function runBirthdayJourneyTriggers(limit = 50, now = new Date()) {
+  await connectDatabase();
+  const bounded = Math.min(
+    Math.max(Number.isInteger(limit) ? limit : 50, 1),
+    100,
+  );
+  const definitions = await withTenantBypass(
+    "journey-birthday-trigger-definitions",
+    () =>
+      JourneyDefinition.find({ status: "active" })
+        .sort({ _id: 1 })
+        .limit(bounded)
+        .lean(),
+  );
+  let enrolled = 0;
+  let skipped = 0;
+  for (const definition of definitions) {
+    const version = await withTenantBypass(
+      "journey-birthday-trigger-version",
+      () =>
+        JourneyDefinitionVersion.findOne({
+          definitionId: definition._id,
+          version: definition.activeVersion,
+        }).lean(),
+    );
+    if (!version || version.trigger.kind !== "birthday") continue;
+    const customers = await withTenantBypass(
+      "journey-birthday-trigger-customers",
+      () =>
+        Customer.find({
+          sellerId: definition.sellerId,
+          privacyStatus: "active",
+          birthDate: {
+            $gte: new Date(
+              Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate(),
+              ),
+            ),
+            $lt: new Date(
+              Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate() + 1,
+              ),
+            ),
+          },
+        })
+          .limit(bounded)
+          .lean(),
+    );
+    for (const customer of customers) {
+      if (!customer.emailNormalized) {
+        skipped += 1;
+        continue;
+      }
+      const buyer = await User.findOne({
+        emailNormalized: customer.emailNormalized,
+        status: "active",
+      }).lean();
+      if (
+        !buyer ||
+        !(await BuyerRelationship.exists({
+          sellerId: definition.sellerId,
+          buyerUserId: buyer._id,
+          status: "active",
+        }))
+      ) {
+        skipped += 1;
+        continue;
+      }
+      const evidence = {
+        kind: "birthday",
+        customerId: customer._id.toString(),
+        birthday: customer.birthDate.toISOString().slice(0, 10),
+        evaluatedOn: now.toISOString().slice(0, 10),
+        source: "customer_profile",
+      };
+      const hash = evidenceHash(evidence);
+      try {
+        await withTenantBypass(
+          "journey-birthday-trigger-enrollment",
+          async () => {
+            const database = await connectDatabase();
+            await database.connection.transaction(async (session) => {
+              const existing = await JourneyEnrollment.findOne({
+                definitionId: definition._id,
+                buyerUserId: buyer._id,
+                triggerEvidenceHash: hash,
+              })
+                .session(session)
+                .lean();
+              if (existing) return;
+              const [enrollment] = await JourneyEnrollment.create(
+                [
+                  {
+                    sellerId: definition.sellerId,
+                    definitionId: definition._id,
+                    definitionVersion: version.version,
+                    buyerUserId: buyer._id,
+                    customerId: customer._id,
+                    status: "active",
+                    triggerEvidenceHash: hash,
+                    triggeredAt: now,
+                    nextRunAt: scheduledAt(now, version.steps, 0),
+                    reasonCode: "BIRTHDAY_TRIGGER_ACCEPTED",
+                    createdByUserId: definition.createdByUserId,
+                  },
+                ],
+                { session },
+              );
+              await JourneyStepRun.insertMany(
+                version.steps.map((step: any, index: number) => {
+                  const at = scheduledAt(now, version.steps, index);
+                  return {
+                    sellerId: definition.sellerId,
+                    enrollmentId: enrollment._id,
+                    definitionId: definition._id,
+                    definitionVersion: version.version,
+                    buyerUserId: buyer._id,
+                    customerId: customer._id,
+                    stepKey: step.key,
+                    stepIndex: index,
+                    scheduledFor: at,
+                    nextRunAt: at,
+                    status: "due",
+                    ruleSnapshot: {
+                      templateKey: version.ruleTemplateKey,
+                      templateVersion: version.ruleTemplateVersion,
+                    },
+                    contentSnapshot: {
+                      title: step.title,
+                      channel: step.channel,
+                    },
+                    reasonCode: "SCHEDULED",
+                  };
+                }),
+                { session },
+              );
+              enrolled += 1;
+            });
+          },
+        );
+      } catch (error: any) {
+        if (error?.code === 11000) continue;
+        throw error;
+      }
+    }
+  }
+  return { enrolled, skipped, evaluatedAt: now };
+}
+
 export async function buyerJourneyEvidence(userId: string) {
   await connectDatabase();
   const sellerIds = (
