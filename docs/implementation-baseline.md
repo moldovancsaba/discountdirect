@@ -212,9 +212,10 @@ These gaps are intentional inventory facts, not regressions:
   offer creation currently focus on `email` and `postal`; in-app delivery exists
   as an outbox channel; newsletter, WhatsApp, RCS and marketplace inbox settings
   are not modeled.
-- Incremental margin measurement, membership perks,
-  birthday/back-in-stock/price-drop journeys and a separate reporting read
-  model are not implemented.
+- Incremental margin measurement, membership perks, and automatic
+  back-in-stock/price-drop journey enrollment are not implemented. Birthday
+  trigger evaluation, the reporting read model, and provider-neutral trigger
+  request validation are implemented foundations.
 - Deterministic print-ready offer PDF generation and the seller-operated
   ready/printed/posted fulfillment lifecycle are implemented. Postal partner
   submission now has a disabled-by-default provider-neutral adapter, durable
@@ -231,6 +232,8 @@ pnpm test:auth-integration
 pnpm test:email-integration
 pnpm db:indexes
 pnpm ops:monitor
+pnpm redis:verify
+pnpm blob:verify
 ```
 
 Production realtime checks remain separate because they require production
@@ -251,6 +254,8 @@ DD-039 adds a buyer-owned inbox preference and a consolidated marketplace inbox 
 DD-040 adds immutable rule-template versions and seller override provenance while retaining the validated effective settings snapshot used by runtime services. Predefined and advanced modes resolve deterministically; consent scope, secure checkout mode and channel-frequency maxima remain non-overridable. Resolution events make every saved output reproducible and rollback-safe.
 
 DD-041 adds versioned multi-step customer journeys with manual and purchase-age trigger evidence. Seller owners preview, activate and pause definitions; each enrollment schedules ordered, idempotent step runs. A separately authorized bounded cron leases due work, rechecks current authorization, creates frozen delivery evidence and applies three bounded retry attempts. Buyers can read their enrollment evidence but cannot mutate orchestration state.
+
+Redis and Blob operational drills are credential-gated and synthetic: `pnpm redis:verify` validates Lua scripts, counters, rate limits and lock contention; `pnpm blob:verify` validates private write/read/signed-read and cleanup. A missing provider configuration is a release blocker, not a successful drill result.
 
 Every change that affects stack, deployment, routes, environment variables,
 domain models, provider contracts or durable business state must update this
