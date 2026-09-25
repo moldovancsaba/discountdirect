@@ -16,6 +16,8 @@
 - Retryable execution failures use 5, 30 and 120 minute delays. After three failed execution attempts the step is terminal and requires investigation before a new definition/enrollment is created.
 - Run `GET /api/cron/journeys?limit=1` with the configured cron bearer token to verify one bounded claim. Never put the token in logs or issue comments.
 - Resume the definition only after confirming its current version, pending step states and cancelled-delivery evidence. Historical versions and frozen snapshots are immutable.
+- Birthday evaluation uses the tenant customer profile `birthDate` imported with the customer record; legacy definitions may still carry a bounded birthday value for compatibility. Missing birthday data is an explicit non-trigger, never a guessed date.
+- Back-in-stock and price-drop definitions currently require a verified trigger request containing the normalized provider observation. Do not claim automatic provider enrollment until the connector event-ingestion contract is enabled and its idempotency/replay evidence is available.
 
 ## Checkout hand-off recovery
 
