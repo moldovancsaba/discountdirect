@@ -27,7 +27,7 @@ const offerSchema = new Schema({
   referencePriceEvidenceVersions: [{ type: Number, min: 1 }],
   discountPct: { type: Number, required: true, min: 0, max: 100 },
   priceHuf: { type: Number, required: true, min: 0 },
-  status: { type: String, enum: ["pending", "accepted", "declined", "expired", "cancelled"], default: "pending", index: true },
+  status: { type: String, enum: ["draft", "pending", "accepted", "declined", "expired", "cancelled", "sold_out", "withdrawn", "redeemed"], default: "pending", index: true },
   expiresAt: { type: Date, required: true, index: true },
   decidedAt: { type: Date, default: null },
   decisionByUserId: { type: Schema.Types.ObjectId, default: null, ref: "User" },

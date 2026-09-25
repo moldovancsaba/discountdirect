@@ -201,8 +201,10 @@ These gaps are intentional inventory facts, not regressions:
   product URL template. Automated provider cart creation, order write-back and
   stock callbacks remain open because the published provider contract does not
   supply the required browser-cart creation primitive or a stock event.
-- The richer SSOT offer states are not fully modeled locally: there is no
-  `draft`, `sold_out`, `withdrawn` or `redeemed` offer status yet.
+- The richer SSOT offer states are now represented by an additive schema enum
+  and guarded transition table. Provider-driven sold-out/redeemed transitions
+  and their UI recovery states remain dependent on issue #29 reconciliation
+  evidence.
 - Channel scope is still narrower than the SSOT: marketing preferences and
   offer creation currently focus on `email` and `postal`; in-app delivery exists
   as an outbox channel; newsletter, WhatsApp, RCS and marketplace inbox settings
