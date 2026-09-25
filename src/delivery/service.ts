@@ -32,7 +32,7 @@ export class DeliveryError extends Error {
   }
 }
 
-type OutboundDeliveryChannel = "email" | "postal";
+type OutboundDeliveryChannel = "email" | "postal" | "whatsapp" | "rcs";
 type DeliveryChannel = "in_app" | OutboundDeliveryChannel;
 type DeliveryKind = "personal_offer" | "flash_campaign" | "automated_list" | "printable_letter" | "journey_step";
 type DeliveryStatus = "queued" | "processing" | "sent" | "unsupported" | "suppressed" | "retryable_failed" | "cancelled" | "bounced" | "complained";
@@ -49,6 +49,7 @@ function transportState(channel: DeliveryChannel) {
     const config = emailTransportReadiness();
     return config.enabled ? { status: "queued" as const, reasonCode: "READY_FOR_RESEND" } : { status: "unsupported" as const, reasonCode: config.reasonCode };
   }
+  if (channel === "whatsapp" || channel === "rcs") return { status: "unsupported" as const, reasonCode: `${channel.toUpperCase()}_PROVIDER_NOT_CONFIGURED` };
   const configured = process.env.POSTAL_DELIVERY_PROVIDER;
   return configured ? { status: "queued" as const, reasonCode: "READY_FOR_CONFIGURED_TRANSPORT" } : { status: "unsupported" as const, reasonCode: "TRANSPORT_NOT_CONFIGURED" };
 }

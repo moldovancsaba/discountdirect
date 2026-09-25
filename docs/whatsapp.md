@@ -22,6 +22,11 @@ isolated from the current e-mail/postal outbox until channel consent, frequency
 caps, delivery-event persistence, and a provider callback route are wired as one
 transactional delivery change.
 
+The privacy and delivery domains now recognize `whatsapp` and `rcs` as explicit
+marketing channels. Buyers may record consent for either channel, but the
+outbox currently creates an `unsupported` terminal record until the provider
+worker and callback persistence are enabled. Consent never implies delivery.
+
 ## Production activation checklist
 
 1. Configure the Meta/WhatsApp Business provider credentials and callback secret

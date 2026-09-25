@@ -1,4 +1,4 @@
-export type MarketingChannel = "email" | "postal";
+export type MarketingChannel = "email" | "postal" | "whatsapp" | "rcs";
 export type LegalBasis = "consent" | "legitimate_interest";
 export type SendDecisionReason =
   | "ALLOWED_CONSENT"

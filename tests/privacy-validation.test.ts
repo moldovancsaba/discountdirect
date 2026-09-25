@@ -4,7 +4,8 @@ import { isAllowedRequestTransition, PRIVACY_NOTICE_VERSION, validatePreferenceI
 import { calculatePrivacySla, nextPrivacySlaState, shouldEmitPrivacyAlert } from "../src/privacy/sla.ts";
 
 test("privacy preferences require explicit boolean channel values", () => {
-  assert.deepEqual(validatePreferenceInput({ email: true, postal: false }), { email: true, postal: false });
+  assert.deepEqual(validatePreferenceInput({ email: true, postal: false }), { email: true, postal: false, whatsapp: false, rcs: false });
+  assert.deepEqual(validatePreferenceInput({ email: false, postal: false, whatsapp: true, rcs: true }), { email: false, postal: false, whatsapp: true, rcs: true });
   assert.throws(() => validatePreferenceInput({ email: "yes", postal: false }), /preferences/);
   assert.match(PRIVACY_NOTICE_VERSION, /^privacy-hu-/);
 });

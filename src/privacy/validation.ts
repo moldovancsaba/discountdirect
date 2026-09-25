@@ -1,5 +1,5 @@
 export const PRIVACY_NOTICE_VERSION = "privacy-hu-2026-09-09-v1";
-export const MARKETING_CHANNELS = ["email", "postal"] as const;
+export const MARKETING_CHANNELS = ["email", "postal", "whatsapp", "rcs"] as const;
 export const PRIVACY_REQUEST_TYPES = ["access_export", "restriction", "erasure"] as const;
 
 export type MarketingChannel = (typeof MARKETING_CHANNELS)[number];
@@ -8,10 +8,10 @@ export type PrivacyRequestType = (typeof PRIVACY_REQUEST_TYPES)[number];
 export function validatePreferenceInput(value: unknown) {
   if (!value || typeof value !== "object") throw new Error("preferences");
   const input = value as Record<string, unknown>;
-  if (typeof input.email !== "boolean" || typeof input.postal !== "boolean") {
+  if (typeof input.email !== "boolean" || typeof input.postal !== "boolean" || (input.whatsapp !== undefined && typeof input.whatsapp !== "boolean") || (input.rcs !== undefined && typeof input.rcs !== "boolean")) {
     throw new Error("preferences");
   }
-  return { email: input.email, postal: input.postal };
+  return { email: input.email, postal: input.postal, whatsapp: input.whatsapp ?? false, rcs: input.rcs ?? false };
 }
 
 export function validatePrivacyRequestType(value: unknown): PrivacyRequestType {

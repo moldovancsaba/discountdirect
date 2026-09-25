@@ -12,7 +12,7 @@ import { decideMarketingSend, type LegalBasis, type MarketingChannel } from "./d
 function policyChannel(channel: MarketingChannel) { return channel === "postal" ? "mailing" : channel; }
 
 function windowFor(channel: MarketingChannel) {
-  return channel === "email" ? 30 * 24 * 60 * 60 : 90 * 24 * 60 * 60;
+  return channel === "email" ? 30 * 24 * 60 * 60 : channel === "postal" ? 90 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
 }
 
 export async function maySendMarketing(sellerId: string, buyerUserId: string, channel: MarketingChannel) {
@@ -44,7 +44,7 @@ export async function maySendMarketing(sellerId: string, buyerUserId: string, ch
   }
   const marketPolicy = market ?? { legalBasisByChannel: { email: "consent", mailing: "consent" }, softOptIn: false };
   const basis = (marketPolicy.legalBasisByChannel as Record<string, LegalBasis>)[policyChannel(channel)] ?? "consent";
-  const cap = channel === "email" ? settings.frequency_cap.email_per_30d : settings.frequency_cap.mailing_per_90d;
+  const cap = channel === "email" ? settings.frequency_cap.email_per_30d : channel === "postal" ? settings.frequency_cap.mailing_per_90d : channel === "rcs" ? settings.frequency_cap.rcs_per_7d : settings.frequency_cap.chat_per_7d;
   return decideMarketingSend({
     basis,
     softOptIn: Boolean(marketPolicy.softOptIn),
@@ -59,7 +59,7 @@ export async function maySendMarketing(sellerId: string, buyerUserId: string, ch
 
 export async function recordMarketingSend(sellerId: string, buyerUserId: string, channel: MarketingChannel) {
   if (!redisReadiness().enabled) return;
-  const ttl = channel === "email" ? redisTtlSeconds.frequencyCapWindow : 90 * 24 * 60 * 60;
+  const ttl = channel === "email" ? redisTtlSeconds.frequencyCapWindow : channel === "postal" ? 90 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
   try {
     const redis = redisClient();
     const key = redisKeys.frequencyCap(sellerId, buyerUserId, channel);
