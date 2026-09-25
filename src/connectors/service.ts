@@ -2,6 +2,7 @@ import "server-only";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Mongoose documents are normalized at this boundary. */
 import mongoose from "mongoose";
 import { sellerAccess } from "../catalog/service.ts";
+import { Product } from "../catalog/models.ts";
 import {
   ConnectorInstallation,
   ConnectorRecord,
@@ -451,6 +452,13 @@ export async function syncConnector(
               },
               { upsert: true, session, runValidators: true },
             );
+            if (typeof stock.sku === "string" && Number.isFinite(stock.quantity)) {
+              await Product.updateOne(
+                { sellerId: access.seller._id, skuNormalized: stock.sku.trim().toUpperCase(), active: true },
+                { $set: { stock: stock.quantity } },
+                { session, runValidators: true },
+              );
+            }
           }
         }
         const installationUpdate = await ConnectorInstallation.updateOne(

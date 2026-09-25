@@ -1,5 +1,7 @@
 # Operations
 
+Connector stock sync persists the tenant-scoped transition evidence and updates a matching active catalog product's local `stock` in the same MongoDB transaction. Flash reservation reads that catalog value; an unmatched provider SKU remains evidence only and does not mutate a product.
+
 ## Rule-template recovery
 
 - A seller can return to the active predefined template from the settings page. This writes a new optimistic seller-settings version and audit event; it does not delete the former override evidence.
