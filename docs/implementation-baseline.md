@@ -1,25 +1,25 @@
 # Implementation baseline inventory
 
-Verified on 2026-09-18 against the local implementation repository at
-`/Users/Shared/Projects/discountdirect`, through `main` commit `0eb5d55`
+Verified on 2026-09-25 against the local implementation repository at
+`/Users/Shared/Projects/discount.direct`, through `main` commit `13600fb`
 (`feat: measure campaign holdout lift`). This file is the DD-000 baseline artifact: keep it in sync whenever the
 runtime stack, deployment shape, domain models, route surface or provider
 contracts materially change.
 
 ## Stack
 
-| Layer | Verified implementation |
-| --- | --- |
-| Runtime | Node `24.x`, pnpm `10.30.3` |
-| App and HTTP backend | Next.js `15.5.21` App Router, React `19.2.8`, TypeScript `6.0.3` |
-| Hosting | Vercel project `narimato/discountdirect`; production alias `https://discountdirect.vercel.app` |
-| Database | MongoDB Atlas through Mongoose `9.9.5`; shared connection helper in `src/lib/database-core.ts` |
-| Interface | SovereignSquad GDS `6.7.0`, Mantine packages under the GDS layer, Hungarian locale |
-| Authentication | DoneIsBetter OAuth/OIDC SSO only; local password/activation endpoints fail closed with `SSO_ONLY` |
-| Realtime | Socket.IO endpoint on Vercel plus durable Atlas `RealtimeEvent` replay and HTTP fallback |
-| Jobs | Vercel Cron invokes `/api/cron/automations` every 30 minutes, `/api/cron/deliveries` every 15 minutes and `/api/cron/journeys` every 10 minutes |
-| E-mail | Resend adapter for outbound mail, signed inbound replies, suppressions and unsubscribe handling |
-| Accelerators and artifacts | Upstash Redis client/key-policy foundations exist and frequency-cap counters are wired with MongoDB as authority; general rate limits, flash counters and locks remain planned. Vercel Blob has an immutable private-key and signed-read foundation and print-ready offer PDFs now persist through it. No separate reporting projection exists. |
+| Layer                      | Verified implementation                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Runtime                    | Node `24.x`, pnpm `10.30.3`                                                                                                                                                                                                                                                                                                                                                                      |
+| App and HTTP backend       | Next.js `15.5.21` App Router, React `19.2.8`, TypeScript `6.0.3`                                                                                                                                                                                                                                                                                                                                 |
+| Hosting                    | Vercel project `narimato/discountdirect`; production alias `https://discountdirect.vercel.app`                                                                                                                                                                                                                                                                                                   |
+| Database                   | MongoDB Atlas through Mongoose `9.9.5`; shared connection helper in `src/lib/database-core.ts`                                                                                                                                                                                                                                                                                                   |
+| Interface                  | SovereignSquad GDS `6.7.0`, Mantine packages under the GDS layer, Hungarian locale                                                                                                                                                                                                                                                                                                               |
+| Authentication             | DoneIsBetter OAuth/OIDC SSO only; local password/activation endpoints fail closed with `SSO_ONLY`                                                                                                                                                                                                                                                                                                |
+| Realtime                   | Socket.IO endpoint on Vercel plus durable Atlas `RealtimeEvent` replay and HTTP fallback                                                                                                                                                                                                                                                                                                         |
+| Jobs                       | Vercel Cron invokes `/api/cron/automations` every 30 minutes, `/api/cron/deliveries` every 15 minutes and `/api/cron/journeys` every 10 minutes                                                                                                                                                                                                                                                  |
+| E-mail                     | Resend adapter for outbound mail, signed inbound replies, suppressions and unsubscribe handling                                                                                                                                                                                                                                                                                                  |
+| Accelerators and artifacts | Upstash Redis client/key-policy foundations exist; frequency-cap counters and namespaced worker locks are wired with MongoDB as authority and explicit degraded fallback. General rate limits and flash counters remain planned. Vercel Blob has an immutable private-key and signed-read foundation and print-ready offer PDFs now persist through it. No separate reporting projection exists. |
 
 ## Deployment and environment
 
@@ -27,35 +27,35 @@ contracts materially change.
 three cron paths and a 300-second `api/socket-io.ts` function budget. The required or
 recognized environment variables are:
 
-| Area | Variables |
-| --- | --- |
-| Database | `MONGODB_URI`, `MONGODB_DB` |
-| App/runtime | `APP_URL`, `REALTIME_ENABLED` |
-| Redis | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
-| Blob | `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, or Vercel OIDC with `BLOB_STORE_ID` |
-| SSO | `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET`, `SSO_ORIGIN`, `SSO_REDIRECT1_URI`, `SSO_REDIRECT2_URI` |
-| Operations | `OPERATIONS_TOKEN`, `CRON_SECRET` |
-| E-mail | `EMAIL_DELIVERY_PROVIDER`, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_STAGED_RECIPIENTS`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_API_KEY`, `RESEND_API_BASE_URL`, `RESEND_FROM`, `RESEND_REPLY_DOMAIN`, `RESEND_WEBHOOK_SECRET` |
-| Package registry | `GITHUB_TOKEN` remains available for registry delivery but the current GDS dependency path uses public release assets |
+| Area             | Variables                                                                                                                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Database         | `MONGODB_URI`, `MONGODB_DB`                                                                                                                                                                                       |
+| App/runtime      | `APP_URL`, `REALTIME_ENABLED`                                                                                                                                                                                     |
+| Redis            | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`                                                                                                                                                              |
+| Blob             | `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, or Vercel OIDC with `BLOB_STORE_ID`                                                                                                                                     |
+| SSO              | `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET`, `SSO_ORIGIN`, `SSO_REDIRECT1_URI`, `SSO_REDIRECT2_URI`                                                                                                                      |
+| Operations       | `OPERATIONS_TOKEN`, `CRON_SECRET`                                                                                                                                                                                 |
+| E-mail           | `EMAIL_DELIVERY_PROVIDER`, `EMAIL_PUBLIC_BASE_URL`, `EMAIL_STAGED_RECIPIENTS`, `EMAIL_UNSUBSCRIBE_SECRET`, `RESEND_API_KEY`, `RESEND_API_BASE_URL`, `RESEND_FROM`, `RESEND_REPLY_DOMAIN`, `RESEND_WEBHOOK_SECRET` |
+| Package registry | `GITHUB_TOKEN` remains available for registry delivery but the current GDS dependency path uses public release assets                                                                                             |
 
 ## Domain modules and collections
 
-| Module | Collections / durable records |
-| --- | --- |
-| `src/auth` | `users`, `sellers`, `memberships`, `buyer_relationships`, `sessions`, `access_tokens`, `login_rate_limits`, `auth_audit_events` |
-| `src/catalog` | `products`, `product_revisions`, `import_batches` |
-| `src/purchases` | `customers`, `purchases`, `purchase_import_batches` |
-| `src/privacy` | `channel_preferences`, `consent_events`, `privacy_requests`, `privacy_exports`, `privacy_sla_alerts` |
-| `src/recommendations` | `recommendation_previews` |
-| `src/messaging` | `conversations`, `conversation_events` |
-| `src/realtime` | `realtime_events`, `conversation_presence` |
-| `src/offers` | `offers`, `offer_events` |
-| `src/campaigns` | `campaigns`, `campaign_previews`, `campaign_reservations`, `campaign_inventory_balances` |
-| `src/delivery` | `delivery_outbox`, `delivery_events`, `delivery_suppressions`, `delivery_webhook_events` |
-| `src/automations` | `offer_automations`, `offer_automation_previews`, `offer_automation_runs`, `offer_lists` |
-| `src/redemptions` | `redemption_coupons`, `redemption_events` |
-| `src/connectors` | `connector_installations`, `connector_runs`, `connector_records`, `connector_stock_observations`, `connector_webhook_events`; normalized order records retain reconciliation state, reason, and idempotency evidence, while stock sync maintains one current observation per seller/provider SKU |
-| `src/handoff` | `offer_handoffs` |
+| Module                | Collections / durable records                                                                                                                                                                                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/auth`            | `users`, `sellers`, `memberships`, `buyer_relationships`, `sessions`, `access_tokens`, `login_rate_limits`, `auth_audit_events`                                                                                                                                                                  |
+| `src/catalog`         | `products`, `product_revisions`, `import_batches`                                                                                                                                                                                                                                                |
+| `src/purchases`       | `customers`, `purchases`, `purchase_import_batches`                                                                                                                                                                                                                                              |
+| `src/privacy`         | `channel_preferences`, `consent_events`, `privacy_requests`, `privacy_exports`, `privacy_sla_alerts`                                                                                                                                                                                             |
+| `src/recommendations` | `recommendation_previews`                                                                                                                                                                                                                                                                        |
+| `src/messaging`       | `conversations`, `conversation_events`                                                                                                                                                                                                                                                           |
+| `src/realtime`        | `realtime_events`, `conversation_presence`                                                                                                                                                                                                                                                       |
+| `src/offers`          | `offers`, `offer_events`                                                                                                                                                                                                                                                                         |
+| `src/campaigns`       | `campaigns`, `campaign_previews`, `campaign_reservations`, `campaign_inventory_balances`                                                                                                                                                                                                         |
+| `src/delivery`        | `delivery_outbox`, `delivery_events`, `delivery_suppressions`, `delivery_webhook_events`                                                                                                                                                                                                         |
+| `src/automations`     | `offer_automations`, `offer_automation_previews`, `offer_automation_runs`, `offer_lists`                                                                                                                                                                                                         |
+| `src/redemptions`     | `redemption_coupons`, `redemption_events`                                                                                                                                                                                                                                                        |
+| `src/connectors`      | `connector_installations`, `connector_runs`, `connector_records`, `connector_stock_observations`, `connector_webhook_events`; normalized order records retain reconciliation state, reason, and idempotency evidence, while stock sync maintains one current observation per seller/provider SKU |
+| `src/handoff`         | `offer_handoffs`                                                                                                                                                                                                                                                                                 |
 
 The implementation uses explicit seller and buyer access checks in each domain
 service. The DD-002 tenant guard in `src/lib/tenant-core.ts` is applied to every
@@ -175,9 +175,10 @@ These gaps are intentional inventory facts, not regressions:
   export archive adoption remains owned by the privacy issues.
 
 - Upstash Redis has a client, key convention, TTL policy and Lua-script loader,
-  and seller frequency caps are wired into outbound eligibility. General rate
-  limits, flash counters and short-lived idempotency locks are not yet wired
-  into the business flows or verified against staging Redis.
+  and seller frequency caps plus namespaced automation, journey and delivery
+  worker locks are wired into the business flows. MongoDB remains authoritative
+  when Redis is unavailable. General rate limits and flash counters are not yet
+  wired into business flows or verified against staging Redis.
 - Vercel Blob has a private artifact key convention, retention policy and signed
   read-url foundation. Postal offer generation is wired to the artifact ledger;
   live staging Blob verification is still required before issue closure. Privacy
