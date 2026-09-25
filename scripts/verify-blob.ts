@@ -4,12 +4,17 @@ import {
   getPrivateBlob,
   privateBlobReadUrl,
   putPrivateBlob,
+  blobReadiness,
 } from "../src/lib/blob-core.ts";
 
 const pathname = `verification/discountdirect-${randomUUID()}.txt`;
 const body = `DiscountDirect artifact verification ${new Date().toISOString()}`;
 
-try {
+const readiness = blobReadiness();
+if (!readiness.enabled) {
+  console.log(JSON.stringify({ ok: false, blocked: true, reasonCode: readiness.reasonCode }));
+  process.exitCode = 2;
+} else try {
   await putPrivateBlob(pathname, body, {
     contentType: "text/plain; charset=utf-8",
   });
