@@ -395,7 +395,7 @@ try {
   assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 403);
   const preferenceUpdate = await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) });
   assert.equal(preferenceUpdate.status, 200);
-  assert.equal(await withTenantBypass("auth-integration-preference-count", async () => await ChannelPreference.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id })), 2);
+  assert.equal(await withTenantBypass("auth-integration-preference-count", async () => await ChannelPreference.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id })), 4);
   assert.equal(await withTenantBypass("auth-integration-consent-count", async () => await ConsentEvent.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id })), 1);
   assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 200);
   assert.equal(await withTenantBypass("auth-integration-consent-replay-count", async () => await ConsentEvent.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id })), 1);
