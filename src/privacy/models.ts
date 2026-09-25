@@ -44,6 +44,11 @@ const privacyRequestSchema = new Schema(
     openKey: { type: String, default: null },
     status: { type: String, enum: ["requested", "processing", "completed", "failed"], default: "requested", index: true },
     requestedAt: { type: Date, required: true },
+    dueAt: { type: Date, required: true, index: true },
+    reminderAt: { type: Date, required: true, index: true },
+    slaStatus: { type: String, enum: ["pending", "reminder_due", "overdue", "acknowledged", "completed"], required: true, default: "pending", index: true },
+    slaPolicyVersion: { type: String, required: true, maxlength: 80 },
+    lastAlertAt: { type: Date, default: null },
     startedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
     failedAt: { type: Date, default: null },
@@ -67,13 +72,27 @@ const privacyExportSchema = new Schema(
 );
 privacyExportSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+const privacySlaAlertSchema = new Schema(
+  {
+    sellerId: { type: Schema.Types.ObjectId, required: true, ref: "Seller", index: true },
+    requestId: { type: Schema.Types.ObjectId, required: true, ref: "PrivacyRequest" },
+    kind: { type: String, enum: ["reminder", "overdue"], required: true },
+    idempotencyKey: { type: String, required: true, maxlength: 180 },
+    createdAt: { type: Date, required: true },
+  },
+  { versionKey: false, collection: "privacy_sla_alerts" },
+);
+privacySlaAlertSchema.index({ idempotencyKey: 1 }, { unique: true });
+
 channelPreferenceSchema.plugin(sellerScopedSchema);
 consentEventSchema.plugin(sellerScopedSchema);
 privacyRequestSchema.plugin(sellerScopedSchema);
 privacyExportSchema.plugin(sellerScopedSchema);
+privacySlaAlertSchema.plugin(sellerScopedSchema);
 
 export const ChannelPreference = models.ChannelPreference || model("ChannelPreference", channelPreferenceSchema);
 export const ConsentEvent = models.ConsentEvent || model("ConsentEvent", consentEventSchema);
 export const PrivacyRequest = models.PrivacyRequest || model("PrivacyRequest", privacyRequestSchema);
 export const PrivacyExport = models.PrivacyExport || model("PrivacyExport", privacyExportSchema);
-export const privacyModels = [ChannelPreference, ConsentEvent, PrivacyRequest, PrivacyExport];
+export const PrivacySlaAlert = models.PrivacySlaAlert || model("PrivacySlaAlert", privacySlaAlertSchema);
+export const privacyModels = [ChannelPreference, ConsentEvent, PrivacyRequest, PrivacyExport, PrivacySlaAlert];
