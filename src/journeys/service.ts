@@ -780,17 +780,25 @@ export async function runBirthdayJourneyTriggers(limit = 50, now = new Date()) {
         skipped += 1;
         continue;
       }
-      const buyer = await User.findOne({
-        emailNormalized: customer.emailNormalized,
-        status: "active",
-      }).lean();
+      const buyer = await withTenantBypass(
+        "journey-birthday-trigger-buyer",
+        () =>
+          User.findOne({
+            emailNormalized: customer.emailNormalized,
+            status: "active",
+          }).lean(),
+      );
       if (
         !buyer ||
-        !(await BuyerRelationship.exists({
-          sellerId: definition.sellerId,
-          buyerUserId: buyer._id,
-          status: "active",
-        }))
+        !(await withTenantBypass(
+          "journey-birthday-trigger-relationship",
+          () =>
+            BuyerRelationship.exists({
+              sellerId: definition.sellerId,
+              buyerUserId: buyer._id,
+              status: "active",
+            }),
+        ))
       ) {
         skipped += 1;
         continue;
