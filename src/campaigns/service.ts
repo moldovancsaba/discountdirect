@@ -125,6 +125,8 @@ export async function createFlashCampaign(userId: string, sellerSlug: string, in
   const value = inputFrom(input);
   const seller = await sellerContext(userId, sellerSlug);
   return withSellerTenant(seller._id, async () => {
+    const replay = await Campaign.findOne({ sellerId: seller._id, createdByUserId: userId, clientRequestId: value.clientRequestId }).lean();
+    if (replay) return campaignOutput(replay, await Offer.countDocuments({ sellerId: seller._id, campaignId: replay._id }));
     const preview = await createFlashCampaignPreview(userId, sellerSlug, { ...value, expiresAt: value.expiresAt.toISOString() });
     return launchFlashCampaignPreview(userId, sellerSlug, preview.id, value.clientRequestId);
   });
