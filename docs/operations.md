@@ -35,6 +35,7 @@
 - Disable the installation to stop tests, synchronization and new checkout hand-offs. Durable connector records and run evidence remain retained for investigation.
 - `AUTH` and `CONFIGURATION` require credential/configuration repair. Transient timeout, rate-limit and provider failures mark the installation degraded. Test the corrected installation before resuming synchronization.
 - Never rewind a cursor in production without documenting the provider range and using a new idempotency key. Record upserts are provider-ID based, but a rewind can still increase provider load.
+- Order write-back is an explicit connector capability. Until a provider adapter has a documented endpoint, required scope and sandbox evidence, it returns `CAPABILITY_UNSUPPORTED`; this is terminal, must not be retried, and must never be presented as a successful provider update.
 
 ## Private artifact recovery
 
@@ -126,6 +127,7 @@ The repository's `vercel.json` selects Next.js with frozen-lockfile installation
 - Delivery shows `TRANSPORT_NOT_CONFIGURED` or `EMAIL_TRANSPORT_CONFIGURATION_INCOMPLETE`: verify Resend/Vercel provider variables, staged-recipient configuration and the latest deployment. Do not mark these rows sent manually.
 - UI/HTTP regression: use Vercel Instant Rollback to a previously verified deployment in the project deployment history; then revert the offending commit on GitHub and deploy again. Authentication indexes and empty additive collections may remain after rollback; release 0.3.0 does not alter business records. Never choose an unverified future deployment.
 - Performance: the displayed duration covers this request's connection plus ping, not application-wide latency. No user-presence or historical performance metrics are asserted yet.
+
 ## Prototype fixtures
 
 Load the original DiscountDirect acceptance fixture into an isolated development
