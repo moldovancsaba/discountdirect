@@ -9,6 +9,10 @@ export async function GET(request: Request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   if (!matchesToken(token, process.env.CRON_SECRET)) return errorResponse("UNAUTHORIZED", "Cron hozzáférés szükséges.", 401);
   const limit = Number(new URL(request.url).searchParams.get("limit") ?? 20);
-  const result = await runDueAutomations(Number.isFinite(limit) ? limit : 20);
-  return Response.json(result, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const result = await runDueAutomations(Number.isFinite(limit) ? limit : 20);
+    return Response.json(result, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return errorResponse("CRON_RUN_FAILED", "Az automatizmusok futtatása átmenetileg nem sikerült.", 503);
+  }
 }
