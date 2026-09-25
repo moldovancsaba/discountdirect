@@ -9,8 +9,8 @@ export async function participant(userId: string, conversationId: string) {
   if (!mongoose.isValidObjectId(conversationId))
     throw new MessagingError("INVALID");
   await connectDatabaseCore();
-  const conversation = await withTenantBypass("conversation-participant-authorization-lookup", () =>
-    Conversation.findById(conversationId).lean(),
+  const conversation = await withTenantBypass("conversation-participant-authorization-lookup", async () =>
+    await Conversation.findById(conversationId).lean(),
   );
   if (!conversation) throw new MessagingError("NOT_FOUND");
   const sellerMember = await Membership.exists({
