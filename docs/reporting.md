@@ -20,3 +20,10 @@ Reducer tests cover deterministic totals, refunds, revenue, UTC day boundaries, 
 # Attribution and margin
 
 Attribution uses the signed offer hand-off first, then a bounded campaign window, and otherwise reports an unattributed order. Revenue is reduced by recorded refunds and margin is shown only when a frozen product-cost revision exists. Missing cost, insufficient evidence, and refund anomalies remain visible warnings; the rule version is `attribution-2026-09-25-v1`.
+
+Seller owners manage immutable product-cost revisions through
+`/api/sellers/:sellerSlug/products/:productId/cost-revisions`. Revisions have an
+increasing product-local version and effective timestamp. The endpoint is
+SSO-protected and rejects non-owner access, invalid HUF values, future dates,
+and unknown products. Reporting consumers select the latest revision effective
+at order time and never overwrite historical cost evidence.

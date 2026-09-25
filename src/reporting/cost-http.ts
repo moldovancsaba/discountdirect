@@ -1,0 +1,3 @@
+import { errorResponse } from "@/auth/http";
+import { CostRevisionError } from "./cost-service";
+export function costRevisionError(error: unknown) { if (error instanceof CostRevisionError) { const map = { FORBIDDEN: ["FORBIDDEN", "Nincs jogosultságod.", 403], NOT_FOUND: ["NOT_FOUND", "A termék nem található.", 404], INVALID: ["INVALID_COST_REVISION", "A költség-revízió érvénytelen.", 400], CONFLICT: ["COST_REVISION_CONFLICT", "A költség-revízió ütközik.", 409] } as const; const [code, message, status] = map[error.code]; return errorResponse(code, message, status); } return errorResponse("REPORTING_UNAVAILABLE", "A riport szolgáltatás átmenetileg nem érhető el.", 503); }
