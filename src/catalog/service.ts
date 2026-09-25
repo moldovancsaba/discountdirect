@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import mongoose from "mongoose";
 import { connectDatabase } from "../lib/database.ts";
+import { withSellerTenant } from "../lib/tenant.ts";
 import { Membership, Seller } from "../auth/models.ts";
 import { ImportBatch, Product, ProductRevision } from "./models.ts";
 import { productInputErrors, validateProductInput, type ProductInput } from "./validation.ts";
@@ -35,9 +36,11 @@ function output(product: Record<string, any>) {
 
 export async function listProducts(userId: string, sellerSlug: string, includeArchived = true) {
   const { seller } = await sellerAccess(userId, sellerSlug);
-  const filter = { sellerId: seller._id, ...(includeArchived ? {} : { active: true }) };
-  const products = await Product.find(filter).sort({ active: -1, name: 1, _id: 1 }).limit(100).lean();
-  return { seller, products: products.map((item) => output(item as any)) };
+  return withSellerTenant(seller._id, async () => {
+    const filter = { sellerId: seller._id, ...(includeArchived ? {} : { active: true }) };
+    const products = await Product.find(filter).sort({ active: -1, name: 1, _id: 1 }).limit(100).lean();
+    return { seller, products: products.map((item) => output(item as any)) };
+  });
 }
 
 async function revision(product: any, reason: "create" | "edit" | "archive" | "import", userId: string, importBatchId?: unknown, session?: mongoose.ClientSession) {
@@ -47,36 +50,40 @@ async function revision(product: any, reason: "create" | "edit" | "archive" | "i
 export async function createProduct(userId: string, sellerSlug: string, value: unknown) {
   const data = validated(value);
   const { seller } = await sellerAccess(userId, sellerSlug);
-  try {
-    const product = await Product.create({ ...data, sellerId: seller._id, updatedByUserId: userId });
-    await revision(product, "create", userId);
-    return output(product.toObject());
-  } catch (error: any) {
-    if (error?.code === 11000) throw new CatalogError("CONFLICT");
-    throw error;
-  }
+  return withSellerTenant(seller._id, async () => {
+    try {
+      const product = await Product.create({ ...data, sellerId: seller._id, updatedByUserId: userId });
+      await revision(product, "create", userId);
+      return output(product.toObject());
+    } catch (error: any) {
+      if (error?.code === 11000) throw new CatalogError("CONFLICT");
+      throw error;
+    }
+  });
 }
 
 export async function updateProduct(userId: string, sellerSlug: string, productId: string, value: unknown, expectedVersion: unknown) {
   if (!mongoose.isValidObjectId(productId) || !Number.isInteger(expectedVersion) || Number(expectedVersion) < 1) throw new CatalogError("INVALID");
   const data = validated(value);
   const { seller } = await sellerAccess(userId, sellerSlug);
-  try {
-    const product = await Product.findOneAndUpdate(
-      { _id: productId, sellerId: seller._id, version: expectedVersion },
-      { $set: { ...data, updatedByUserId: userId }, $inc: { version: 1 } },
-      { new: true, runValidators: true },
-    );
-    if (!product) {
-      const exists = await Product.exists({ _id: productId, sellerId: seller._id });
-      throw new CatalogError(exists ? "STALE" : "NOT_FOUND");
+  return withSellerTenant(seller._id, async () => {
+    try {
+      const product = await Product.findOneAndUpdate(
+        { _id: productId, sellerId: seller._id, version: expectedVersion },
+        { $set: { ...data, updatedByUserId: userId }, $inc: { version: 1 } },
+        { new: true, runValidators: true },
+      );
+      if (!product) {
+        const exists = await Product.exists({ _id: productId, sellerId: seller._id });
+        throw new CatalogError(exists ? "STALE" : "NOT_FOUND");
+      }
+      await revision(product, data.active ? "edit" : "archive", userId);
+      return output(product.toObject());
+    } catch (error: any) {
+      if (error?.code === 11000) throw new CatalogError("CONFLICT");
+      throw error;
     }
-    await revision(product, data.active ? "edit" : "archive", userId);
-    return output(product.toObject());
-  } catch (error: any) {
-    if (error?.code === 11000) throw new CatalogError("CONFLICT");
-    throw error;
-  }
+  });
 }
 
 export async function previewImport(userId: string, sellerSlug: string, value: unknown) {

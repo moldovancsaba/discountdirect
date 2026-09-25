@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import mongoose from "mongoose";
 import { connectDatabase } from "@/lib/database";
+import { withSellerTenant } from "@/lib/tenant";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { Product } from "@/catalog/models";
 import { ChannelPreference, ConsentEvent } from "@/privacy/models";
@@ -63,29 +64,31 @@ export async function previewPurchaseImport(userId: string, sellerSlug: string, 
   if (schemaVersion !== "1" || typeof sourceName !== "string" || !sourceName.trim() || sourceName.trim().length > 120 || !Array.isArray(rows)) throw new PurchaseError("INVALID");
   if (!rows.length || rows.length > 200) throw new PurchaseError("TOO_LARGE");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
-  const checksum = createHash("sha256").update(JSON.stringify({ schemaVersion, sourceName: sourceName.trim(), rows })).digest("hex");
-  const existingBatch = await PurchaseImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
-  if (existingBatch) return existingBatch;
-  const seen = new Set<string>();
-  const results = [];
-  for (let index = 0; index < rows.length; index += 1) {
-    let data: PurchaseInput | null = null;
-    const errorCodes: string[] = [];
-    try { data = validatePurchaseInput(rows[index]); } catch (error) { errorCodes.push(error instanceof Error ? error.message : "record"); }
-    const key = data ? `${data.orderId}\u0000${data.lineId}` : "";
-    if (key && seen.has(key)) errorCodes.push("duplicateLine");
-    if (key) seen.add(key);
-    const existing = data ? await Purchase.findOne({ sellerId: seller._id, orderId: data.orderId, lineId: data.lineId }).lean() : null;
-    const checksumForRow = data ? rowChecksum(data) : "";
-    if (existing && existing.sourceChecksum !== checksumForRow) errorCodes.push("conflictingExistingLine");
-    results.push({ row: index + 1, key: data ? `${data.orderId}/${data.lineId}` : "", action: errorCodes.length ? "error" : existing ? "unchanged" : "create", data, errorCodes });
-  }
-  try {
-    return await PurchaseImportBatch.create({ sellerId: seller._id, createdByUserId: userId, schemaVersion, sourceName: sourceName.trim(), checksum, rows: results });
-  } catch (error: any) {
-    if (error?.code === 11000) return PurchaseImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
-    throw error;
-  }
+  return withSellerTenant(seller._id, async () => {
+    const checksum = createHash("sha256").update(JSON.stringify({ schemaVersion, sourceName: sourceName.trim(), rows })).digest("hex");
+    const existingBatch = await PurchaseImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
+    if (existingBatch) return existingBatch;
+    const seen = new Set<string>();
+    const results = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      let data: PurchaseInput | null = null;
+      const errorCodes: string[] = [];
+      try { data = validatePurchaseInput(rows[index]); } catch (error) { errorCodes.push(error instanceof Error ? error.message : "record"); }
+      const key = data ? `${data.orderId}\u0000${data.lineId}` : "";
+      if (key && seen.has(key)) errorCodes.push("duplicateLine");
+      if (key) seen.add(key);
+      const existing = data ? await Purchase.findOne({ sellerId: seller._id, orderId: data.orderId, lineId: data.lineId }).lean() : null;
+      const checksumForRow = data ? rowChecksum(data) : "";
+      if (existing && existing.sourceChecksum !== checksumForRow) errorCodes.push("conflictingExistingLine");
+      results.push({ row: index + 1, key: data ? `${data.orderId}/${data.lineId}` : "", action: errorCodes.length ? "error" : existing ? "unchanged" : "create", data, errorCodes });
+    }
+    try {
+      return await PurchaseImportBatch.create({ sellerId: seller._id, createdByUserId: userId, schemaVersion, sourceName: sourceName.trim(), checksum, rows: results });
+    } catch (error: any) {
+      if (error?.code === 11000) return PurchaseImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
+      throw error;
+    }
+  });
 }
 
 export async function purchaseImportBatch(userId: string, sellerSlug: string, batchId: string) {
