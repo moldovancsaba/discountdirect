@@ -272,10 +272,10 @@ export async function runAutomationNow(userId: string, sellerSlug: string, autom
   const seller = await sellerAccess(userId, sellerSlug);
   const automation = await withSellerTenant(seller._id, async () => await OfferAutomation.findOne({ _id: automationId, sellerId: seller._id }).lean());
   if (!automation) throw new AutomationError("NOT_FOUND");
-  return withSellerTenant(seller._id, () => runAutomation(automation, userId, seller.slug));
+  return withSellerTenant(seller._id, () => runAutomation(automation, userId));
 }
 
-async function runAutomation(automation: any, actorUserId: string, sellerSlug?: string) {
+async function runAutomation(automation: any, actorUserId: string) {
   if (automation.status !== "active") throw new AutomationError("CONFLICT");
   const seller = await Seller.findById(automation.sellerId).lean();
   if (!seller) throw new AutomationError("NOT_FOUND");
@@ -285,7 +285,7 @@ async function runAutomation(automation: any, actorUserId: string, sellerSlug?: 
   const activeBuyerCount = await BuyerRelationship.countDocuments({ sellerId: automation.sellerId, status: "active" });
   const heldOut = activeBuyerCount >= 10 && isHoldout({ sellerId: automation.sellerId.toString(), buyerUserId: automation.buyerUserId.toString(), holdoutPct: settings.holdout_pct, mode: settings.holdout_mode, campaignKey: `newsletter:${automation._id}:${automation.nextRunAt.toISOString()}` });
   const eligibility = sendDecision.allowed && heldOut ? { allowed: false as const, reasonCode: "NEWSLETTER_HOLDOUT" } : sendDecision;
-  const preview = eligibility.allowed ? await createRecommendationPreview(actorUserId, sellerSlug ?? seller.slug, automation.customerId.toString(), automation.channel) : { status: "excluded", recommendations: [], exclusionReasons: [eligibility.reasonCode] };
+  const preview = eligibility.allowed ? await createRecommendationPreview(actorUserId, seller.slug, automation.customerId.toString(), automation.channel) : { status: "excluded", recommendations: [], exclusionReasons: [eligibility.reasonCode] };
   const products = preview.status === "eligible" ? preview.recommendations.slice(0, automation.productLimit) : [];
   const now = new Date();
   const database = await connectDatabase();

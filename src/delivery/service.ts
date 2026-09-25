@@ -183,19 +183,11 @@ export async function listSellerDeliveries(userId: string, sellerSlug: string) {
   return { seller: { id: seller._id.toString(), name: seller.name, slug: seller.slug }, deliveries: rows.map(output) };
 }
 
-export async function buyerDeliveries(userId: string, sellerSlug?: string) {
+export async function buyerDeliveries(userId: string) {
   await connectDatabase();
-  const filter: Record<string, unknown> = { buyerUserId: userId };
-  if (sellerSlug) {
-    const seller = await Seller.findOne({ slug: sellerSlug, status: "active" }).lean();
-    if (!seller) throw new DeliveryError("NOT_FOUND");
-    if (!await BuyerRelationship.exists({ sellerId: seller._id, buyerUserId: userId, status: "active" })) throw new DeliveryError("FORBIDDEN");
-    filter.sellerId = seller._id;
-  } else {
-    const sellerIds = await activeBuyerSellerIds(userId);
-    if (!sellerIds.length) return { deliveries: [] };
-    filter.sellerId = { $in: sellerIds };
-  }
+  const sellerIds = await activeBuyerSellerIds(userId);
+  if (!sellerIds.length) return { deliveries: [] };
+  const filter = { buyerUserId: userId, sellerId: { $in: sellerIds } };
   const rows = await DeliveryOutbox.find(filter).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
   return { deliveries: rows.map(output) };
 }
