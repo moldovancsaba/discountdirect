@@ -4,6 +4,7 @@ export type PurchaseInput = {
   externalBuyerId: string;
   buyerEmail: string | null;
   buyerName: string;
+  birthDate: Date | null;
   orderId: string;
   lineId: string;
   productSku: string;
@@ -14,23 +15,64 @@ export type PurchaseInput = {
 };
 
 function requiredText(value: unknown, max: number, code: string) {
-  if (typeof value !== "string" || !value.trim() || value.trim().length > max) throw new Error(code);
+  if (typeof value !== "string" || !value.trim() || value.trim().length > max)
+    throw new Error(code);
   return value.trim();
 }
 
 export function validatePurchaseInput(value: unknown): PurchaseInput {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("record");
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("record");
   const row = value as Record<string, unknown>;
   const purchasedAt = new Date(String(row.purchasedAt ?? ""));
-  if (Number.isNaN(purchasedAt.getTime()) || purchasedAt.getTime() > Date.now() + 300_000) throw new Error("purchasedAt");
-  if (!Number.isInteger(row.quantity) || Number(row.quantity) < 1 || Number(row.quantity) > 100_000) throw new Error("quantity");
-  if (!Number.isInteger(row.totalHuf) || Number(row.totalHuf) < 0 || Number(row.totalHuf) > 1_000_000_000) throw new Error("totalHuf");
+  if (
+    Number.isNaN(purchasedAt.getTime()) ||
+    purchasedAt.getTime() > Date.now() + 300_000
+  )
+    throw new Error("purchasedAt");
+  if (
+    !Number.isInteger(row.quantity) ||
+    Number(row.quantity) < 1 ||
+    Number(row.quantity) > 100_000
+  )
+    throw new Error("quantity");
+  if (
+    !Number.isInteger(row.totalHuf) ||
+    Number(row.totalHuf) < 0 ||
+    Number(row.totalHuf) > 1_000_000_000
+  )
+    throw new Error("totalHuf");
   let buyerEmail: string | null = null;
-  if (row.buyerEmail !== undefined && row.buyerEmail !== null && row.buyerEmail !== "") buyerEmail = normalizeEmail(String(row.buyerEmail));
+  if (
+    row.buyerEmail !== undefined &&
+    row.buyerEmail !== null &&
+    row.buyerEmail !== ""
+  )
+    buyerEmail = normalizeEmail(String(row.buyerEmail));
+  let birthDate: Date | null = null;
+  if (
+    row.birthDate !== undefined &&
+    row.birthDate !== null &&
+    row.birthDate !== ""
+  ) {
+    if (
+      typeof row.birthDate !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(row.birthDate)
+    )
+      throw new Error("birthDate");
+    birthDate = new Date(`${row.birthDate}T00:00:00.000Z`);
+    if (
+      Number.isNaN(birthDate.getTime()) ||
+      birthDate.toISOString().slice(0, 10) !== row.birthDate ||
+      birthDate > new Date()
+    )
+      throw new Error("birthDate");
+  }
   return {
     externalBuyerId: requiredText(row.externalBuyerId, 100, "externalBuyerId"),
     buyerEmail,
     buyerName: requiredText(row.buyerName, 120, "buyerName"),
+    birthDate,
     orderId: requiredText(row.orderId, 100, "orderId"),
     lineId: requiredText(row.lineId, 100, "lineId"),
     productSku: requiredText(row.productSku, 64, "productSku"),

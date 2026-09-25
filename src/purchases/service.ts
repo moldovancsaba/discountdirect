@@ -11,126 +11,303 @@ import { PRIVACY_NOTICE_VERSION } from "@/privacy/validation";
 import { cancelBuyerDeliveries } from "@/delivery/service";
 import { Customer, Purchase, PurchaseImportBatch } from "./models";
 import { validatePurchaseInput, type PurchaseInput } from "./validation";
-import { deriveCustomerSegment, SEGMENT_RULE_VERSION } from "@/relationships/segments";
+import {
+  deriveCustomerSegment,
+  SEGMENT_RULE_VERSION,
+} from "@/relationships/segments";
 
 export class PurchaseError extends Error {
-  constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "TOO_LARGE" | "STALE") { super(code); }
+  constructor(
+    public code:
+      | "FORBIDDEN"
+      | "NOT_FOUND"
+      | "INVALID"
+      | "CONFLICT"
+      | "TOO_LARGE"
+      | "STALE",
+  ) {
+    super(code);
+  }
 }
 
 function validated(value: unknown) {
-  try { return validatePurchaseInput(value); } catch { throw new PurchaseError("INVALID"); }
+  try {
+    return validatePurchaseInput(value);
+  } catch {
+    throw new PurchaseError("INVALID");
+  }
 }
 
 async function purchaseSellerAccess(userId: string, sellerSlug: string) {
   await connectDatabase();
-  const seller = await Seller.findOne({ slug: sellerSlug, status: "active" }).lean();
+  const seller = await Seller.findOne({
+    slug: sellerSlug,
+    status: "active",
+  }).lean();
   if (!seller) throw new PurchaseError("NOT_FOUND");
-  const membership = await Membership.findOne({ sellerId: seller._id, userId, status: "active" }).lean();
+  const membership = await Membership.findOne({
+    sellerId: seller._id,
+    userId,
+    status: "active",
+  }).lean();
   if (!membership) throw new PurchaseError("FORBIDDEN");
   return { seller, membership };
 }
 
 function rowChecksum(row: PurchaseInput) {
-  return createHash("sha256").update(JSON.stringify({ ...row, purchasedAt: row.purchasedAt.toISOString() })).digest("hex");
+  return createHash("sha256")
+    .update(
+      JSON.stringify({ ...row, purchasedAt: row.purchasedAt.toISOString() }),
+    )
+    .digest("hex");
 }
 
 function purchaseOutput(row: any) {
-  return { id: row._id.toString(), orderId: row.orderId, lineId: row.lineId, productSku: row.productSku, productName: row.productNameSnapshot, purchasedAt: row.purchasedAt, quantity: row.quantity, totalHuf: row.totalHuf, status: row.status, correctionReason: row.correctionReason ?? null, version: row.version };
+  return {
+    id: row._id.toString(),
+    orderId: row.orderId,
+    lineId: row.lineId,
+    productSku: row.productSku,
+    productName: row.productNameSnapshot,
+    purchasedAt: row.purchasedAt,
+    quantity: row.quantity,
+    totalHuf: row.totalHuf,
+    status: row.status,
+    correctionReason: row.correctionReason ?? null,
+    version: row.version,
+  };
 }
 
-async function recalculateRelationship(sellerId: unknown, customerId: unknown, emailNormalized: string | null, session?: mongoose.ClientSession) {
+async function recalculateRelationship(
+  sellerId: unknown,
+  customerId: unknown,
+  emailNormalized: string | null,
+  session?: mongoose.ClientSession,
+) {
   if (!emailNormalized) return;
   const buyerQuery = User.findOne({ emailNormalized });
   if (session) buyerQuery.session(session);
   const buyer = await buyerQuery.lean();
   if (!buyer) return;
   const aggregate = Purchase.aggregate([
-    { $match: { sellerId: new mongoose.Types.ObjectId(String(sellerId)), customerId: new mongoose.Types.ObjectId(String(customerId)), status: "purchased" } },
-    { $group: { _id: null, orderCount: { $sum: 1 }, totalHuf: { $sum: "$totalHuf" }, firstOrderAt: { $min: "$purchasedAt" }, lastOrderAt: { $max: "$purchasedAt" } } },
+    {
+      $match: {
+        sellerId: new mongoose.Types.ObjectId(String(sellerId)),
+        customerId: new mongoose.Types.ObjectId(String(customerId)),
+        status: "purchased",
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        orderCount: { $sum: 1 },
+        totalHuf: { $sum: "$totalHuf" },
+        firstOrderAt: { $min: "$purchasedAt" },
+        lastOrderAt: { $max: "$purchasedAt" },
+      },
+    },
   ]);
   if (session) aggregate.session(session);
   const [summary] = await aggregate;
-  const metrics = summary ?? { orderCount: 0, totalHuf: 0, firstOrderAt: null, lastOrderAt: null };
+  const metrics = summary ?? {
+    orderCount: 0,
+    totalHuf: 0,
+    firstOrderAt: null,
+    lastOrderAt: null,
+  };
   await BuyerRelationship.updateOne(
     { sellerId, buyerUserId: buyer._id },
-    { $set: { segment: deriveCustomerSegment(metrics.orderCount, metrics.firstOrderAt, metrics.lastOrderAt), segmentRuleVersion: SEGMENT_RULE_VERSION, orderCount: metrics.orderCount, totalHuf: metrics.totalHuf, firstOrderAt: metrics.firstOrderAt, lastOrderAt: metrics.lastOrderAt } },
+    {
+      $set: {
+        segment: deriveCustomerSegment(
+          metrics.orderCount,
+          metrics.firstOrderAt,
+          metrics.lastOrderAt,
+        ),
+        segmentRuleVersion: SEGMENT_RULE_VERSION,
+        orderCount: metrics.orderCount,
+        totalHuf: metrics.totalHuf,
+        firstOrderAt: metrics.firstOrderAt,
+        lastOrderAt: metrics.lastOrderAt,
+      },
+    },
     session ? { session } : {},
   );
 }
 
-export async function previewPurchaseImport(userId: string, sellerSlug: string, value: unknown) {
+export async function previewPurchaseImport(
+  userId: string,
+  sellerSlug: string,
+  value: unknown,
+) {
   if (!value || typeof value !== "object") throw new PurchaseError("INVALID");
-  const { schemaVersion, sourceName, rows } = value as { schemaVersion?: unknown; sourceName?: unknown; rows?: unknown };
-  if (schemaVersion !== "1" || typeof sourceName !== "string" || !sourceName.trim() || sourceName.trim().length > 120 || !Array.isArray(rows)) throw new PurchaseError("INVALID");
+  const { schemaVersion, sourceName, rows } = value as {
+    schemaVersion?: unknown;
+    sourceName?: unknown;
+    rows?: unknown;
+  };
+  if (
+    schemaVersion !== "1" ||
+    typeof sourceName !== "string" ||
+    !sourceName.trim() ||
+    sourceName.trim().length > 120 ||
+    !Array.isArray(rows)
+  )
+    throw new PurchaseError("INVALID");
   if (!rows.length || rows.length > 200) throw new PurchaseError("TOO_LARGE");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
   return withSellerTenant(seller._id, async () => {
-    const checksum = createHash("sha256").update(JSON.stringify({ schemaVersion, sourceName: sourceName.trim(), rows })).digest("hex");
-    const existingBatch = await PurchaseImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
+    const checksum = createHash("sha256")
+      .update(
+        JSON.stringify({ schemaVersion, sourceName: sourceName.trim(), rows }),
+      )
+      .digest("hex");
+    const existingBatch = await PurchaseImportBatch.findOne({
+      sellerId: seller._id,
+      checksum,
+    }).lean();
     if (existingBatch) return existingBatch;
     const seen = new Set<string>();
     const results = [];
     for (let index = 0; index < rows.length; index += 1) {
       let data: PurchaseInput | null = null;
       const errorCodes: string[] = [];
-      try { data = validatePurchaseInput(rows[index]); } catch (error) { errorCodes.push(error instanceof Error ? error.message : "record"); }
+      try {
+        data = validatePurchaseInput(rows[index]);
+      } catch (error) {
+        errorCodes.push(error instanceof Error ? error.message : "record");
+      }
       const key = data ? `${data.orderId}\u0000${data.lineId}` : "";
       if (key && seen.has(key)) errorCodes.push("duplicateLine");
       if (key) seen.add(key);
-      const existing = data ? await Purchase.findOne({ sellerId: seller._id, orderId: data.orderId, lineId: data.lineId }).lean() : null;
+      const existing = data
+        ? await Purchase.findOne({
+            sellerId: seller._id,
+            orderId: data.orderId,
+            lineId: data.lineId,
+          }).lean()
+        : null;
       const checksumForRow = data ? rowChecksum(data) : "";
-      if (existing && existing.sourceChecksum !== checksumForRow) errorCodes.push("conflictingExistingLine");
-      results.push({ row: index + 1, key: data ? `${data.orderId}/${data.lineId}` : "", action: errorCodes.length ? "error" : existing ? "unchanged" : "create", data, errorCodes });
+      if (existing && existing.sourceChecksum !== checksumForRow)
+        errorCodes.push("conflictingExistingLine");
+      results.push({
+        row: index + 1,
+        key: data ? `${data.orderId}/${data.lineId}` : "",
+        action: errorCodes.length ? "error" : existing ? "unchanged" : "create",
+        data,
+        errorCodes,
+      });
     }
     try {
-      return await PurchaseImportBatch.create({ sellerId: seller._id, createdByUserId: userId, schemaVersion, sourceName: sourceName.trim(), checksum, rows: results });
+      return await PurchaseImportBatch.create({
+        sellerId: seller._id,
+        createdByUserId: userId,
+        schemaVersion,
+        sourceName: sourceName.trim(),
+        checksum,
+        rows: results,
+      });
     } catch (error: any) {
-      if (error?.code === 11000) return PurchaseImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
+      if (error?.code === 11000)
+        return PurchaseImportBatch.findOne({
+          sellerId: seller._id,
+          checksum,
+        }).lean();
       throw error;
     }
   });
 }
 
-export async function purchaseImportBatch(userId: string, sellerSlug: string, batchId: string) {
+export async function purchaseImportBatch(
+  userId: string,
+  sellerSlug: string,
+  batchId: string,
+) {
   if (!mongoose.isValidObjectId(batchId)) throw new PurchaseError("INVALID");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
-  const batch = await PurchaseImportBatch.findOne({ _id: batchId, sellerId: seller._id }).lean();
+  const batch = await PurchaseImportBatch.findOne({
+    _id: batchId,
+    sellerId: seller._id,
+  }).lean();
   if (!batch) throw new PurchaseError("NOT_FOUND");
   return batch;
 }
 
-export async function applyPurchaseImport(userId: string, sellerSlug: string, batchId: string) {
+export async function applyPurchaseImport(
+  userId: string,
+  sellerSlug: string,
+  batchId: string,
+) {
   if (!mongoose.isValidObjectId(batchId)) throw new PurchaseError("INVALID");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
   return withSellerTenant(seller._id, async () => {
     const db = await connectDatabase();
     let result: any;
     await db.connection.transaction(async (session) => {
-    const batch = await PurchaseImportBatch.findOne({ _id: batchId, sellerId: seller._id }).session(session);
-    if (!batch) throw new PurchaseError("NOT_FOUND");
-    if (batch.status === "applied") { result = batch; return; }
-    if (batch.rows.some((row: any) => row.action === "error")) throw new PurchaseError("INVALID");
-    for (const row of batch.rows as any[]) {
-      if (row.action === "unchanged") continue;
-      const data = validated(row.data);
-      const customer = await Customer.findOneAndUpdate(
-        { sellerId: seller._id, externalBuyerId: data.externalBuyerId },
-        { $set: { emailNormalized: data.buyerEmail, displayName: data.buyerName, sourceName: batch.sourceName }, $setOnInsert: { privacyStatus: "active" } },
-        { upsert: true, new: true, session, runValidators: true },
-      );
-      const product = await Product.findOne({ sellerId: seller._id, skuNormalized: data.productSku.toUpperCase() }).session(session).lean();
-      await Purchase.create([{
-        sellerId: seller._id, customerId: customer._id, orderId: data.orderId, lineId: data.lineId,
-        productId: product?._id ?? null, productSku: data.productSku, productNameSnapshot: data.productName,
-        purchasedAt: data.purchasedAt, quantity: data.quantity, totalHuf: data.totalHuf,
-        sourceName: batch.sourceName, sourceChecksum: rowChecksum(data), importBatchId: batch._id,
-      }], { session });
-      await recalculateRelationship(seller._id, customer._id, customer.emailNormalized, session);
-    }
-    batch.status = "applied";
-    batch.appliedAt = new Date();
-    await batch.save({ session });
-    result = batch;
+      const batch = await PurchaseImportBatch.findOne({
+        _id: batchId,
+        sellerId: seller._id,
+      }).session(session);
+      if (!batch) throw new PurchaseError("NOT_FOUND");
+      if (batch.status === "applied") {
+        result = batch;
+        return;
+      }
+      if (batch.rows.some((row: any) => row.action === "error"))
+        throw new PurchaseError("INVALID");
+      for (const row of batch.rows as any[]) {
+        if (row.action === "unchanged") continue;
+        const data = validated(row.data);
+        const customer = await Customer.findOneAndUpdate(
+          { sellerId: seller._id, externalBuyerId: data.externalBuyerId },
+          {
+            $set: {
+              emailNormalized: data.buyerEmail,
+              displayName: data.buyerName,
+              birthDate: data.birthDate,
+              sourceName: batch.sourceName,
+            },
+            $setOnInsert: { privacyStatus: "active" },
+          },
+          { upsert: true, new: true, session, runValidators: true },
+        );
+        const product = await Product.findOne({
+          sellerId: seller._id,
+          skuNormalized: data.productSku.toUpperCase(),
+        })
+          .session(session)
+          .lean();
+        await Purchase.create(
+          [
+            {
+              sellerId: seller._id,
+              customerId: customer._id,
+              orderId: data.orderId,
+              lineId: data.lineId,
+              productId: product?._id ?? null,
+              productSku: data.productSku,
+              productNameSnapshot: data.productName,
+              purchasedAt: data.purchasedAt,
+              quantity: data.quantity,
+              totalHuf: data.totalHuf,
+              sourceName: batch.sourceName,
+              sourceChecksum: rowChecksum(data),
+              importBatchId: batch._id,
+            },
+          ],
+          { session },
+        );
+        await recalculateRelationship(
+          seller._id,
+          customer._id,
+          customer.emailNormalized,
+          session,
+        );
+      }
+      batch.status = "applied";
+      batch.appliedAt = new Date();
+      await batch.save({ session });
+      result = batch;
     });
     return result;
   });
@@ -141,45 +318,150 @@ export async function listCustomers(userId: string, sellerSlug: string) {
   return withSellerTenant(seller._id, async () => {
     const rows = await Customer.aggregate([
       { $match: { sellerId: seller._id } },
-      { $lookup: { from: "purchases", localField: "_id", foreignField: "customerId", as: "purchases" } },
-      { $set: { activePurchases: { $filter: { input: "$purchases", as: "purchase", cond: { $eq: ["$$purchase.status", "purchased"] } } } } },
-      { $project: { externalBuyerId: 1, displayName: 1, emailNormalized: 1, privacyStatus: 1, purchaseCount: { $size: "$activePurchases" }, totalHuf: { $sum: "$activePurchases.totalHuf" }, firstPurchaseAt: { $min: "$activePurchases.purchasedAt" }, lastPurchaseAt: { $max: "$activePurchases.purchasedAt" } } },
+      {
+        $lookup: {
+          from: "purchases",
+          localField: "_id",
+          foreignField: "customerId",
+          as: "purchases",
+        },
+      },
+      {
+        $set: {
+          activePurchases: {
+            $filter: {
+              input: "$purchases",
+              as: "purchase",
+              cond: { $eq: ["$$purchase.status", "purchased"] },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          externalBuyerId: 1,
+          displayName: 1,
+          emailNormalized: 1,
+          birthDate: 1,
+          privacyStatus: 1,
+          purchaseCount: { $size: "$activePurchases" },
+          totalHuf: { $sum: "$activePurchases.totalHuf" },
+          firstPurchaseAt: { $min: "$activePurchases.purchasedAt" },
+          lastPurchaseAt: { $max: "$activePurchases.purchasedAt" },
+        },
+      },
       { $sort: { lastPurchaseAt: -1, _id: 1 } },
       { $limit: 100 },
     ]);
-    return { seller, customers: rows.map((row) => ({ ...row, id: row._id.toString(), _id: undefined, segment: deriveCustomerSegment(row.purchaseCount, row.firstPurchaseAt ?? null, row.lastPurchaseAt ?? null) })) };
+    return {
+      seller,
+      customers: rows.map((row) => ({
+        ...row,
+        id: row._id.toString(),
+        _id: undefined,
+        segment: deriveCustomerSegment(
+          row.purchaseCount,
+          row.firstPurchaseAt ?? null,
+          row.lastPurchaseAt ?? null,
+        ),
+      })),
+    };
   });
 }
 
-export async function customerHistory(userId: string, sellerSlug: string, customerId: string, limit = 50) {
+export async function customerHistory(
+  userId: string,
+  sellerSlug: string,
+  customerId: string,
+  limit = 50,
+) {
   if (!mongoose.isValidObjectId(customerId)) throw new PurchaseError("INVALID");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
   return withSellerTenant(seller._id, async () => {
-    const customer = await Customer.findOne({ _id: customerId, sellerId: seller._id }).lean();
+    const customer = await Customer.findOne({
+      _id: customerId,
+      sellerId: seller._id,
+    }).lean();
     if (!customer) throw new PurchaseError("NOT_FOUND");
-    const purchases = await Purchase.find({ sellerId: seller._id, customerId: customer._id }).sort({ purchasedAt: -1, _id: -1 }).limit(Math.min(Math.max(limit, 1), 100)).lean();
+    const purchases = await Purchase.find({
+      sellerId: seller._id,
+      customerId: customer._id,
+    })
+      .sort({ purchasedAt: -1, _id: -1 })
+      .limit(Math.min(Math.max(limit, 1), 100))
+      .lean();
     return { customer, purchases: purchases.map(purchaseOutput) };
   });
 }
 
-export async function updatePurchaseStatus(userId: string, sellerSlug: string, purchaseId: string, expectedVersion: unknown, status: unknown, reason: unknown) {
-  if (!mongoose.isValidObjectId(purchaseId) || !Number.isInteger(expectedVersion) || !["refunded", "corrected"].includes(String(status)) || typeof reason !== "string" || !reason.trim() || reason.trim().length > 300) throw new PurchaseError("INVALID");
+export async function updatePurchaseStatus(
+  userId: string,
+  sellerSlug: string,
+  purchaseId: string,
+  expectedVersion: unknown,
+  status: unknown,
+  reason: unknown,
+) {
+  if (
+    !mongoose.isValidObjectId(purchaseId) ||
+    !Number.isInteger(expectedVersion) ||
+    !["refunded", "corrected"].includes(String(status)) ||
+    typeof reason !== "string" ||
+    !reason.trim() ||
+    reason.trim().length > 300
+  )
+    throw new PurchaseError("INVALID");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
   return withSellerTenant(seller._id, async () => {
     const purchase = await Purchase.findOneAndUpdate(
-      { _id: purchaseId, sellerId: seller._id, version: expectedVersion, status: "purchased" },
-      { $set: { status, correctionReason: reason.trim(), correctedAt: new Date(), correctedByUserId: userId }, $inc: { version: 1 } },
+      {
+        _id: purchaseId,
+        sellerId: seller._id,
+        version: expectedVersion,
+        status: "purchased",
+      },
+      {
+        $set: {
+          status,
+          correctionReason: reason.trim(),
+          correctedAt: new Date(),
+          correctedByUserId: userId,
+        },
+        $inc: { version: 1 },
+      },
       { new: true, runValidators: true },
     );
-    if (!purchase) throw new PurchaseError((await Purchase.exists({ _id: purchaseId, sellerId: seller._id })) ? "STALE" : "NOT_FOUND");
-    const customer = await Customer.findOne({ _id: purchase.customerId, sellerId: seller._id }).lean();
-    if (customer) await recalculateRelationship(seller._id, customer._id, customer.emailNormalized);
+    if (!purchase)
+      throw new PurchaseError(
+        (await Purchase.exists({ _id: purchaseId, sellerId: seller._id }))
+          ? "STALE"
+          : "NOT_FOUND",
+      );
+    const customer = await Customer.findOne({
+      _id: purchase.customerId,
+      sellerId: seller._id,
+    }).lean();
+    if (customer)
+      await recalculateRelationship(
+        seller._id,
+        customer._id,
+        customer.emailNormalized,
+      );
     return purchaseOutput(purchase.toObject());
   });
 }
 
-export async function updateCustomerPrivacy(userId: string, sellerSlug: string, customerId: string, status: unknown) {
-  if (!mongoose.isValidObjectId(customerId) || !["active", "restricted", "erasure_requested"].includes(String(status))) throw new PurchaseError("INVALID");
+export async function updateCustomerPrivacy(
+  userId: string,
+  sellerSlug: string,
+  customerId: string,
+  status: unknown,
+) {
+  if (
+    !mongoose.isValidObjectId(customerId) ||
+    !["active", "restricted", "erasure_requested"].includes(String(status))
+  )
+    throw new PurchaseError("INVALID");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
   const database = await connectDatabase();
   let result: { id: string; privacyStatus: string } | undefined;
@@ -191,32 +473,97 @@ export async function updateCustomerPrivacy(userId: string, sellerSlug: string, 
     ).lean();
     if (!customer) throw new PurchaseError("NOT_FOUND");
     if (status !== "active" && customer.emailNormalized) {
-      const buyer = await User.findOne({ emailNormalized: customer.emailNormalized }).session(session).lean();
+      const buyer = await User.findOne({
+        emailNormalized: customer.emailNormalized,
+      })
+        .session(session)
+        .lean();
       if (buyer) {
         const now = new Date();
-        const subscribed = await ChannelPreference.find({ sellerId: seller._id, buyerUserId: buyer._id, purpose: "marketing", status: "subscribed" }).session(session).lean();
+        const subscribed = await ChannelPreference.find({
+          sellerId: seller._id,
+          buyerUserId: buyer._id,
+          purpose: "marketing",
+          status: "subscribed",
+        })
+          .session(session)
+          .lean();
         if (subscribed.length) {
-          await ChannelPreference.updateMany({ sellerId: seller._id, buyerUserId: buyer._id, purpose: "marketing", status: "subscribed" }, { $set: { status: "unsubscribed", noticeVersion: PRIVACY_NOTICE_VERSION, changedAt: now } }, { session });
-          await ConsentEvent.create(subscribed.map((row) => ({ sellerId: seller._id, buyerUserId: buyer._id, customerId: customer._id, channel: row.channel, purpose: "marketing", action: "withdrawn", noticeVersion: PRIVACY_NOTICE_VERSION, occurredAt: now, actorUserId: userId })), { session });
+          await ChannelPreference.updateMany(
+            {
+              sellerId: seller._id,
+              buyerUserId: buyer._id,
+              purpose: "marketing",
+              status: "subscribed",
+            },
+            {
+              $set: {
+                status: "unsubscribed",
+                noticeVersion: PRIVACY_NOTICE_VERSION,
+                changedAt: now,
+              },
+            },
+            { session },
+          );
+          await ConsentEvent.create(
+            subscribed.map((row) => ({
+              sellerId: seller._id,
+              buyerUserId: buyer._id,
+              customerId: customer._id,
+              channel: row.channel,
+              purpose: "marketing",
+              action: "withdrawn",
+              noticeVersion: PRIVACY_NOTICE_VERSION,
+              occurredAt: now,
+              actorUserId: userId,
+            })),
+            { session },
+          );
         }
-        await cancelBuyerDeliveries(session, seller._id, buyer._id, "CUSTOMER_PRIVACY_RESTRICTED", userId);
+        await cancelBuyerDeliveries(
+          session,
+          seller._id,
+          buyer._id,
+          "CUSTOMER_PRIVACY_RESTRICTED",
+          userId,
+        );
       }
     }
-    result = { id: customer._id.toString(), privacyStatus: customer.privacyStatus };
+    result = {
+      id: customer._id.toString(),
+      privacyStatus: customer.privacyStatus,
+    };
   });
   return result!;
 }
 
 export async function buyerHistory(userId: string, sellerSlug: string) {
   await connectDatabase();
-  const seller = await Seller.findOne({ slug: sellerSlug, status: "active" }).lean();
+  const seller = await Seller.findOne({
+    slug: sellerSlug,
+    status: "active",
+  }).lean();
   if (!seller) throw new PurchaseError("NOT_FOUND");
-  const relationship = await BuyerRelationship.findOne({ sellerId: seller._id, buyerUserId: userId, status: "active" }).lean();
+  const relationship = await BuyerRelationship.findOne({
+    sellerId: seller._id,
+    buyerUserId: userId,
+    status: "active",
+  }).lean();
   if (!relationship) throw new PurchaseError("FORBIDDEN");
   return withSellerTenant(seller._id, async () => {
     const user = await User.findById(userId).lean();
-    const customer = user ? await Customer.findOne({ sellerId: seller._id, emailNormalized: user.emailNormalized }).lean() : null;
-    const purchases = customer ? await Purchase.find({ sellerId: seller._id, customerId: customer._id }).sort({ purchasedAt: -1, _id: -1 }).limit(100).lean() : [];
+    const customer = user
+      ? await Customer.findOne({
+          sellerId: seller._id,
+          emailNormalized: user.emailNormalized,
+        }).lean()
+      : null;
+    const purchases = customer
+      ? await Purchase.find({ sellerId: seller._id, customerId: customer._id })
+          .sort({ purchasedAt: -1, _id: -1 })
+          .limit(100)
+          .lean()
+      : [];
     return { seller, customer, purchases: purchases.map(purchaseOutput) };
   });
 }
