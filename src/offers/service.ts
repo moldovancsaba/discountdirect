@@ -14,6 +14,7 @@ import { issueCouponForAcceptedOffer } from "@/redemptions/service";
 import { discountDecision } from "@/pricing/service";
 import { discountedPrice } from "@/pricing/reference-price";
 import { productReferencePrice } from "@/pricing/reference-price-service";
+import { offerTransition, type OfferStatus } from "./lifecycle";
 
 export class OfferError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "EXPIRED" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
@@ -81,6 +82,19 @@ export async function createOffer(userId: string, sellerSlug: string, input: unk
 }
 
 export async function buyerOffers(userId: string) { await connectDatabase(); const sellerIds = await activeBuyerSellerIds(userId); if (!sellerIds.length) return { offers: [] }; const now = new Date(); await Offer.updateMany({ sellerId: { $in: sellerIds }, buyerUserId: userId, status: "pending", expiresAt: { $lte: now } }, { $set: { status: "expired", decidedAt: now }, $inc: { version: 1 } }); const rows = await Offer.find({ sellerId: { $in: sellerIds }, buyerUserId: userId }).sort({ expiresAt: 1, _id: 1 }).limit(100).lean(); return { offers: rows.map(output) }; }
+
+export async function applySystemOfferTransition(session: mongoose.ClientSession, sellerId: unknown, offerId: unknown, target: "sold_out" | "withdrawn" | "redeemed", reasonCode: string, now = new Date()) {
+  const row = await Offer.findOne({ _id: offerId, sellerId }).session(session);
+  if (!row) throw new OfferError("NOT_FOUND");
+  if (row.status === target) return output(row.toObject());
+  const transition = offerTransition(row.status, target, "system", reasonCode);
+  row.status = transition.to;
+  row.decidedAt = now;
+  row.version += 1;
+  await row.save({ session });
+  await OfferEvent.create([{ offerId: row._id, sellerId: row.sellerId, type: target, version: row.version, occurredAt: now, actorUserId: null }], { session });
+  return output(row.toObject());
+}
 export async function respondToOffer(userId: string, offerId: string, expectedVersion: unknown, decision: unknown) {
   if (!mongoose.isValidObjectId(offerId) || !Number.isInteger(expectedVersion) || !["accepted", "declined"].includes(String(decision))) throw new OfferError("INVALID");
   const database = await connectDatabase();

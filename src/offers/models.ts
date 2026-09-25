@@ -42,7 +42,7 @@ offerSchema.index({ campaignId: 1, buyerUserId: 1 }, { unique: true, partialFilt
 
 const offerEventSchema = new Schema({
   offerId: { type: Schema.Types.ObjectId, required: true, ref: "Offer", index: true }, sellerId: { type: Schema.Types.ObjectId, required: true, ref: "Seller", index: true },
-  type: { type: String, enum: ["created", "accepted", "declined", "expired", "cancelled"], required: true }, version: { type: Number, required: true }, occurredAt: { type: Date, required: true }, actorUserId: { type: Schema.Types.ObjectId, default: null, ref: "User" },
+  type: { type: String, enum: ["created", "accepted", "declined", "expired", "cancelled", "sold_out", "withdrawn", "redeemed"], required: true }, version: { type: Number, required: true }, occurredAt: { type: Date, required: true }, actorUserId: { type: Schema.Types.ObjectId, default: null, ref: "User" },
 }, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false, collection: "offer_events" });
 offerEventSchema.index({ offerId: 1, occurredAt: 1, _id: 1 });
 
