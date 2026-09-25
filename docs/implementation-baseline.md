@@ -45,7 +45,7 @@ recognized environment variables are:
 | `src/auth` | `users`, `sellers`, `memberships`, `buyer_relationships`, `sessions`, `access_tokens`, `login_rate_limits`, `auth_audit_events` |
 | `src/catalog` | `products`, `product_revisions`, `import_batches` |
 | `src/purchases` | `customers`, `purchases`, `purchase_import_batches` |
-| `src/privacy` | `channel_preferences`, `consent_events`, `privacy_requests`, `privacy_exports` |
+| `src/privacy` | `channel_preferences`, `consent_events`, `privacy_requests`, `privacy_exports`, `privacy_sla_alerts` |
 | `src/recommendations` | `recommendation_previews` |
 | `src/messaging` | `conversations`, `conversation_events` |
 | `src/realtime` | `realtime_events`, `conversation_presence` |

@@ -20,7 +20,7 @@ Only one open request of a type exists for a buyer and seller. Repeated and conc
 
 ## Seller workflow
 
-An active seller member opens `/seller/{sellerSlug}/privacy`. Requests move from `requested` to `processing`, then `completed` or `failed`. A failed request can return to `processing`. Every transition requires a bounded processing note and records the handler.
+An active seller member opens `/seller/{sellerSlug}/privacy`. Requests move from `requested` to `processing`, then `completed` or `failed`. A failed request can return to `processing`. Every transition requires a bounded processing note and records the handler. Each request also stores a versioned SLA deadline, reminder deadline, escalation status and last-alert timestamp. The hourly protected metrics cron advances reminder/overdue states and records one idempotent alert event per request and alert day; it never changes the legal request outcome automatically.
 
 Completing an access request creates a JSON snapshot with the seller-specific account link, customer record, preferences, consent history and purchase history. The requesting buyer can download it for seven days. The export endpoint checks the authenticated buyer, seller relationship, request ID and expiry.
 
