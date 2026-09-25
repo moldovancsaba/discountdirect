@@ -11,21 +11,6 @@ importers:
       '@expo-google-fonts/noto-sans':
         specifier: 0.4.2
         version: 0.4.2
-      '@mantine/core':
-        specifier: 7.17.8
-        version: 7.17.8(@mantine/hooks@7.17.8(react@19.2.8))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@mantine/dates':
-        specifier: 7.17.8
-        version: 7.17.8(@mantine/core@7.17.8(@mantine/hooks@7.17.8(react@19.2.8))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@mantine/hooks@7.17.8(react@19.2.8))(dayjs@1.11.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@mantine/hooks':
-        specifier: 7.17.8
-        version: 7.17.8(react@19.2.8)
-      '@mantine/modals':
-        specifier: 7.17.8
-        version: 7.17.8(@mantine/core@7.17.8(@mantine/hooks@7.17.8(react@19.2.8))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@mantine/hooks@7.17.8(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@mantine/notifications':
-        specifier: 7.17.8
-        version: 7.17.8(@mantine/core@7.17.8(@mantine/hooks@7.17.8(react@19.2.8))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@mantine/hooks@7.17.8(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@sovereignsquad/gds-admin':
         specifier: https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-admin-6.7.0.tgz
         version: https://github.com/sovereignsquad/general-design-system/releases/download/gds-v6.7.0/sovereignsquad-gds-admin-6.7.0.tgz(116cdecddb3ed9471e62cbe57f711609)
