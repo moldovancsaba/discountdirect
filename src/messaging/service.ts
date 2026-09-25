@@ -10,7 +10,7 @@ import { participant } from "./access.ts";
 import { MessagingError } from "./errors.ts";
 import { Conversation, ConversationEvent, InboxPreference } from "./models";
 import { inboxPreferenceInput } from "./inbox-core";
-import { withSellerTenant } from "@/lib/tenant";
+import { withSellerTenant, withTenantBypass } from "@/lib/tenant";
 
 export { MessagingError } from "./errors.ts";
 
@@ -164,7 +164,9 @@ export async function buyerConversations(userId: string, cursor?: string | null)
   await connectDatabase();
   const sellerIds = await activeBuyerSellerIds(userId);
   if (!sellerIds.length) return { conversations: [], nextCursor: null };
-  return listConversations({ buyerUserId: userId, sellerId: { $in: sellerIds } }, cursor);
+  return withTenantBypass("buyer-aggregate-conversations", async () =>
+    await listConversations({ buyerUserId: userId, sellerId: { $in: sellerIds } }, cursor),
+  );
 }
 
 async function buyerInboxScope(userId: string) {
@@ -179,7 +181,9 @@ async function buyerInboxScope(userId: string) {
 
 export async function buyerInbox(userId: string, cursor?: string | null) {
   const scope = await buyerInboxScope(userId); const sellerIds = scope.preference.mode === "per_seller" ? [scope.preference.sellerId] : scope.sellers.map((seller) => seller._id);
-  const listed = sellerIds.length ? await listConversations({ buyerUserId: userId, sellerId: { $in: sellerIds } }, cursor) : { conversations: [], nextCursor: null };
+  const listed = sellerIds.length ? await withTenantBypass("buyer-inbox-conversations", async () =>
+    await listConversations({ buyerUserId: userId, sellerId: { $in: sellerIds } }, cursor),
+  ) : { conversations: [], nextCursor: null };
   return { ...listed, preference: scope.preference, preferenceRecovered: scope.resetRequired, sellers: scope.sellers.map((seller) => ({ id: seller._id.toString(), name: seller.name, slug: seller.slug })) };
 }
 
