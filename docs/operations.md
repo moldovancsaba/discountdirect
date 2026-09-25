@@ -36,10 +36,14 @@
 
 ## Private artifact recovery
 
-The authenticated readiness endpoint reports both `database` and `artifacts`
+The authenticated readiness endpoint reports `database`, `artifacts`, and `redis`
 health. A database-ready response with `artifacts.connected=false` means normal
 application data is available but Blob-backed generation/download must remain
 disabled until the reported Blob reason is resolved.
+
+Redis is an acceleration layer: `redis.connected=false` does not invalidate
+MongoDB-backed delivery history or authorization, but rate limits and counters
+must operate through their bounded fallback paths until Redis recovers.
 
 - `artifacts.status=failed` means metadata exists but the immutable Blob write did not complete. Keep the row as evidence and regenerate with a new idempotency key after Blob health recovers.
 - `artifacts.status=uploading` older than the worker timeout is an orphan candidate. Verify the Blob key before marking it failed; never overwrite an existing immutable object.
