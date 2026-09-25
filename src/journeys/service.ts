@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { Customer } from "@/purchases/models";
 import { Purchase } from "@/purchases/models";
+import { Product } from "@/catalog/models";
+import { ConnectorRecord, StockObservation } from "@/connectors/models";
 import { connectDatabase } from "@/lib/database";
 import { withTenantBypass } from "@/lib/tenant";
 import {
@@ -30,6 +32,7 @@ import {
   JourneyEnrollment,
   JourneyStepRun,
 } from "./models";
+import { ProductWatch } from "./watch-models";
 
 export class JourneyError extends Error {
   constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT") {
@@ -864,6 +867,63 @@ export async function runBirthdayJourneyTriggers(limit = 50, now = new Date()) {
             });
           },
         );
+      } catch (error: any) {
+        if (error?.code === 11000) continue;
+        throw error;
+      }
+    }
+  }
+  return { enrolled, skipped, evaluatedAt: now };
+}
+
+export async function runProductWatchTriggers(limit = 50, now = new Date()) {
+  await connectDatabase();
+  const bounded = Math.min(Math.max(Number.isInteger(limit) ? limit : 50, 1), 100);
+  const watches = await withTenantBypass("journey-product-watch-list", () =>
+    ProductWatch.find({ status: "active" }).sort({ _id: 1 }).limit(bounded).lean(),
+  );
+  let enrolled = 0;
+  let skipped = 0;
+  for (const watch of watches) {
+    const [product, definitions] = await Promise.all([
+      Product.findOne({ _id: watch.productId, sellerId: watch.sellerId, active: true }).lean(),
+      JourneyDefinition.find({ sellerId: watch.sellerId, status: "active" }).sort({ _id: 1 }).lean(),
+    ]);
+    if (!product) { skipped += 1; continue; }
+    const observation = watch.triggerKind === "back_in_stock"
+      ? await StockObservation.findOne({ sellerId: watch.sellerId, sku: product.sku }).sort({ observedAt: -1, _id: -1 }).lean()
+      : await ConnectorRecord.findOne({ sellerId: watch.sellerId, kind: "catalog_sync", "payload.sku": product.sku }).sort({ sourceUpdatedAt: -1, updatedAt: -1, _id: -1 }).lean();
+    if (!observation) { skipped += 1; continue; }
+    for (const definition of definitions) {
+      const version = await JourneyDefinitionVersion.findOne({ definitionId: definition._id, version: definition.activeVersion }).lean();
+      if (!version || version.trigger.kind !== watch.triggerKind || String(version.trigger.productId ?? "") !== String(product._id)) continue;
+      const current = watch.triggerKind === "back_in_stock"
+        ? (observation as any).quantity
+        : (observation as any).currentPriceHuf;
+      const previous = watch.triggerKind === "back_in_stock"
+        ? (observation as any).previousQuantity
+        : (observation as any).previousPriceHuf;
+      if (!Number.isFinite(current) || !Number.isFinite(previous)) { skipped += 1; continue; }
+      const privacy = await Customer.findOne({ _id: watch.customerId, sellerId: watch.sellerId, privacyStatus: "active" }).lean();
+      if (!privacy) { skipped += 1; continue; }
+      const result = watch.triggerKind === "back_in_stock"
+        ? backInStockTrigger(previous, current, "active")
+        : priceDropTrigger(previous, current, version.trigger.referencePriceHuf ?? previous, "active");
+      if (!result.eligible) { skipped += 1; continue; }
+      const evidence = { ...result.evidence, sellerId: String(watch.sellerId), productId: String(product._id), watchId: String(watch._id), observedAt: (observation as any).observedAt?.toISOString?.() ?? (observation as any).sourceUpdatedAt?.toISOString?.() ?? now.toISOString() };
+      const hash = evidenceHash(evidence);
+      try {
+        await withTenantBypass("journey-product-watch-enrollment", async () => {
+          const database = await connectDatabase();
+          await database.connection.transaction(async (session) => {
+            const existing = await JourneyEnrollment.findOne({ definitionId: definition._id, buyerUserId: watch.buyerUserId, triggerEvidenceHash: hash }).session(session).lean();
+            if (existing) return;
+            const [enrollment] = await JourneyEnrollment.create([{ sellerId: watch.sellerId, definitionId: definition._id, definitionVersion: version.version, buyerUserId: watch.buyerUserId, customerId: watch.customerId, status: "active", triggerEvidenceHash: hash, triggeredAt: now, nextRunAt: scheduledAt(now, version.steps, 0), reasonCode: `${watch.triggerKind.toUpperCase()}_TRIGGER_ACCEPTED`, createdByUserId: definition.createdByUserId }], { session });
+            await JourneyStepRun.insertMany(version.steps.map((step: any, index: number) => { const at = scheduledAt(now, version.steps, index); return { sellerId: watch.sellerId, enrollmentId: enrollment._id, definitionId: definition._id, definitionVersion: version.version, buyerUserId: watch.buyerUserId, customerId: watch.customerId, stepKey: step.key, stepIndex: index, scheduledFor: at, nextRunAt: at, status: "due", ruleSnapshot: { templateKey: version.ruleTemplateKey, templateVersion: version.ruleTemplateVersion }, contentSnapshot: { title: step.title, channel: step.channel }, reasonCode: "SCHEDULED" }; }), { session });
+            await ProductWatch.updateOne({ _id: watch._id, status: "active" }, { $set: { lastTriggeredEvidenceHash: hash, lastTriggeredAt: now }, $inc: { version: 1 } }, { session });
+            enrolled += 1;
+          });
+        });
       } catch (error: any) {
         if (error?.code === 11000) continue;
         throw error;

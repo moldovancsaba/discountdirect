@@ -3,6 +3,7 @@ import { matchesToken } from "@/lib/operator-session";
 import { withRedisLock } from "@/lib/redis-core";
 import {
   runBirthdayJourneyTriggers,
+  runProductWatchTriggers,
   runDueJourneySteps,
 } from "@/journeys/service";
 export const runtime = "nodejs";
@@ -14,7 +15,10 @@ export async function GET(request: Request) {
     return errorResponse("UNAUTHORIZED", "Cron hozzáférés szükséges.", 401);
   const limit = Number(new URL(request.url).searchParams.get("limit") ?? 20);
   const result = await withRedisLock("cron", "journeys", async () => ({
-    triggers: await runBirthdayJourneyTriggers(50),
+    triggers: {
+      birthday: await runBirthdayJourneyTriggers(50),
+      productWatches: await runProductWatchTriggers(50),
+    },
     steps: await runDueJourneySteps(Number.isFinite(limit) ? limit : 20),
   }));
   if (result.locked)
