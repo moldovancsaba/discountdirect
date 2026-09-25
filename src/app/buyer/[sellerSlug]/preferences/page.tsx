@@ -19,6 +19,8 @@ export default async function PreferencesPage({ params, searchParams }: { params
   const query = await searchParams;
   const email = privacy.preferences.find((item) => item.channel === "email")!;
   const postal = privacy.preferences.find((item) => item.channel === "postal")!;
+  const whatsapp = privacy.preferences.find((item) => item.channel === "whatsapp")!;
+  const rcs = privacy.preferences.find((item) => item.channel === "rcs")!;
   const marketingDisabled = !["active", "not_linked"].includes(privacy.customerStatus);
   return <Shell active="buyer">
     <PageHeader
@@ -35,6 +37,8 @@ export default async function PreferencesPage({ params, searchParams }: { params
       <form action={savePreferencesAction.bind(null, sellerSlug)}>
         <Checkbox name="email" value="yes" label="Személyre szabott ajánlatokat kérek e-mailben" defaultChecked={email.subscribed} disabled={marketingDisabled} />
         <Checkbox name="postal" value="yes" label="Személyre szabott ajánlatokat kérek postai levélben" defaultChecked={postal.subscribed} disabled={marketingDisabled} />
+        <Checkbox name="whatsapp" value="yes" label="Személyre szabott ajánlatokat kérek WhatsAppon" defaultChecked={whatsapp.subscribed} disabled={marketingDisabled} />
+        <Checkbox name="rcs" value="yes" label="Személyre szabott ajánlatokat kérek RCS-ben" defaultChecked={rcs.subscribed} disabled={marketingDisabled} />
         <GdsButton type="submit" leftSection={<GdsIcon name="Save" decorative />} disabled={marketingDisabled}>Beállítások mentése</GdsButton>
       </form>
     </SectionPanel>

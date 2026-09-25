@@ -17,6 +17,8 @@ export async function savePreferencesAction(sellerSlug: string, form: FormData) 
     await updateBuyerPreferences(user.id, sellerSlug, {
       email: form.get("email") === "yes",
       postal: form.get("postal") === "yes",
+      whatsapp: form.get("whatsapp") === "yes",
+      rcs: form.get("rcs") === "yes",
     });
   } catch (cause) {
     error = cause instanceof Error ? cause.message : "INVALID";
