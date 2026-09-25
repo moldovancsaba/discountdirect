@@ -196,7 +196,7 @@ export async function advancePrivacyRequest(userId: string, sellerSlug: string, 
 export async function buyerPrivacyExport(userId: string, sellerSlug: string, requestId: string) {
   if (!mongoose.isValidObjectId(requestId)) throw new PrivacyError("INVALID");
   const { seller } = await buyerContext(userId, sellerSlug);
-  const artifact = await PrivacyExport.findOne({ requestId, sellerId: seller._id, buyerUserId: userId, expiresAt: { $gt: new Date() } }).lean();
+  const artifact = await withSellerTenant(seller._id, async () => await PrivacyExport.findOne({ requestId, sellerId: seller._id, buyerUserId: userId, expiresAt: { $gt: new Date() } }).lean());
   if (!artifact) throw new PrivacyError("NOT_FOUND");
   return artifact.payload;
 }
