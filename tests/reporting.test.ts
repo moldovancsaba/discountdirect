@@ -21,6 +21,14 @@ test("attribution prefers signed evidence and computes frozen-cost margin", () =
   const result = attributeOrder({ orderId: "order-1", orderAt: new Date("2026-09-10"), revenueHuf: 10000, signedOfferId: "offer-1", signedHandoffId: "handoff-1", campaignOfferId: "offer-2", campaignCreatedAt: new Date("2026-09-01"), campaignExpiresAt: new Date("2026-09-30") }, { unitCostHuf: 6000, effectiveAt: new Date("2026-09-01"), version: 3 });
   assert.equal(result.method, "signed_handoff"); assert.equal(result.marginHuf, 4000); assert.equal(result.confidence, "high");
 });
+
+test("attribution multiplies frozen unit cost by order quantity", () => {
+  const result = attributeOrder(
+    { orderId: "order-quantity", orderAt: new Date("2026-09-10"), revenueHuf: 30000, quantity: 3, signedOfferId: "offer-quantity", signedHandoffId: "handoff-quantity" },
+    { unitCostHuf: 6000, effectiveAt: new Date("2026-09-01"), version: 1 },
+  );
+  assert.equal(result.marginHuf, 12000);
+});
 test("attribution reports missing evidence without causal overclaim", () => {
   const result = attributeOrder({ orderId: "order-2", orderAt: new Date("2026-10-01"), revenueHuf: 10000, refundedHuf: 12000 });
   assert.equal(result.method, "unattributed"); assert.equal(result.netRevenueHuf, 0); assert.equal(result.warning, "INSUFFICIENT_EVIDENCE");

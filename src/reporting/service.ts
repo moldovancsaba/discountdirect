@@ -366,7 +366,7 @@ export async function campaignAttribution(
     status: { $in: ["purchased", "refunded"] },
     purchasedAt: { $gte: campaign.createdAt, $lte: campaign.expiresAt },
   })
-    .select({ orderId: 1, purchasedAt: 1, totalHuf: 1, status: 1 })
+    .select({ orderId: 1, purchasedAt: 1, totalHuf: 1, quantity: 1, status: 1 })
     .limit(SOURCE_LIMIT)
     .lean();
   const providerOrders = await ConnectorRecord.find({
@@ -406,6 +406,7 @@ export async function campaignAttribution(
         orderId: purchase.orderId,
         orderAt: purchase.purchasedAt,
         revenueHuf: purchase.totalHuf,
+        quantity: purchase.quantity,
         campaignOfferId: String(campaign._id),
         campaignCreatedAt: campaign.createdAt,
         campaignExpiresAt: campaign.expiresAt,
