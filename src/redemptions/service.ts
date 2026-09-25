@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
-import { withTenantBypass } from "@/lib/tenant";
+import { withSellerTenant, withTenantBypass } from "@/lib/tenant";
 import { Offer } from "@/offers/models";
 import { RedemptionCoupon, RedemptionEvent } from "./models";
 
@@ -86,7 +86,7 @@ export async function confirmRedemption(userId: string, sellerSlug: string, code
   const seller = await sellerAccess(userId, sellerSlug);
   const database = await connectDatabase();
   let result: any;
-  await database.connection.transaction(async (session) => {
+  await withSellerTenant(seller._id, async () => await database.connection.transaction(async (session) => {
     const code = codeValue.trim().toUpperCase();
     const coupon = await RedemptionCoupon.findOne({ sellerId: seller._id, code }).session(session);
     if (!coupon) throw new RedemptionError("NOT_FOUND");
@@ -107,7 +107,7 @@ export async function confirmRedemption(userId: string, sellerSlug: string, code
     await coupon.save({ session });
     await RedemptionEvent.create([{ couponId: coupon._id, sellerId: seller._id, status: "redeemed", occurredAt: now, actorUserId: userId }], { session });
     result = output(coupon.toObject());
-  });
+  }));
   return result;
 }
 
