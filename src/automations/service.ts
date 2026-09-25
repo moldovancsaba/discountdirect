@@ -313,8 +313,8 @@ async function runAutomation(automation: any, actorUserId: string, sellerSlug?: 
 
 export async function runDueAutomations(limit = 20) {
   await connectDatabase();
-  const rows = await withTenantBypass("automation-cron-global-due-scan", () =>
-    OfferAutomation.find({ status: "active", nextRunAt: { $lte: new Date() } }).sort({ nextRunAt: 1, _id: 1 }).limit(Math.min(Math.max(limit, 1), 50)).lean(),
+  const rows = await withTenantBypass("automation-cron-global-due-scan", async () =>
+    await OfferAutomation.find({ status: "active", nextRunAt: { $lte: new Date() } }).sort({ nextRunAt: 1, _id: 1 }).limit(Math.min(Math.max(limit, 1), 50)).lean(),
   );
   const results = [];
   for (const row of rows) {
