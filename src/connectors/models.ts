@@ -129,6 +129,8 @@ const connectorRecordSchema = new Schema(
     },
     providerId: { type: String, required: true, maxlength: 160 },
     checksum: { type: String, required: true, maxlength: 64 },
+    previousPriceHuf: { type: Number, default: null, min: 0, max: 1_000_000_000 },
+    currentPriceHuf: { type: Number, default: null, min: 0, max: 1_000_000_000 },
     payload: { type: Schema.Types.Mixed, required: true },
     reconciliationState: {
       type: String,

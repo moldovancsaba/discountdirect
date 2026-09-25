@@ -371,8 +371,25 @@ export async function syncConnector(
                   item.payload as {
                     reconciliation?: ReturnType<typeof reconcileProviderOrder>;
                   }
-                ).reconciliation
+              ).reconciliation
               : undefined;
+          const previousCatalogRecord =
+            kind === "catalog_sync"
+              ? await ConnectorRecord.findOne(
+                  {
+                    sellerId: access.seller._id,
+                    installationId: row._id,
+                    kind,
+                    providerId: item.providerId,
+                  },
+                  { currentPriceHuf: 1 },
+                  { session },
+                ).lean()
+              : null;
+          const catalogPayload =
+            kind === "catalog_sync"
+              ? (item.payload as { priceHuf?: number })
+              : null;
           await ConnectorRecord.updateOne(
             {
               sellerId: access.seller._id,
@@ -389,6 +406,9 @@ export async function syncConnector(
                 reconciliationReasonCode: reconciliation?.reasonCode ?? null,
                 matchedOfferId: reconciliation?.matchedOfferId ?? null,
                 reconciliationKey: reconciliation?.idempotencyKey ?? null,
+                previousPriceHuf:
+                  previousCatalogRecord?.currentPriceHuf ?? null,
+                currentPriceHuf: catalogPayload?.priceHuf ?? null,
                 sourceUpdatedAt: item.sourceUpdatedAt,
                 lastRunId: run._id,
               },
