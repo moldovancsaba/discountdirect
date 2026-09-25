@@ -28,7 +28,7 @@ Completing restriction changes the customer record to restricted and withdraws a
 
 ## Delivery gate
 
-Delivery code calls the server-side marketing eligibility check immediately before creating a delivery row and again immediately before provider send. It returns false unless the exact seller and buyer have an active customer record and a subscribed preference for that channel. Seller/global suppressions for unsubscribe, objection, hard bounce, complaint and provider suppression also block enqueue/send. Restriction and erasure workflows cancel queued, processing and retryable delivery work for the buyer. The Resend transport remains constrained by staged-recipient controls until owner-approved rollout expands it.
+Delivery code calls the server-side marketing eligibility check immediately before creating a delivery row and again immediately before provider send. It returns false unless the exact seller and buyer have an active customer record and a subscribed preference for that channel. Supported preference channels are email, postal, WhatsApp, and RCS; WhatsApp and RCS remain fail-closed until their provider workers are configured. Seller/global suppressions for unsubscribe, objection, hard bounce, complaint and provider suppression also block enqueue/send. Restriction and erasure workflows cancel queued, processing and retryable delivery work for the buyer. The Resend transport remains constrained by staged-recipient controls until owner-approved rollout expands it.
 
 ## API
 
