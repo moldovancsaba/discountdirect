@@ -270,7 +270,7 @@ export async function setAutomationStatus(userId: string, sellerSlug: string, au
 export async function runAutomationNow(userId: string, sellerSlug: string, automationId: string) {
   if (!mongoose.isValidObjectId(automationId)) throw new AutomationError("INVALID");
   const seller = await sellerAccess(userId, sellerSlug);
-  const automation = await OfferAutomation.findOne({ _id: automationId, sellerId: seller._id }).lean();
+  const automation = await withSellerTenant(seller._id, async () => await OfferAutomation.findOne({ _id: automationId, sellerId: seller._id }).lean());
   if (!automation) throw new AutomationError("NOT_FOUND");
   return withSellerTenant(seller._id, () => runAutomation(automation, userId, seller.slug));
 }
