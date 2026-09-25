@@ -17,3 +17,6 @@ The hourly `GET /api/cron/metrics` route requires `Authorization: Bearer $CRON_S
 Recovery is to correct the source record or code, rerun the projector, and verify the checkpoint. Rollback is to stop the cron and retain the previous active generation. Derived collections may be dropped and rebuilt without transactional data loss.
 
 Reducer tests cover deterministic totals, refunds, revenue, UTC day boundaries, and stale-state behavior. Release verification also requires index creation, one authenticated cron run, operator health inspection, and a seller dashboard check against source counts.
+# Attribution and margin
+
+Attribution uses the signed offer hand-off first, then a bounded campaign window, and otherwise reports an unattributed order. Revenue is reduced by recorded refunds and margin is shown only when a frozen product-cost revision exists. Missing cost, insufficient evidence, and refund anomalies remain visible warnings; the rule version is `attribution-2026-09-25-v1`.
