@@ -47,6 +47,8 @@ const ready = await readJson("/api/health/ready", { headers: { Authorization: `B
 assert.equal(ready.response.status, 200, "readiness must return HTTP 200 with token");
 assert.equal(ready.body.status, "ready", "readiness status must be ready");
 assert.equal(ready.body.database?.connected, true, "database must be connected");
+assert.equal(typeof ready.body.artifacts?.connected, "boolean", "artifact readiness must be explicit");
+assert.equal(typeof ready.body.redis?.connected, "boolean", "redis readiness must be explicit");
 findings.push({ check: "ready_authorized", status: "ok", latencyMs: ready.latencyMs, databaseLatencyMs: ready.body.database.latencyMs });
 
 const cronDenied = await readJson("/api/cron/automations?limit=1");
