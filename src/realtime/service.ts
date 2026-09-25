@@ -5,6 +5,7 @@ import { ConversationPresence, RealtimeEvent } from "./models.ts";
 import type { RealtimeEventPayload, RealtimeEventType } from "./contracts.ts";
 import { participant } from "../messaging/access.ts";
 import { MessagingError } from "../messaging/errors.ts";
+import { withSellerTenant } from "../lib/tenant-core.ts";
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const PRESENCE_MS = 90_000;
@@ -54,37 +55,43 @@ export async function realtimeConversationAccess(userId: string, conversationId:
 
 export async function replayRealtimeEvents(userId: string, conversationId: string, cursorValue?: string | null) {
   const access = await realtimeConversationAccess(userId, conversationId);
-  const parsed = cursor(cursorValue);
-  if (cursorValue && !parsed) throw new RealtimeError("INVALID");
-  const after = parsed ? { $or: [{ occurredAt: { $gt: parsed.at } }, { occurredAt: parsed.at, _id: { $gt: parsed.id } }] } : {};
-  const rows = await RealtimeEvent.find({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, ...after }).sort({ occurredAt: 1, _id: 1 }).limit(101).lean();
-  const page = rows.slice(0, 100);
-  const last = page.at(-1);
-  return { events: page.map(eventOutput), nextCursor: rows.length > 100 && last ? Buffer.from(JSON.stringify({ at: last.occurredAt.toISOString(), id: last._id.toString() })).toString("base64url") : null };
+  return withSellerTenant(access.conversation.sellerId, async () => {
+    const parsed = cursor(cursorValue);
+    if (cursorValue && !parsed) throw new RealtimeError("INVALID");
+    const after = parsed ? { $or: [{ occurredAt: { $gt: parsed.at } }, { occurredAt: parsed.at, _id: { $gt: parsed.id } }] } : {};
+    const rows = await RealtimeEvent.find({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, ...after }).sort({ occurredAt: 1, _id: 1 }).limit(101).lean();
+    const page = rows.slice(0, 100);
+    const last = page.at(-1);
+    return { events: page.map(eventOutput), nextCursor: rows.length > 100 && last ? Buffer.from(JSON.stringify({ at: last.occurredAt.toISOString(), id: last._id.toString() })).toString("base64url") : null };
+  });
 }
 
 export async function heartbeatPresence(userId: string, conversationId: string) {
   const access = await realtimeConversationAccess(userId, conversationId);
-  const now = new Date();
-  const prior = await ConversationPresence.findOne({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, userId }).lean();
-  await ConversationPresence.findOneAndUpdate({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, userId }, { $set: { sellerId: access.conversation.sellerId, expiresAt: new Date(now.getTime() + PRESENCE_MS), updatedAt: now } }, { upsert: true, new: true });
-  if (!prior) await recordPresenceChange(access.conversation, now);
-  return access;
+  return withSellerTenant(access.conversation.sellerId, async () => {
+    const now = new Date();
+    const prior = await ConversationPresence.findOne({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, userId }).lean();
+    await ConversationPresence.findOneAndUpdate({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, userId }, { $set: { sellerId: access.conversation.sellerId, expiresAt: new Date(now.getTime() + PRESENCE_MS), updatedAt: now } }, { upsert: true, new: true });
+    if (!prior) await recordPresenceChange(access.conversation, now);
+    return access;
+  });
 }
 
 export async function removePresence(userId: string, conversationId: string) {
   if (!mongoose.isValidObjectId(conversationId)) return;
   const access = await realtimeConversationAccess(userId, conversationId).catch(() => null);
-  const removed = access
-    ? await ConversationPresence.deleteOne({ sellerId: access.conversation.sellerId, conversationId, userId })
-    : { deletedCount: 0 };
-  if (access && removed.deletedCount) await recordPresenceChange(access.conversation, new Date());
+  if (access) await withSellerTenant(access.conversation.sellerId, async () => {
+    const removed = await ConversationPresence.deleteOne({ sellerId: access.conversation.sellerId, conversationId, userId });
+    if (removed.deletedCount) await recordPresenceChange(access.conversation, new Date());
+  });
 }
 
 export async function presenceForParticipant(userId: string, conversationId: string) {
   const access = await realtimeConversationAccess(userId, conversationId);
-  const rows = await ConversationPresence.find({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, expiresAt: { $gt: new Date() } }).lean();
-  return { activeUserIds: rows.map((row) => row.userId.toString()) };
+  return withSellerTenant(access.conversation.sellerId, async () => {
+    const rows = await ConversationPresence.find({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, expiresAt: { $gt: new Date() } }).lean();
+    return { activeUserIds: rows.map((row) => row.userId.toString()) };
+  });
 }
 
 export async function eventPayloadFromChange(change: any) {

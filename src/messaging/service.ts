@@ -154,8 +154,10 @@ async function listConversations(filter: Record<string, unknown>, cursorValue?: 
 
 export async function sellerConversations(userId: string, sellerSlug: string, cursor?: string | null) {
   const seller = await sellerAccess(userId, sellerSlug);
-  const listed = await listConversations({ sellerId: seller._id }, cursor);
-  return { seller, ...listed };
+  return withSellerTenant(seller._id, async () => {
+    const listed = await listConversations({ sellerId: seller._id }, cursor);
+    return { seller, ...listed };
+  });
 }
 
 export async function buyerConversations(userId: string, cursor?: string | null) {
@@ -193,21 +195,24 @@ export async function saveBuyerInboxPreference(userId: string, input: unknown, e
 
 export async function conversationTimeline(userId: string, conversationId: string, cursorValue?: string | null) {
   const access = await participant(userId, conversationId);
-  const cursor = decodeCursor(cursorValue);
-  if (cursorValue && !cursor) throw new MessagingError("INVALID");
-  const rows = await ConversationEvent.find({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, ...pageFilter("createdAt", cursor) }).sort({ createdAt: -1, _id: -1 }).limit(51).lean();
-  const page = rows.slice(0, 50);
-  if (access.role === "seller") await Conversation.updateOne({ _id: access.conversation._id, sellerId: access.conversation.sellerId }, { $set: { sellerUnreadCount: 0 } });
-  else await Conversation.updateOne({ _id: access.conversation._id, sellerId: access.conversation.sellerId }, { $set: { buyerUnreadCount: 0 } });
-  return { conversation: await conversationOutput(access.conversation), role: access.role, events: await timelineOutput(access.conversation.sellerId, page.reverse()), nextCursor: rows.length > 50 ? encodeCursor(page[page.length - 1]) : null };
+  return withSellerTenant(access.conversation.sellerId, async () => {
+    const cursor = decodeCursor(cursorValue);
+    if (cursorValue && !cursor) throw new MessagingError("INVALID");
+    const rows = await ConversationEvent.find({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, ...pageFilter("createdAt", cursor) }).sort({ createdAt: -1, _id: -1 }).limit(51).lean();
+    const page = rows.slice(0, 50);
+    if (access.role === "seller") await Conversation.updateOne({ _id: access.conversation._id, sellerId: access.conversation.sellerId }, { $set: { sellerUnreadCount: 0 } });
+    else await Conversation.updateOne({ _id: access.conversation._id, sellerId: access.conversation.sellerId }, { $set: { buyerUnreadCount: 0 } });
+    return { conversation: await conversationOutput(access.conversation), role: access.role, events: await timelineOutput(access.conversation.sellerId, page.reverse()), nextCursor: rows.length > 50 ? encodeCursor(page[page.length - 1]) : null };
+  });
 }
 
 export async function sendConversationMessage(userId: string, conversationId: string, clientRequestId: unknown, body: unknown) {
   const input = messageInput(clientRequestId, body);
   const access = await participant(userId, conversationId);
-  const database = await connectDatabase();
-  let output: any;
-  await database.connection.transaction(async (session) => {
+  return withSellerTenant(access.conversation.sellerId, async () => {
+    const database = await connectDatabase();
+    let output: any;
+    await database.connection.transaction(async (session) => {
     const existing = await ConversationEvent.findOne({ sellerId: access.conversation.sellerId, conversationId: access.conversation._id, senderUserId: userId, clientRequestId: input.clientRequestId }).session(session).lean();
     if (existing) { output = eventOutput(existing); return; }
     const now = new Date();
@@ -216,22 +221,24 @@ export async function sendConversationMessage(userId: string, conversationId: st
     if (!updated) throw new MessagingError("NOT_FOUND");
     await recordRealtimeEvent(session, { sellerId: access.conversation.sellerId, conversationId: access.conversation._id, type: "message.created", version: updated.version, messageId: created._id, occurredAt: now });
     output = eventOutput(created.toObject());
+    });
+    return output;
   });
-  return output;
 }
 
 export async function recordInboundBuyerMessage(input: { sellerId: unknown; buyerUserId: unknown; clientRequestId: string; body: string; conversationId?: unknown }) {
   const value = messageInput(input.clientRequestId, input.body);
-  await connectDatabase();
-  const conversation = await Conversation.findOne({
-    ...(input.conversationId ? { _id: input.conversationId } : {}),
-    sellerId: input.sellerId,
-    buyerUserId: input.buyerUserId,
-  }).lean();
-  if (!conversation) throw new MessagingError("NOT_FOUND");
-  const database = await connectDatabase();
-  let output: any;
-  await database.connection.transaction(async (session) => {
+  return withSellerTenant(input.sellerId as string, async () => {
+    await connectDatabase();
+    const conversation = await Conversation.findOne({
+      ...(input.conversationId ? { _id: input.conversationId } : {}),
+      sellerId: input.sellerId,
+      buyerUserId: input.buyerUserId,
+    }).lean();
+    if (!conversation) throw new MessagingError("NOT_FOUND");
+    const database = await connectDatabase();
+    let output: any;
+    await database.connection.transaction(async (session) => {
     const existing = await ConversationEvent.findOne({ sellerId: conversation.sellerId, conversationId: conversation._id, senderUserId: input.buyerUserId, clientRequestId: value.clientRequestId }).session(session).lean();
     if (existing) { output = eventOutput(existing); return; }
     const now = new Date();
@@ -240,6 +247,7 @@ export async function recordInboundBuyerMessage(input: { sellerId: unknown; buye
     if (!updated) throw new MessagingError("NOT_FOUND");
     await recordRealtimeEvent(session, { sellerId: conversation.sellerId, conversationId: conversation._id, type: "message.created", version: updated.version, messageId: created._id, occurredAt: now });
     output = eventOutput(created.toObject());
+    });
+    return output;
   });
-  return output;
 }
