@@ -213,8 +213,10 @@ export async function buyerHistory(userId: string, sellerSlug: string) {
   if (!seller) throw new PurchaseError("NOT_FOUND");
   const relationship = await BuyerRelationship.findOne({ sellerId: seller._id, buyerUserId: userId, status: "active" }).lean();
   if (!relationship) throw new PurchaseError("FORBIDDEN");
-  const user = await User.findById(userId).lean();
-  const customer = user ? await Customer.findOne({ sellerId: seller._id, emailNormalized: user.emailNormalized }).lean() : null;
-  const purchases = customer ? await Purchase.find({ sellerId: seller._id, customerId: customer._id }).sort({ purchasedAt: -1, _id: -1 }).limit(100).lean() : [];
-  return { seller, customer, purchases: purchases.map(purchaseOutput) };
+  return withSellerTenant(seller._id, async () => {
+    const user = await User.findById(userId).lean();
+    const customer = user ? await Customer.findOne({ sellerId: seller._id, emailNormalized: user.emailNormalized }).lean() : null;
+    const purchases = customer ? await Purchase.find({ sellerId: seller._id, customerId: customer._id }).sort({ purchasedAt: -1, _id: -1 }).limit(100).lean() : [];
+    return { seller, customer, purchases: purchases.map(purchaseOutput) };
+  });
 }
