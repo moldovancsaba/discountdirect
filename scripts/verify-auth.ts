@@ -29,6 +29,7 @@ import { Campaign, CampaignInventoryBalance, CampaignReservation, campaignModels
 import { DeliveryOutbox, deliveryModels } from "../src/delivery/models.ts";
 import { OfferAutomation, OfferAutomationRun, OfferList, automationModels } from "../src/automations/models.ts";
 import { RedemptionCoupon, redemptionModels } from "../src/redemptions/models.ts";
+import { CustomerMembership } from "../src/membership/models.ts";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error("MONGODB_URI is required");
@@ -96,7 +97,7 @@ try {
     serverSelectionTimeoutMS: 5000,
     autoIndex: false,
   });
-  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels, ...campaignModels, ...deliveryModels, ...automationModels, ...redemptionModels])
+  for (const dataModel of [...authModels, ...catalogModels, ...purchaseModels, ...privacyModels, ...recommendationModels, ...messagingModels, ...realtimeModels, ...offerModels, ...campaignModels, ...deliveryModels, ...automationModels, ...redemptionModels, CustomerMembership])
     await dataModel.createIndexes();
 
   const user = await User.create({
@@ -136,6 +137,17 @@ try {
     profile.buyerRelationships.map((item: { slug: string }) => item.slug),
     ["allowed-seller"],
   );
+  const membershipPath = "/api/buyer/allowed-seller/membership";
+  const membershipBefore = await fetch(`${base}${membershipPath}`, { headers: { cookie } });
+  assert.equal(membershipBefore.status, 200);
+  assert.equal((await membershipBefore.json()).status, "not_joined");
+  const membershipJoin = await fetch(`${base}${membershipPath}`, { method: "POST", headers: { origin: base, cookie } });
+  assert.equal(membershipJoin.status, 201);
+  const joinedMembership = await membershipJoin.json();
+  assert.equal(joinedMembership.tier, "member");
+  assert.equal(joinedMembership.benefits.freeDelivery, false);
+  const membershipRead = await fetch(`${base}${membershipPath}`, { headers: { cookie } });
+  assert.equal((await membershipRead.json()).tier, "member");
   assert.equal(
     (
       await fetch(`${base}/seller/allowed-seller`, {
@@ -440,6 +452,9 @@ try {
   const campaign = (await campaignResponse.json()).campaign;
   assert.equal(campaign.priceHuf, Math.round(7990 * 0.8));
   assert.equal(campaign.audienceSize, 1);
+  const campaignSnapshot = await Campaign.findOne({ _id: campaign.id, sellerId: allowedSeller._id }).lean();
+  assert.equal(campaignSnapshot?.audienceSnapshot[0]?.membershipTier, "member");
+  assert.equal(campaignSnapshot?.audienceSnapshot[0]?.freeDelivery, false);
   assert.equal((await post(campaignPath, { ...campaignInput, discountPct: 99 }, cookie)).status, 201);
   assert.equal(await Campaign.countDocuments({ sellerId: allowedSeller._id }), 1);
   const campaignOffer = await Offer.findOne({ sellerId: allowedSeller._id, campaignId: campaign.id }).lean();
