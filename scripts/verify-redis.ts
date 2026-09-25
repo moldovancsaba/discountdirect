@@ -4,11 +4,17 @@ import {
   loadRedisScripts,
   recordCampaignAcceptance,
   redisClient,
+  redisReadiness,
   redisKeys,
   redisRateLimit,
   releaseRedisLock,
 } from "../src/lib/redis-core.ts";
 
+const readiness = redisReadiness();
+if (!readiness.enabled) {
+  console.log(JSON.stringify({ ok: false, blocked: true, reasonCode: readiness.reasonCode }));
+  process.exitCode = 2;
+} else {
 const client = redisClient();
 const suffix = randomUUID().replaceAll("-", "");
 const campaignId = `verification-${suffix}`;
@@ -72,4 +78,5 @@ try {
   );
 } finally {
   await Promise.all(keys.map((key) => client.del(key)));
+}
 }
