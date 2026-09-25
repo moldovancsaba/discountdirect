@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Redis } from "@upstash/redis";
 
 export type RedisEnvironment = {
@@ -35,11 +36,20 @@ export function redisReadiness(env: RedisEnvironment = process.env) {
   const url = clean(env.UPSTASH_REDIS_REST_URL);
   const token = clean(env.UPSTASH_REDIS_REST_TOKEN);
   if (!url && !token)
-    return { enabled: false, reasonCode: "REDIS_NOT_CONFIGURED" } satisfies RedisReadiness;
+    return {
+      enabled: false,
+      reasonCode: "REDIS_NOT_CONFIGURED",
+    } satisfies RedisReadiness;
   if (!url || !token)
-    return { enabled: false, reasonCode: "REDIS_CONFIGURATION_INCOMPLETE" } satisfies RedisReadiness;
+    return {
+      enabled: false,
+      reasonCode: "REDIS_CONFIGURATION_INCOMPLETE",
+    } satisfies RedisReadiness;
   if (!/^https:\/\/.+/i.test(url))
-    return { enabled: false, reasonCode: "REDIS_URL_INVALID" } satisfies RedisReadiness;
+    return {
+      enabled: false,
+      reasonCode: "REDIS_URL_INVALID",
+    } satisfies RedisReadiness;
   return { enabled: true, reasonCode: null } satisfies RedisReadiness;
 }
 
@@ -51,7 +61,8 @@ const cache = (globalRedis.discountDirectRedis ??= {});
 
 export function redisClient(env: RedisEnvironment = process.env) {
   const readiness = redisReadiness(env);
-  if (!readiness.enabled) throw new RedisConfigurationError(readiness.reasonCode);
+  if (!readiness.enabled)
+    throw new RedisConfigurationError(readiness.reasonCode);
   const url = clean(env.UPSTASH_REDIS_REST_URL);
   const token = clean(env.UPSTASH_REDIS_REST_TOKEN);
   const key = `${url}\n${token}`;
@@ -70,25 +81,50 @@ export const redisTtlSeconds = {
 } as const;
 
 export type RedisPrimitiveClient = {
-  eval<T = unknown>(script: string, keys: string[], args: Array<string | number>): Promise<T>;
-  set(key: string, value: string, options?: { ex?: number; nx?: boolean }): Promise<unknown>;
+  eval<T = unknown>(
+    script: string,
+    keys: string[],
+    args: Array<string | number>,
+  ): Promise<T>;
+  set(
+    key: string,
+    value: string,
+    options?: { ex?: number; nx?: boolean },
+  ): Promise<unknown>;
   del(key: string): Promise<number>;
   incr(key: string): Promise<number>;
   expire(key: string, seconds: number): Promise<number>;
 };
 
 export type RedisPrimitiveResult =
-  | { enabled: true; accepted: boolean; reasonCode: string; count?: number; total?: number; buyer?: number }
-  | { enabled: false; accepted: boolean; reasonCode: "REDIS_UNAVAILABLE" | RedisReadiness["reasonCode"] };
+  | {
+      enabled: true;
+      accepted: boolean;
+      reasonCode: string;
+      count?: number;
+      total?: number;
+      buyer?: number;
+    }
+  | {
+      enabled: false;
+      accepted: boolean;
+      reasonCode: "REDIS_UNAVAILABLE" | RedisReadiness["reasonCode"];
+    };
 
 function primitiveFailure(error: unknown): RedisPrimitiveResult {
-  if (error instanceof RedisConfigurationError) return { enabled: false, accepted: false, reasonCode: error.code };
+  if (error instanceof RedisConfigurationError)
+    return { enabled: false, accepted: false, reasonCode: error.code };
   return { enabled: false, accepted: false, reasonCode: "REDIS_UNAVAILABLE" };
 }
 
 export function campaignCounterTtlSeconds(expiresAt: Date, now = new Date()) {
-  const secondsUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / 1000);
-  return Math.max(60, secondsUntilExpiry + redisTtlSeconds.campaignCounterRecovery);
+  const secondsUntilExpiry = Math.ceil(
+    (expiresAt.getTime() - now.getTime()) / 1000,
+  );
+  return Math.max(
+    60,
+    secondsUntilExpiry + redisTtlSeconds.campaignCounterRecovery,
+  );
 }
 
 export function redisKeyPart(value: string | number) {
@@ -171,9 +207,13 @@ export type RedisScriptLoader = {
   scriptLoad(script: string): Promise<string>;
 };
 
-export async function loadRedisScripts(client: RedisScriptLoader = redisClient()) {
+export async function loadRedisScripts(
+  client: RedisScriptLoader = redisClient(),
+) {
   const loaded = {} as RedisScriptShaMap;
-  for (const [name, script] of Object.entries(redisLuaScripts) as Array<[RedisScriptName, string]>) {
+  for (const [name, script] of Object.entries(redisLuaScripts) as Array<
+    [RedisScriptName, string]
+  >) {
     loaded[name] = await client.scriptLoad(script);
   }
   return loaded;
@@ -187,9 +227,20 @@ export async function redisRateLimit(
 ): Promise<RedisPrimitiveResult> {
   const boundedLimit = Math.min(Math.max(Math.floor(limit), 1), 100_000);
   try {
-    const result = await client.eval<[number, string, number]>(redisLuaScripts.rateLimit, [redisKeys.rate(scope, id)], [boundedLimit, redisTtlSeconds.rateLimitWindow]);
-    return { enabled: true, accepted: Number(result[0]) === 1, reasonCode: String(result[1]), count: Number(result[2]) };
-  } catch (error) { return primitiveFailure(error); }
+    const result = await client.eval<[number, string, number]>(
+      redisLuaScripts.rateLimit,
+      [redisKeys.rate(scope, id)],
+      [boundedLimit, redisTtlSeconds.rateLimitWindow],
+    );
+    return {
+      enabled: true,
+      accepted: Number(result[0]) === 1,
+      reasonCode: String(result[1]),
+      count: Number(result[2]),
+    };
+  } catch (error) {
+    return primitiveFailure(error);
+  }
 }
 
 export async function acquireRedisLock(
@@ -199,30 +250,123 @@ export async function acquireRedisLock(
   ttlSeconds: number = redisTtlSeconds.lock,
   client: RedisPrimitiveClient = redisClient(),
 ): Promise<RedisPrimitiveResult> {
-  const ttl = Math.min(Math.max(Math.floor(ttlSeconds), 1), redisTtlSeconds.lock);
+  const ttl = Math.min(
+    Math.max(Math.floor(ttlSeconds), 1),
+    redisTtlSeconds.lock,
+  );
   try {
-    const result = await client.eval<[number, string]>(redisLuaScripts.acquireLock, [redisKeys.lock(scope, id)], [token, ttl]);
-    return { enabled: true, accepted: Number(result[0]) === 1, reasonCode: String(result[1]) };
-  } catch (error) { return primitiveFailure(error); }
+    const result = await client.eval<[number, string]>(
+      redisLuaScripts.acquireLock,
+      [redisKeys.lock(scope, id)],
+      [token, ttl],
+    );
+    return {
+      enabled: true,
+      accepted: Number(result[0]) === 1,
+      reasonCode: String(result[1]),
+    };
+  } catch (error) {
+    return primitiveFailure(error);
+  }
 }
 
-export async function releaseRedisLock(scope: string, id: string, token: string, client: RedisPrimitiveClient = redisClient()) {
-  try { return { enabled: true as const, released: Number(await client.eval(redisLuaScripts.releaseLock, [redisKeys.lock(scope, id)], [token])) === 1 }; }
-  catch (error) { const failure = primitiveFailure(error); return { enabled: false as const, released: false, reasonCode: failure.reasonCode }; }
+export async function releaseRedisLock(
+  scope: string,
+  id: string,
+  token: string,
+  client: RedisPrimitiveClient = redisClient(),
+) {
+  try {
+    return {
+      enabled: true as const,
+      released:
+        Number(
+          await client.eval(
+            redisLuaScripts.releaseLock,
+            [redisKeys.lock(scope, id)],
+            [token],
+          ),
+        ) === 1,
+    };
+  } catch (error) {
+    const failure = primitiveFailure(error);
+    return {
+      enabled: false as const,
+      released: false,
+      reasonCode: failure.reasonCode,
+    };
+  }
+}
+
+export async function withRedisLock<T>(
+  scope: string,
+  id: string,
+  work: () => Promise<T>,
+  client?: RedisPrimitiveClient,
+) {
+  const token = randomUUID();
+  let acquired = false;
+  try {
+    const redis = client ?? redisClient();
+    const result = await acquireRedisLock(
+      scope,
+      id,
+      token,
+      redisTtlSeconds.lock,
+      redis,
+    );
+    if (result.enabled) {
+      if (!result.accepted)
+        return { locked: true as const, result: null as T | null };
+      acquired = true;
+    }
+    return { locked: false as const, result: await work() };
+  } catch (error) {
+    if (error instanceof RedisConfigurationError)
+      return { locked: false as const, result: await work() };
+    throw error;
+  } finally {
+    if (acquired && client) await releaseRedisLock(scope, id, token, client);
+    else if (acquired) {
+      try {
+        await releaseRedisLock(scope, id, token);
+      } catch {
+        /* degraded cleanup is bounded by the lock TTL */
+      }
+    }
+  }
 }
 
 export type RedisHealth =
   | { connected: true; latencyMs: number }
-  | { connected: false; latencyMs: null; reasonCode: RedisReadiness["reasonCode"] | "REDIS_UNAVAILABLE" };
+  | {
+      connected: false;
+      latencyMs: null;
+      reasonCode: RedisReadiness["reasonCode"] | "REDIS_UNAVAILABLE";
+    };
 
-export async function redisHealth(env: RedisEnvironment = process.env): Promise<RedisHealth> {
+export async function redisHealth(
+  env: RedisEnvironment = process.env,
+): Promise<RedisHealth> {
   const readiness = redisReadiness(env);
-  if (!readiness.enabled) return { connected: false, latencyMs: null, reasonCode: readiness.reasonCode };
+  if (!readiness.enabled)
+    return {
+      connected: false,
+      latencyMs: null,
+      reasonCode: readiness.reasonCode,
+    };
   const start = performance.now();
   try {
     await redisClient(env).ping();
-    return { connected: true, latencyMs: Math.round(performance.now() - start) };
+    return {
+      connected: true,
+      latencyMs: Math.round(performance.now() - start),
+    };
   } catch {
-    return { connected: false, latencyMs: null, reasonCode: "REDIS_UNAVAILABLE" };
+    return {
+      connected: false,
+      latencyMs: null,
+      reasonCode: "REDIS_UNAVAILABLE",
+    };
   }
 }
