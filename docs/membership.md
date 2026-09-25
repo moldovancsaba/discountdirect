@@ -12,3 +12,11 @@ The seller-scoped resource is `/api/buyer/:sellerSlug/membership`.
   stale versions return `409` without changing membership state.
 
 All operations require SSO authentication and an active buyer relationship.
+
+## Campaign provenance
+
+When a flash campaign audience is snapshotted, the active membership tier and
+free-delivery benefit are frozen on each audience item. Postal delivery content
+uses that frozen decision, so later membership changes cannot rewrite an already
+launched campaign. Consent, suppression and channel eligibility are evaluated
+independently and always win over membership benefits.
