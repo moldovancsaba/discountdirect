@@ -11,3 +11,6 @@ Seller contracts are under `/api/sellers/:sellerSlug/journeys`, with a read-only
 ## Recovery
 
 Pause a definition to stop claims and atomically cancel that definition's queued, processing or retryable deliveries. A worker rechecks the active definition inside its delivery transaction, so a concurrent pause cannot create a new delivery. Existing step, delivery and event records remain as evidence. Resume with the current optimistic version; due steps are reconsidered after their postponed `nextRunAt`. Never edit definition versions, evidence hashes or frozen snapshots in place.
+# Retention triggers
+
+Retention triggers are factual and privacy-gated: birthdays support an explicit February 29 policy, back-in-stock requires a non-positive to positive stock transition, and price-drop requires both a lower current price and a valid reference-price ceiling. Restricted or erased customers never qualify. Each trigger returns evidence and a safe reason code for enrollment deduplication.
