@@ -47,4 +47,17 @@ test("UNAS logs in with API key and maps XML stock", async () => {
   assert.equal(stock[0]?.quantity,5);assert.match(bodies[0]!,/<ApiKey>api-key-value<\/ApiKey>/);assert.match(bodies[1]!,/<Sku>ABC-1<\/Sku>/);
 });
 
+test("UNAS reuses a bearer token until its documented expiry", async () => {
+  let loginCalls = 0;
+  const fetcher: typeof fetch = async (input, init) => {
+    if (String(input).endsWith("/login")) { loginCalls += 1; return new Response("<Login><Token>token-token</Token><Expire>2099-01-01 00:00:00</Expire></Login>"); }
+    assert.match(String(init?.body), /LimitNum/);
+    return new Response("<Products><Product><Id>12</Id><Sku>ABC-1</Sku><Price>1000</Price><Statuses><Status><Type>base</Type><Value>1</Value></Status></Statuses></Product></Products>");
+  };
+  const connector = new UnasConnector({apiKey:"api-key-value"}, configuration, fetcher);
+  await connector.listProducts(null, new AbortController().signal);
+  await connector.listProducts("100", new AbortController().signal);
+  assert.equal(loginCalls, 1);
+});
+
 test("provider checkout URL expands only the configured template",async()=>{const connector=new ShoprenterConnector({clientId:"client-id",clientSecret:"client-secret-value"},configuration,fetch);const result=await connector.createCheckout({handoffId:"handoff",offerId:"offer",productSku:"A B",quantity:1,priceHuf:1000,expiresAt:new Date()},new AbortController().signal);assert.equal(result.url,"https://demo.example/search?q=A%20B&ref=handoff");});

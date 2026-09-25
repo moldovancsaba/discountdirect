@@ -8,12 +8,12 @@ type Xml = Record<string, unknown>;
 const parser = new XMLParser({ ignoreAttributes: false, parseTagValue: false, trimValues: true });
 const builder = new XMLBuilder({ ignoreAttributes: false, format: false });
 const list = (value: unknown): Xml[] => Array.isArray(value) ? value as Xml[] : value && typeof value === "object" ? [value as Xml] : [];
-const finite = (value: unknown) => { const parsed = Number(value); if (!Number.isFinite(parsed)) throw new ProviderError("INVALID_RESPONSE", false); return parsed; };
+const finite = (value: unknown, maximum = 1_000_000_000) => { const parsed = Number(value); if (!Number.isFinite(parsed) || parsed < 0 || parsed > maximum) throw new ProviderError("INVALID_RESPONSE", false); return parsed; };
 const date = (value: unknown) => { if (typeof value !== "string") return null; const parsed = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value); return Number.isNaN(parsed) ? null : new Date(parsed); };
 
 export class UnasConnector implements CommerceConnector {
   readonly provider = "unas" as const;
-  private readonly credentials: UnasCredentials; private readonly configuration: ConnectorConfiguration; private readonly fetcher: ProviderFetch;
+  private readonly credentials: UnasCredentials; private readonly configuration: ConnectorConfiguration; private readonly fetcher: ProviderFetch; private accessToken: { value: string; expiresAt: number } | null = null;
   constructor(credentials: UnasCredentials, configuration: ConnectorConfiguration, fetcher: ProviderFetch = fetch) {
     this.credentials=credentials; this.configuration=configuration; this.fetcher=fetcher;
     if (typeof credentials.apiKey !== "string" || credentials.apiKey.length < 8) throw new ProviderError("CONFIGURATION", false);
@@ -29,9 +29,12 @@ export class UnasConnector implements CommerceConnector {
   }
 
   private async token(signal: AbortSignal) {
+    if (this.accessToken && this.accessToken.expiresAt > Date.now()) return this.accessToken.value;
     const body = await this.post("login", { ApiKey: this.credentials.apiKey }, signal, false);
     const login = (body.Login ?? body) as Xml;
     if (typeof login.Token !== "string" || login.Token.length < 8) throw new ProviderError("AUTH", false);
+    const expiry = date(login.Expire)?.getTime() ?? Date.now() + 300_000;
+    this.accessToken = { value: login.Token, expiresAt: Math.min(expiry, Date.now() + 86_400_000) - 30_000 };
     return login.Token;
   }
 
