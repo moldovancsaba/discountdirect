@@ -1,6 +1,7 @@
 # Operations
 
 Connector stock sync persists the tenant-scoped transition evidence and updates a matching active catalog product's local `stock` in the same MongoDB transaction. Flash reservation reads that catalog value; an unmatched provider SKU remains evidence only and does not mutate a product.
+Catalog sync likewise updates only the matching active product's bounded name and HUF price fields; provider records remain the transition/audit source and unmatched SKUs are not created implicitly.
 When synchronized stock reaches zero, the same transaction applies the system-owned `sold_out` transition to up to 100 pending or accepted offers for that product, with reason code `PROVIDER_STOCK_EMPTY` and append-only offer events. Repeated syncs are idempotent because terminal offers are excluded.
 
 ## Rule-template recovery

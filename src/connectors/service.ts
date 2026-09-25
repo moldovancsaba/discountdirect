@@ -471,6 +471,16 @@ export async function syncConnector(
               }
             }
           }
+          if (kind === "catalog_sync") {
+            const catalog = item.payload as { sku?: string; name?: string; priceHuf?: number; active?: boolean };
+            if (typeof catalog.sku === "string" && typeof catalog.name === "string" && Number.isFinite(catalog.priceHuf)) {
+              await Product.updateOne(
+                { sellerId: access.seller._id, skuNormalized: catalog.sku.trim().toUpperCase(), active: true },
+                { $set: { name: catalog.name, priceHuf: catalog.priceHuf, ...(typeof catalog.active === "boolean" ? { active: catalog.active } : {}) } },
+                { session, runValidators: true },
+              );
+            }
+          }
         }
         const installationUpdate = await ConnectorInstallation.updateOne(
           {
