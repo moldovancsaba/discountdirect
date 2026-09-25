@@ -9,6 +9,7 @@ import {
   redisReadiness,
   redisTtlSeconds,
   redisRateLimit,
+  recordCampaignAcceptance,
   releaseRedisLock,
   withRedisLock,
 } from "../src/lib/redis-core.ts";
@@ -153,6 +154,33 @@ test("lock release is token-bound", async () => {
     enabled: true,
     released: true,
   });
+});
+
+test("campaign acceptance counter is expiring and Redis is non-authoritative", async () => {
+  const calls: string[] = [];
+  const client = {
+    async incr(key: string) {
+      calls.push(`incr:${key}`);
+      return 1;
+    },
+    async expire(key: string, seconds: number) {
+      calls.push(`expire:${key}:${seconds}`);
+      return 1;
+    },
+  } as never;
+  const result = await recordCampaignAcceptance(
+    "campaign/1",
+    new Date(Date.now() + 60_000),
+    client,
+  );
+  assert.deepEqual(result, {
+    enabled: true,
+    accepted: true,
+    reasonCode: "recorded",
+    total: 1,
+  });
+  assert.equal(calls.length, 2);
+  assert.match(calls[1], /expire:camp:campaign%2F1:accepted:/);
 });
 
 test("cron lock skips overlap and falls back when Redis is not configured", async () => {

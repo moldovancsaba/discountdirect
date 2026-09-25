@@ -243,6 +243,24 @@ export async function redisRateLimit(
   }
 }
 
+export async function recordCampaignAcceptance(
+  campaignId: string,
+  expiresAt: Date,
+  client: RedisPrimitiveClient = redisClient(),
+): Promise<RedisPrimitiveResult> {
+  try {
+    const total = await client.incr(redisKeys.campaignAccepted(campaignId));
+    if (total === 1)
+      await client.expire(
+        redisKeys.campaignAccepted(campaignId),
+        campaignCounterTtlSeconds(expiresAt),
+      );
+    return { enabled: true, accepted: true, reasonCode: "recorded", total };
+  } catch (error) {
+    return primitiveFailure(error);
+  }
+}
+
 export async function acquireRedisLock(
   scope: string,
   id: string,
