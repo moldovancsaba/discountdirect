@@ -92,27 +92,29 @@ export async function previewImport(userId: string, sellerSlug: string, value: u
   if (schemaVersion !== "1" || !Array.isArray(rows)) throw new CatalogError("INVALID");
   if (!rows.length || rows.length > 100) throw new CatalogError("TOO_LARGE");
   const { seller } = await sellerAccess(userId, sellerSlug);
-  const checksum = createHash("sha256").update(JSON.stringify({ schemaVersion, rows })).digest("hex");
-  const existing = await ImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
-  if (existing) return existing;
-  const seen = new Set<string>();
-  const results = [];
-  for (let index = 0; index < rows.length; index += 1) {
-    const errors = productInputErrors(rows[index]);
-    let data: ProductInput | null = null;
-    if (!errors.length) data = validateProductInput(rows[index]);
-    if (data && seen.has(data.skuNormalized)) errors.push("duplicateSku");
-    if (data) seen.add(data.skuNormalized);
-    const current = data ? await Product.findOne({ sellerId: seller._id, skuNormalized: data.skuNormalized }).lean() : null;
-    const unchanged = current && data && ["sku", "name", "priceHuf", "stock", "category", "active"].every((key) => (current as any)[key] === (data as any)[key]) && JSON.stringify(current.compatibleWith ?? []) === JSON.stringify(data.compatibleWith);
-    results.push({ row: index + 1, sku: data?.sku ?? "", action: errors.length ? "error" : current ? unchanged ? "unchanged" : "update" : "create", expectedVersion: current?.version ?? 0, data, errorCodes: errors });
-  }
-  try {
-    return await ImportBatch.create({ sellerId: seller._id, createdByUserId: userId, schemaVersion, checksum, status: "preview", rows: results });
-  } catch (error: any) {
-    if (error?.code === 11000) return ImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
-    throw error;
-  }
+  return withSellerTenant(seller._id, async () => {
+    const checksum = createHash("sha256").update(JSON.stringify({ schemaVersion, rows })).digest("hex");
+    const existing = await ImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
+    if (existing) return existing;
+    const seen = new Set<string>();
+    const results = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      const errors = productInputErrors(rows[index]);
+      let data: ProductInput | null = null;
+      if (!errors.length) data = validateProductInput(rows[index]);
+      if (data && seen.has(data.skuNormalized)) errors.push("duplicateSku");
+      if (data) seen.add(data.skuNormalized);
+      const current = data ? await Product.findOne({ sellerId: seller._id, skuNormalized: data.skuNormalized }).lean() : null;
+      const unchanged = current && data && ["sku", "name", "priceHuf", "stock", "category", "active"].every((key) => (current as any)[key] === (data as any)[key]) && JSON.stringify(current.compatibleWith ?? []) === JSON.stringify(data.compatibleWith);
+      results.push({ row: index + 1, sku: data?.sku ?? "", action: errors.length ? "error" : current ? unchanged ? "unchanged" : "update" : "create", expectedVersion: current?.version ?? 0, data, errorCodes: errors });
+    }
+    try {
+      return await ImportBatch.create({ sellerId: seller._id, createdByUserId: userId, schemaVersion, checksum, status: "preview", rows: results });
+    } catch (error: any) {
+      if (error?.code === 11000) return ImportBatch.findOne({ sellerId: seller._id, checksum }).lean();
+      throw error;
+    }
+  });
 }
 
 export async function getImportBatch(userId: string, sellerSlug: string, batchId: string) {
