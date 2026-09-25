@@ -49,6 +49,7 @@ async function campaignAudience(sellerId: any, productId: string, channel: "emai
     else audience.push(snapshot);
     if (audience.length + holdout.length === MAX_AUDIENCE) break;
   }
+  if (!audience.length && holdout.length) audience.push(holdout.shift());
   return { audience, holdout, holdoutPct: settings.holdout_pct, holdoutMode: settings.holdout_mode };
 }
 
