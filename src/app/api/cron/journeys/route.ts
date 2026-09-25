@@ -1,6 +1,7 @@
 import { errorResponse } from "@/auth/http";
 import { matchesToken } from "@/lib/operator-session";
 import { withRedisLock } from "@/lib/redis-core";
+import { withTenantBypass } from "@/lib/tenant";
 import {
   runBirthdayJourneyTriggers,
   runProductWatchTriggers,
@@ -16,13 +17,17 @@ export async function GET(request: Request) {
   const limit = Number(new URL(request.url).searchParams.get("limit") ?? 20);
   let result;
   try {
-    result = await withRedisLock("cron", "journeys", async () => ({
-      triggers: {
-        birthday: await runBirthdayJourneyTriggers(50),
-        productWatches: await runProductWatchTriggers(50),
-      },
-      steps: await runDueJourneySteps(Number.isFinite(limit) ? limit : 20),
-    }));
+    result = await withTenantBypass(
+      "journey-cron-worker",
+      async () =>
+        await withRedisLock("cron", "journeys", async () => ({
+          triggers: {
+            birthday: await runBirthdayJourneyTriggers(50),
+            productWatches: await runProductWatchTriggers(50),
+          },
+          steps: await runDueJourneySteps(Number.isFinite(limit) ? limit : 20),
+        })),
+    );
   } catch (error) {
     console.error("journey cron failed", {
       code: error instanceof Error ? error.message : "UNKNOWN",
