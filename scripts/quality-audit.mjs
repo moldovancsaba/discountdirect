@@ -119,7 +119,8 @@ if (prodEnv.CRON_SECRET) {
 if (prodEnv.CRON_SECRET) {
   const { response, body } = await json("/api/cron/deliveries?limit=1", { headers: { Authorization: `Bearer ${prodEnv.CRON_SECRET}` } });
   assert.equal(response.status, 200);
-  assert.ok(Array.isArray(body.results));
+  assert.ok(Array.isArray(body.deliveries?.results));
+  assert.ok(Array.isArray(body.postal?.results) || body.postal?.reasonCode === "POSTAL_PROVIDER_NOT_CONFIGURED");
   checks.push("delivery cron accepts cron token and returns bounded results");
 }
 
