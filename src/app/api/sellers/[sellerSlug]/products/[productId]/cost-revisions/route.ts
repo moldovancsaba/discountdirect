@@ -1,0 +1,7 @@
+import { currentUser } from "@/auth/service";
+import { errorResponse } from "@/auth/http";
+import { jsonBody } from "@/catalog/http";
+import { costRevisionError } from "@/reporting/cost-http";
+import { createCostRevision, listCostRevisions } from "@/reporting/cost-service";
+export async function GET(_request: Request, { params }: { params: Promise<{ sellerSlug: string; productId: string }> }) { const user = await currentUser(); if (!user) return errorResponse("UNAUTHORIZED", "Bejelentkezés szükséges.", 401); const value = await params; try { return Response.json(await listCostRevisions(user.id, value.sellerSlug, value.productId), { headers: { "Cache-Control": "no-store" } }); } catch (error) { return costRevisionError(error); } }
+export async function POST(request: Request, { params }: { params: Promise<{ sellerSlug: string; productId: string }> }) { const user = await currentUser(); if (!user) return errorResponse("UNAUTHORIZED", "Bejelentkezés szükséges.", 401); const parsed = await jsonBody(request); if (parsed.response) return parsed.response; const value = await params; const body = parsed.body as Record<string, unknown>; try { return Response.json(await createCostRevision(user.id, value.sellerSlug, { productId: value.productId, unitCostHuf: Number(body.unitCostHuf), effectiveAt: String(body.effectiveAt), reason: String(body.reason ?? "") }), { status: 201, headers: { "Cache-Control": "no-store" } }); } catch (error) { return costRevisionError(error); } }
