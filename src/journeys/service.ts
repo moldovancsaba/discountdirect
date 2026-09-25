@@ -11,6 +11,7 @@ import { DeliveryOutbox } from "@/delivery/models";
 import { getSellerSettings } from "@/settings/service";
 import { DEFAULT_TEMPLATE_KEY } from "@/settings/rules-core";
 import { evidenceHash, retryAt, scheduledAt, validateJourneyConfig } from "./core";
+import { backInStockTrigger, birthdayTrigger, priceDropTrigger } from "./triggers";
 import { JourneyDefinition, JourneyDefinitionVersion, JourneyEnrollment, JourneyStepRun } from "./models";
 
 export class JourneyError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT") { super(code); } }
@@ -21,6 +22,9 @@ function input(value: unknown) { if (!value || typeof value !== "object") throw 
 
 async function triggerEvidence(sellerId: unknown, customerId: unknown, config: ReturnType<typeof validateJourneyConfig>, requestedAt: Date) {
   if (config.trigger.kind === "manual") return { triggeredAt: requestedAt, evidence: { kind: "manual", customerId: String(customerId), triggeredAt: requestedAt.toISOString() } };
+  if (config.trigger.kind === "birthday") { const birthday = config.trigger.birthday; if (!birthday) throw new JourneyError("INVALID"); const result = birthdayTrigger(new Date(`${birthday}T00:00:00.000Z`), requestedAt); if (!result.eligible) throw new JourneyError("CONFLICT"); return { triggeredAt: requestedAt, evidence: result.evidence }; }
+  if (config.trigger.kind === "back_in_stock") { const privacy = config.trigger.privacyStatus === "erasure_requested" ? "erased" : config.trigger.privacyStatus ?? "active"; const result = backInStockTrigger(config.trigger.previousStock ?? 0, config.trigger.currentStock ?? 0, privacy); if (!result.eligible) throw new JourneyError("CONFLICT"); return { triggeredAt: requestedAt, evidence: result.evidence }; }
+  if (config.trigger.kind === "price_drop") { const privacy = config.trigger.privacyStatus === "erasure_requested" ? "erased" : config.trigger.privacyStatus ?? "active"; const result = priceDropTrigger(config.trigger.previousPriceHuf ?? 0, config.trigger.currentPriceHuf ?? 0, config.trigger.referencePriceHuf ?? config.trigger.previousPriceHuf ?? 0, privacy); if (!result.eligible) throw new JourneyError("CONFLICT"); return { triggeredAt: requestedAt, evidence: result.evidence }; }
   const purchase = await Purchase.findOne({ sellerId, customerId, status: "purchased" }).sort({ purchasedAt: -1, _id: -1 }).lean();
   if (!purchase) throw new JourneyError("CONFLICT");
   const eligibleAt = new Date(purchase.purchasedAt.getTime() + config.trigger.ageDays * 86_400_000);

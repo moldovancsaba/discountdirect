@@ -2,16 +2,17 @@ import { createHash } from "node:crypto";
 
 export type JourneyChannel = "in_app" | "email" | "postal";
 export type JourneyStep = { key: string; delayMinutes: number; channel: JourneyChannel; title: string };
-export type JourneyConfig = { name: string; trigger: { kind: "manual" | "purchase_age_days"; ageDays: number }; steps: JourneyStep[] };
+export type JourneyTrigger = { kind: "manual" | "purchase_age_days" | "birthday" | "back_in_stock" | "price_drop"; ageDays: number; birthday?: string; previousStock?: number; currentStock?: number; previousPriceHuf?: number; currentPriceHuf?: number; referencePriceHuf?: number; privacyStatus?: "active" | "restricted" | "erasure_requested" | "erased" };
+export type JourneyConfig = { name: string; trigger: JourneyTrigger; steps: JourneyStep[] };
 
 export function validateJourneyConfig(input: unknown): JourneyConfig {
   if (!input || typeof input !== "object") throw new Error("journey.invalid");
   const value = input as Record<string, unknown>;
-  const trigger = value.trigger as Record<string, unknown> | undefined;
+  const rawTrigger = value.trigger as Record<string, unknown> | undefined;
   const name = typeof value.name === "string" ? value.name.trim() : "";
-  const kind = trigger?.kind;
-  const ageDays = Number(trigger?.ageDays ?? 0);
-  if (!name || name.length > 160 || !["manual", "purchase_age_days"].includes(String(kind)) || !Number.isInteger(ageDays) || ageDays < 0 || ageDays > 3660 || !Array.isArray(value.steps) || value.steps.length < 1 || value.steps.length > 10) throw new Error("journey.invalid");
+  const kind = rawTrigger?.kind;
+  const ageDays = Number(rawTrigger?.ageDays ?? 0);
+  if (!name || name.length > 160 || !["manual", "purchase_age_days", "birthday", "back_in_stock", "price_drop"].includes(String(kind)) || !Number.isInteger(ageDays) || ageDays < 0 || ageDays > 3660 || !Array.isArray(value.steps) || value.steps.length < 1 || value.steps.length > 10) throw new Error("journey.invalid");
   const keys = new Set<string>();
   const steps = value.steps.map((raw, index) => {
     if (!raw || typeof raw !== "object") throw new Error("journey.step.invalid");
@@ -24,7 +25,12 @@ export function validateJourneyConfig(input: unknown): JourneyConfig {
     keys.add(key);
     return { key, title, delayMinutes, channel };
   });
-  return { name, trigger: { kind: kind as JourneyConfig["trigger"]["kind"], ageDays }, steps };
+  const trigger: JourneyTrigger = { kind: kind as JourneyTrigger["kind"], ageDays };
+  for (const key of ["previousStock", "currentStock", "previousPriceHuf", "currentPriceHuf", "referencePriceHuf"] as const) if (rawTrigger?.[key] !== undefined) { const number = Number(rawTrigger[key]); if (!Number.isInteger(number) || number < 0) throw new Error("journey.invalid"); trigger[key] = number; }
+  if (rawTrigger?.birthday !== undefined) { if (typeof rawTrigger.birthday !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(rawTrigger.birthday)) throw new Error("journey.invalid"); trigger.birthday = rawTrigger.birthday; }
+  if (rawTrigger?.privacyStatus !== undefined && !["active", "restricted", "erasure_requested", "erased"].includes(String(rawTrigger.privacyStatus))) throw new Error("journey.invalid");
+  if (rawTrigger?.privacyStatus !== undefined) trigger.privacyStatus = rawTrigger.privacyStatus as JourneyTrigger["privacyStatus"];
+  return { name, trigger, steps };
 }
 
 export function evidenceHash(input: Record<string, unknown>) { return createHash("sha256").update(JSON.stringify(input)).digest("hex"); }
