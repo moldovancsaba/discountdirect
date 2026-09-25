@@ -40,7 +40,9 @@ export async function listProductWatches(userId: string, sellerSlug: string) {
   if (!seller) throw new ProductWatchError("NOT_FOUND");
   if (!await BuyerRelationship.exists({ sellerId: seller._id, buyerUserId: userId, status: "active" })) throw new ProductWatchError("FORBIDDEN");
   const rows = await ProductWatch.find({ sellerId: seller._id, buyerUserId: userId }).sort({ updatedAt: -1, _id: -1 }).lean();
-  return { watches: rows.map((row) => ({ id: row._id.toString(), productId: row.productId.toString(), triggerKind: row.triggerKind, status: row.status, version: row.version, lastTriggeredAt: row.lastTriggeredAt })) };
+  const products = await Product.find({ sellerId: seller._id, _id: { $in: rows.map((row) => row.productId) } }).select({ name: 1, sku: 1, priceHuf: 1 }).lean();
+  const productById = new Map(products.map((product) => [product._id.toString(), product]));
+  return { watches: rows.map((row) => ({ id: row._id.toString(), productId: row.productId.toString(), product: productById.get(row.productId.toString()) ? { name: productById.get(row.productId.toString())!.name, sku: productById.get(row.productId.toString())!.sku, priceHuf: productById.get(row.productId.toString())!.priceHuf } : null, triggerKind: row.triggerKind, status: row.status, version: row.version, lastTriggeredAt: row.lastTriggeredAt })) };
 }
 
 export async function upsertProductWatch(userId: string, sellerSlug: string, raw: unknown) {
