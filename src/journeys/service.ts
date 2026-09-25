@@ -249,7 +249,9 @@ export async function enableJourney(
   const database = await connectDatabase();
   let output: any;
   try {
-    await database.connection.transaction(async (session) => {
+    await withTenantBypass(
+      "journey-worker-step-transaction",
+      async () => await database.connection.transaction(async (session) => {
       const existing = await JourneyDefinition.findOne({
         sellerId: seller._id,
         clientRequestId: value.clientRequestId,
@@ -335,7 +337,8 @@ export async function enableJourney(
         { session },
       );
       output = definition;
-    });
+      }),
+    );
   } catch (error: any) {
     if (error?.code === 11000) {
       const existing = await JourneyDefinition.findOne({
