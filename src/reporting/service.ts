@@ -81,13 +81,16 @@ async function sellerForUser(userId: string, sellerSlug: string) {
   if (!seller || !await Membership.exists({ sellerId: seller._id, userId, status: "active" })) throw new Error("FORBIDDEN"); return seller;
 }
 
-export async function sellerMetrics(userId: string, sellerSlug: string) {
+export async function sellerMetrics(userId: string, sellerSlug: string, range: { from?: Date; to?: Date } = {}) {
   const seller = await sellerForUser(userId, sellerSlug);
   const checkpoint = await MetricProjectionCheckpoint.findOne({ sellerId: seller._id }).lean();
   if (!checkpoint?.activeGenerationId || checkpoint.status !== "ready" || !checkpoint.completedAt) return { seller, ready: false as const, reason: "NOT_BUILT" };
-  const rows = await MetricRollup.find({ sellerId: seller._id, generationId: checkpoint.activeGenerationId, scope: "seller_day" }).sort({ day: -1 }).limit(90).lean();
+  const to = range.to && !Number.isNaN(range.to.getTime()) ? range.to : new Date();
+  const from = range.from && !Number.isNaN(range.from.getTime()) ? range.from : new Date(to.getTime() - 90 * 86_400_000);
+  const boundedFrom = new Date(Math.max(from.getTime(), to.getTime() - 90 * 86_400_000));
+  const rows = await MetricRollup.find({ sellerId: seller._id, generationId: checkpoint.activeGenerationId, scope: "seller_day", day: { $gte: utcDay(boundedFrom), $lte: utcDay(to) } }).sort({ day: -1 }).limit(90).lean();
   const totals = rows.reduce((sum: any, row: any) => { for (const [key, value] of Object.entries(row.counters ?? {})) sum[key] = (sum[key] ?? 0) + Number(value); return sum; }, emptyCounters());
-  return { seller, ready: true as const, stale: !projectionIsFresh(checkpoint.completedAt), computedAt: checkpoint.completedAt, totals, days: rows.map((row: any) => ({ day: row.day, counters: row.counters })) };
+  return { seller, ready: true as const, stale: !projectionIsFresh(checkpoint.completedAt), computedAt: checkpoint.completedAt, from: boundedFrom, to, definitionVersion: REPORTING_SCHEMA_VERSION, totals, days: rows.map((row: any) => ({ day: row.day, counters: row.counters })) };
 }
 
 export async function campaignMetrics(sellerId: string, campaignIds: string[]) {

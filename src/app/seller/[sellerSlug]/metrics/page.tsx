@@ -9,9 +9,10 @@ const number = new Intl.NumberFormat("hu-HU");
 const money = new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 });
 const date = new Intl.DateTimeFormat("hu-HU", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Budapest" });
 
-export default async function MetricsPage({ params }: { params: Promise<{ sellerSlug: string }> }) {
+export default async function MetricsPage({ params, searchParams }: { params: Promise<{ sellerSlug: string }>; searchParams: Promise<{ from?: string; to?: string }> }) {
   const user = await currentUser(); if (!user) redirect("/sign-in"); const { sellerSlug } = await params;
-  let data; try { data = await sellerMetrics(user.id, sellerSlug); } catch { redirect("/account?error=forbidden"); }
+  const query = await searchParams;
+  let data; try { data = await sellerMetrics(user.id, sellerSlug, { from: query.from ? new Date(`${query.from}T00:00:00.000Z`) : undefined, to: query.to ? new Date(`${query.to}T23:59:59.999Z`) : undefined }); } catch { redirect("/account?error=forbidden"); }
   return <Shell><PageHeader eyebrow="Eladói munkatér" title="Eredmények" description="A lezárt riportgeneráció összesített üzleti mutatói. A tranzakciós adatok változatlanul az elsődleges források." />
     {!data.ready ? <BannerNotice severity="warning" message="A riport még nem készült el. Az üzleti adatok helyett nem jelenítünk meg félkész vagy nulla értékeket." /> : <>
       {data.stale ? <BannerNotice severity="warning" message={`A riport frissítése késik. Utolsó sikeres számítás: ${date.format(new Date(data.computedAt))}.`} /> : <BannerNotice severity="success" variant="compact" message={`Utolsó sikeres számítás: ${date.format(new Date(data.computedAt))}.`} />}
