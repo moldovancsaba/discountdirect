@@ -15,7 +15,7 @@ import { discountDecision } from "@/pricing/service";
 import { discountedPrice } from "@/pricing/reference-price";
 import { productReferencePrice } from "@/pricing/reference-price-service";
 import { offerTransition } from "./lifecycle";
-import { withSellerTenant } from "@/lib/tenant";
+import { withSellerTenant, withTenantBypass } from "@/lib/tenant";
 
 export class OfferError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "EXPIRED" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
@@ -84,7 +84,7 @@ export async function createOffer(userId: string, sellerSlug: string, input: unk
   });
 }
 
-export async function buyerOffers(userId: string) { await connectDatabase(); const sellerIds = await activeBuyerSellerIds(userId); if (!sellerIds.length) return { offers: [] }; const now = new Date(); await Offer.updateMany({ sellerId: { $in: sellerIds }, buyerUserId: userId, status: "pending", expiresAt: { $lte: now } }, { $set: { status: "expired", decidedAt: now }, $inc: { version: 1 } }); const rows = await Offer.find({ sellerId: { $in: sellerIds }, buyerUserId: userId }).sort({ expiresAt: 1, _id: 1 }).limit(100).lean(); return { offers: rows.map(output) }; }
+export async function buyerOffers(userId: string) { await connectDatabase(); const sellerIds = await activeBuyerSellerIds(userId); if (!sellerIds.length) return { offers: [] }; const now = new Date(); const rows = await withTenantBypass("buyer-aggregate-offers", async () => { await Offer.updateMany({ sellerId: { $in: sellerIds }, buyerUserId: userId, status: "pending", expiresAt: { $lte: now } }, { $set: { status: "expired", decidedAt: now }, $inc: { version: 1 } }); return Offer.find({ sellerId: { $in: sellerIds }, buyerUserId: userId }).sort({ expiresAt: 1, _id: 1 }).limit(100).lean(); }); return { offers: rows.map(output) }; }
 
 export async function applySystemOfferTransition(session: mongoose.ClientSession, sellerId: unknown, offerId: unknown, target: "sold_out" | "withdrawn" | "redeemed", reasonCode: string, now = new Date()) {
   const row = await Offer.findOne({ _id: offerId, sellerId }).session(session);
