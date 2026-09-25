@@ -24,7 +24,14 @@ async function text(path, options) {
 
 async function json(path, options) {
   const { response, body } = await text(path, options);
-  return { response, body: JSON.parse(body) };
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    const contentType = response.headers.get("content-type") ?? "unknown";
+    throw new Error(`Expected JSON from ${path}, received HTTP ${response.status} (${contentType})`);
+  }
+  return { response, body: parsed };
 }
 
 function includesAll(body, values) {
