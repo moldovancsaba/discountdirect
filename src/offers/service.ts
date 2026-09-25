@@ -14,7 +14,7 @@ import { issueCouponForAcceptedOffer } from "@/redemptions/service";
 import { discountDecision } from "@/pricing/service";
 import { discountedPrice } from "@/pricing/reference-price";
 import { productReferencePrice } from "@/pricing/reference-price-service";
-import { offerTransition, type OfferStatus } from "./lifecycle";
+import { offerTransition } from "./lifecycle";
 
 export class OfferError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "EXPIRED" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;

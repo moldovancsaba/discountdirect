@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { deriveCustomerSegment } from "../src/relationships/segments.ts";
+import { deriveMembershipTier, membershipBenefits, membershipDecision } from "../src/membership/core.ts";
 
 const day = 24 * 60 * 60 * 1000;
 const at = (days: number) => new Date(Date.UTC(2026, 0, 1) + days * day);
@@ -20,4 +21,14 @@ test("segment derivation covers order count and tenure boundaries", () => {
 test("segment derivation rejects invalid counts and inconsistent dates", () => {
   assert.throws(() => deriveCustomerSegment(-1, null, null), /orderCount/);
   assert.equal(deriveCustomerSegment(4, at(20), at(10)), "returning");
+});
+
+test("membership tiers and benefits are deterministic and consent-aware", () => {
+  assert.equal(deriveMembershipTier(2, 100000), "member");
+  assert.equal(deriveMembershipTier(5, 100000), "silver");
+  assert.equal(deriveMembershipTier(1, 500000), "gold");
+  assert.deepEqual(membershipBenefits("gold"), { freeDelivery: true, earlyAccessHours: 48 });
+  const starts = new Date("2026-10-10T12:00:00Z");
+  assert.equal(membershipDecision({ status: "active", tier: "silver", campaignStartsAt: starts, now: new Date("2026-10-09T12:00:00Z"), consentAllowed: true }).earlyAccess, true);
+  assert.equal(membershipDecision({ status: "active", tier: "gold", campaignStartsAt: starts, now: new Date("2026-10-08T12:00:00Z"), consentAllowed: false }).eligible, false);
 });
