@@ -102,9 +102,10 @@ export async function purchaseImportBatch(userId: string, sellerSlug: string, ba
 export async function applyPurchaseImport(userId: string, sellerSlug: string, batchId: string) {
   if (!mongoose.isValidObjectId(batchId)) throw new PurchaseError("INVALID");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
-  const db = await connectDatabase();
-  let result: any;
-  await db.connection.transaction(async (session) => {
+  return withSellerTenant(seller._id, async () => {
+    const db = await connectDatabase();
+    let result: any;
+    await db.connection.transaction(async (session) => {
     const batch = await PurchaseImportBatch.findOne({ _id: batchId, sellerId: seller._id }).session(session);
     if (!batch) throw new PurchaseError("NOT_FOUND");
     if (batch.status === "applied") { result = batch; return; }
@@ -130,8 +131,9 @@ export async function applyPurchaseImport(userId: string, sellerSlug: string, ba
     batch.appliedAt = new Date();
     await batch.save({ session });
     result = batch;
+    });
+    return result;
   });
-  return result;
 }
 
 export async function listCustomers(userId: string, sellerSlug: string) {

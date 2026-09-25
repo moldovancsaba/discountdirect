@@ -292,7 +292,7 @@ try {
     ).status,
     200,
   );
-  assert.equal(await Product.countDocuments({ sellerId: allowedSeller._id }), 2);
+  assert.equal(await withTenantBypass("auth-integration-product-count", async () => await Product.countDocuments({ sellerId: allowedSeller._id })), 2);
 
   const stalePreview = await post(
     `${productPath}/import`,
@@ -303,7 +303,7 @@ try {
     cookie,
   );
   const staleBatch = (await stalePreview.json()).batch;
-  const currentProduct = await Product.findOne({ _id: createdProduct.id, sellerId: allowedSeller._id }).lean();
+  const currentProduct = await withTenantBypass("auth-integration-current-product", async () => await Product.findOne({ _id: createdProduct.id, sellerId: allowedSeller._id }).lean());
   assert.ok(currentProduct);
   const directEdit = await fetch(`${base}${productPath}/${createdProduct.id}`, {
     method: "PATCH",
@@ -354,8 +354,8 @@ try {
   assert.deepEqual(purchaseBatch.rows.map((row: { action: string }) => row.action), ["create", "create"]);
   assert.equal((await post(purchaseImportPath, { action: "apply", batchId: purchaseBatch._id }, cookie)).status, 200);
   assert.equal((await post(purchaseImportPath, { action: "apply", batchId: purchaseBatch._id }, cookie)).status, 200);
-  assert.equal(await Purchase.countDocuments({ sellerId: allowedSeller._id }), 2);
-  assert.equal((await Purchase.findOne({ sellerId: allowedSeller._id, productSku: "MISSING-001" }).lean())?.productId, null);
+  assert.equal(await withTenantBypass("auth-integration-purchase-count", async () => await Purchase.countDocuments({ sellerId: allowedSeller._id })), 2);
+  assert.equal((await withTenantBypass("auth-integration-missing-product-purchase", async () => await Purchase.findOne({ sellerId: allowedSeller._id, productSku: "MISSING-001" }).lean()))?.productId, null);
 
   const duplicatePreview = await post(purchaseImportPath, { schemaVersion: "1", sourceName: "Duplicate test", rows: [purchaseRows[0], purchaseRows[0]] }, cookie);
   assert.equal(duplicatePreview.status, 201);
@@ -375,10 +375,11 @@ try {
   assert.equal((await fetch(`${base}/api/sellers/allowed-seller/customers`, { headers: { cookie } }).then((response) => response.json())).customers[0].totalHuf, 2990);
   assert.equal((await fetch(`${base}/api/sellers/allowed-seller/purchases/${history[0].id}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ expectedVersion: history[0].version, status: "corrected", reason: "Stale correction" }) })).status, 409);
   assert.equal((await fetch(`${base}/api/sellers/foreign-seller/customers`, { headers: { cookie } })).status, 403);
-  await Customer.create({ sellerId: foreignSeller._id, externalBuyerId: "FOREIGN-CUSTOMER", emailNormalized: user.emailNormalized, displayName: "Same email, other seller", sourceName: "Verification" });
+  await withTenantBypass("auth-integration-post-http-verification", async () => {
+    await withTenantBypass("auth-integration-foreign-customer-fixture", async () => await Customer.create({ sellerId: foreignSeller._id, externalBuyerId: "FOREIGN-CUSTOMER", emailNormalized: user.emailNormalized, displayName: "Same email, other seller", sourceName: "Verification" }));
   assert.equal(
-    await withTenantBypass("auth-integration-cross-seller-customer-count", () =>
-      Customer.countDocuments({ emailNormalized: user.emailNormalized }),
+    await withTenantBypass("auth-integration-cross-seller-customer-count", async () =>
+      await Customer.countDocuments({ emailNormalized: user.emailNormalized }),
     ),
     2,
   );
@@ -393,10 +394,10 @@ try {
   assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 403);
   const preferenceUpdate = await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) });
   assert.equal(preferenceUpdate.status, 200);
-  assert.equal(await ChannelPreference.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id }), 2);
-  assert.equal(await ConsentEvent.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id }), 1);
+  assert.equal(await withTenantBypass("auth-integration-preference-count", async () => await ChannelPreference.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id })), 2);
+  assert.equal(await withTenantBypass("auth-integration-consent-count", async () => await ConsentEvent.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id })), 1);
   assert.equal((await fetch(`${base}${preferencesPath}`, { method: "PATCH", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ email: true, postal: false }) })).status, 200);
-  assert.equal(await ConsentEvent.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id }), 1);
+  assert.equal(await withTenantBypass("auth-integration-consent-replay-count", async () => await ConsentEvent.countDocuments({ sellerId: allowedSeller._id, buyerUserId: user._id })), 1);
   const preferencesPage = await fetch(`${base}/buyer/allowed-seller/preferences`, { headers: { cookie } });
   assert.equal(preferencesPage.status, 200);
   assert.match(await preferencesPage.text(), /Marketingcsatornák/);
@@ -560,6 +561,7 @@ try {
     401,
   );
 
+  });
   console.log(
     "SSO-only authentication, catalog, purchase-ledger, privacy, recommendation, conversation, delivery, automation and redemption integration passed: tenant denial, audited access revocation, idempotent imports, consent evidence, request deduplication, export, marketing suppression, reproducible ranking, durable message retries, participant-only timelines, honest outbox states, buyer lists and single-use coupon redemption.",
   );
