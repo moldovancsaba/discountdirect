@@ -193,6 +193,18 @@ export async function advancePrivacyRequest(userId: string, sellerSlug: string, 
   return result;
 }
 
+export async function acknowledgePrivacySla(userId: string, sellerSlug: string, requestId: string) {
+  if (!mongoose.isValidObjectId(requestId)) throw new PrivacyError("INVALID");
+  const { seller } = await sellerContext(userId, sellerSlug);
+  const request = await withSellerTenant(seller._id, async () => await PrivacyRequest.findOneAndUpdate(
+    { _id: requestId, sellerId: seller._id, status: { $in: ["requested", "processing", "failed"] }, slaStatus: { $in: ["reminder_due", "overdue"] } },
+    { $set: { slaStatus: "acknowledged", handledByUserId: userId, lastAlertAt: new Date() } },
+    { new: true, runValidators: true },
+  ).lean());
+  if (!request) throw new PrivacyError("CONFLICT");
+  return requestOutput(request);
+}
+
 export async function buyerPrivacyExport(userId: string, sellerSlug: string, requestId: string) {
   if (!mongoose.isValidObjectId(requestId)) throw new PrivacyError("INVALID");
   const { seller } = await buyerContext(userId, sellerSlug);
