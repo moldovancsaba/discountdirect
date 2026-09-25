@@ -14,6 +14,8 @@ import type { CommerceConnector } from "./contracts.ts";
 import { connectorFor } from "./runtime.ts";
 import { ProviderError } from "./transport.ts";
 import { reconcileProviderOrder } from "./reconciliation.ts";
+import { Offer } from "../offers/models.ts";
+import { applySystemOfferTransition } from "../offers/service.ts";
 import {
   connectorRunKey,
   connectorSyncKind,
@@ -453,11 +455,20 @@ export async function syncConnector(
               { upsert: true, session, runValidators: true },
             );
             if (typeof stock.sku === "string" && Number.isFinite(stock.quantity)) {
-              await Product.updateOne(
+              const localProduct = await Product.findOneAndUpdate(
                 { sellerId: access.seller._id, skuNormalized: stock.sku.trim().toUpperCase(), active: true },
                 { $set: { stock: stock.quantity } },
-                { session, runValidators: true },
-              );
+                { session, runValidators: true, new: true },
+              ).lean();
+              if (localProduct && stock.quantity === 0) {
+                const activeOffers = await Offer.find({
+                  sellerId: access.seller._id,
+                  productId: localProduct._id,
+                  status: { $in: ["pending", "accepted"] },
+                }).select({ _id: 1 }).limit(100).session(session).lean();
+                for (const offer of activeOffers)
+                  await applySystemOfferTransition(session, access.seller._id, offer._id, "sold_out", "PROVIDER_STOCK_EMPTY");
+              }
             }
           }
         }
