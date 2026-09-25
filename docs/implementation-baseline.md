@@ -1,8 +1,8 @@
 # Implementation baseline inventory
 
 Verified on 2026-09-25 against the local implementation repository at
-`/Users/Shared/Projects/discount.direct`, through `main` commit `13600fb`
-(`feat: measure campaign holdout lift`). This file is the DD-000 baseline artifact: keep it in sync whenever the
+`/Users/Shared/Projects/discount.direct`, through `main` commit `7bd9108`
+(`Verify artifact and Redis readiness`). This file is the DD-000 baseline artifact: keep it in sync whenever the
 runtime stack, deployment shape, domain models, route surface or provider
 contracts materially change.
 
@@ -14,17 +14,17 @@ contracts materially change.
 | App and HTTP backend       | Next.js `15.5.21` App Router, React `19.2.8`, TypeScript `6.0.3`                                                                                                                                                                                                                                                                                                                                               |
 | Hosting                    | Vercel project `narimato/discountdirect`; production alias `https://discountdirect.vercel.app`                                                                                                                                                                                                                                                                                                                 |
 | Database                   | MongoDB Atlas through Mongoose `9.9.5`; shared connection helper in `src/lib/database-core.ts`                                                                                                                                                                                                                                                                                                                 |
-| Interface                  | SovereignSquad GDS `6.7.0`, Mantine packages under the GDS layer, Hungarian locale                                                                                                                                                                                                                                                                                                                             |
+| Interface                  | SovereignSquad GDS `6.7.0`, Hungarian locale; no direct Mantine runtime dependency                                                                                                                                                                                                                                                                                                                              |
 | Authentication             | DoneIsBetter OAuth/OIDC SSO only; local password/activation endpoints fail closed with `SSO_ONLY`                                                                                                                                                                                                                                                                                                              |
 | Realtime                   | Socket.IO endpoint on Vercel plus durable Atlas `RealtimeEvent` replay and HTTP fallback                                                                                                                                                                                                                                                                                                                       |
-| Jobs                       | Vercel Cron invokes `/api/cron/automations` every 30 minutes, `/api/cron/deliveries` every 15 minutes and `/api/cron/journeys` every 10 minutes                                                                                                                                                                                                                                                                |
+| Jobs                       | Vercel Cron invokes `/api/cron/automations` every 30 minutes, `/api/cron/deliveries` every 15 minutes, `/api/cron/journeys` every 10 minutes and `/api/cron/metrics` hourly                                                                                                                                                                                                                               |
 | E-mail                     | Resend adapter for outbound mail, signed inbound replies, suppressions and unsubscribe handling                                                                                                                                                                                                                                                                                                                |
-| Accelerators and artifacts | Upstash Redis client/key-policy foundations exist; frequency-cap counters, bounded provider-ingress rate limits and namespaced worker locks are wired with MongoDB as authority and explicit degraded fallback. Flash counters remain planned. Vercel Blob has an immutable private-key and signed-read foundation and print-ready offer PDFs now persist through it. No separate reporting projection exists. |
+| Accelerators and artifacts | Upstash Redis client/key-policy foundations exist; frequency-cap counters, bounded provider-ingress rate limits, namespaced worker locks and flash total/per-buyer counters are wired with MongoDB as authority and explicit degraded fallback. Vercel Blob has an immutable private-key and signed-read foundation and print-ready offer PDFs now persist through it. Reporting uses a generation-based MongoDB projection. |
 
 ## Deployment and environment
 
 `vercel.json` declares the Next.js framework, frozen-lockfile install, `pnpm build`,
-three cron paths and a 300-second `api/socket-io.ts` function budget. The required or
+four cron paths and a 300-second `api/socket-io.ts` function budget. The required or
 recognized environment variables are:
 
 | Area             | Variables                                                                                                                                                                                                         |
@@ -178,8 +178,8 @@ These gaps are intentional inventory facts, not regressions:
   and seller frequency caps plus namespaced automation, journey and delivery
   worker locks and provider-webhook rate limits are wired into the business
   flows. MongoDB remains authoritative when Redis is unavailable. Flash
-  counters are not yet wired into business flows or verified against staging
-  Redis.
+  total/per-buyer counters are wired into acceptance; live Redis concurrency
+  and rebuild verification remains a credential-gated release step.
 - Vercel Blob has a private artifact key convention, retention policy and signed
   read-url foundation. Postal offer generation is wired to the artifact ledger;
   live staging Blob verification is still required before issue closure. Privacy
