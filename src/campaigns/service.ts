@@ -20,6 +20,7 @@ import { validateSellerSettings } from "@/settings/validation";
 import { Purchase } from "@/purchases/models";
 import { campaignLift, isHoldout } from "./holdout";
 import { campaignAttribution, campaignMetrics } from "@/reporting/service";
+import { withSellerTenant } from "@/lib/tenant";
 
 export class CampaignError extends Error { constructor(public code: "FORBIDDEN" | "NOT_FOUND" | "INVALID" | "CONFLICT" | "SOLD_OUT") { super(code); } }
 const MAX_EXPIRY_MS = 48 * 60 * 60 * 1000;
@@ -62,6 +63,7 @@ function offerThreadPreview(row: any) {
 
 export async function createFlashCampaignPreview(userId: string, sellerSlug: string, input: unknown) {
   const value = previewInputFrom(input); const seller = await sellerContext(userId, sellerSlug);
+  return withSellerTenant(seller._id, async () => {
   const calculatedAt = new Date();
   let reference;
   try { reference = await productReferencePrice(seller._id, value.productId, calculatedAt); } catch { throw new CampaignError("INVALID"); }
@@ -72,6 +74,7 @@ export async function createFlashCampaignPreview(userId: string, sellerSlug: str
   const calculatedPrice = discountedPrice(product.priceHuf, evidence, value.discountPct);
   const [preview] = await CampaignPreview.create([{ sellerId: seller._id, kind: "flash", productId: product._id, productSku: product.sku, productName: product.name, productVersion: product.version, originalHuf: product.priceHuf, referencePriceHuf: evidence.referencePriceHuf, discountBaseHuf: calculatedPrice.discountBaseHuf, referencePriceWindowStart: evidence.windowStart, referencePriceCalculatedAt: evidence.calculatedAt, referencePriceEvidenceVersions: evidence.evidenceVersions, discountPct: value.discountPct, priceHuf: calculatedPrice.priceHuf, channel: value.channel, quantity: value.quantity, expiresAt: value.expiresAt, audienceSnapshot: allocation.audience, holdoutSnapshot: allocation.holdout, holdoutPct: allocation.holdoutPct, holdoutMode: allocation.holdoutMode, inputHash: previewHash(value, product, allocation.audience, allocation.holdout), createdByUserId: userId }]);
   return campaignPreviewOutput(preview.toObject());
+  });
 }
 
 export async function getCampaignPreview(userId: string, sellerSlug: string, previewId: string) {
