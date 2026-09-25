@@ -95,6 +95,25 @@ export async function applySystemOfferTransition(session: mongoose.ClientSession
   await OfferEvent.create([{ offerId: row._id, sellerId: row.sellerId, type: target, version: row.version, occurredAt: now, actorUserId: null }], { session });
   return output(row.toObject());
 }
+
+export async function withdrawOffer(userId: string, sellerSlug: string, offerId: string, expectedVersion: unknown) {
+  if (!mongoose.isValidObjectId(offerId) || !Number.isInteger(expectedVersion)) throw new OfferError("INVALID");
+  const seller = await sellerContext(userId, sellerSlug);
+  const database = await connectDatabase();
+  let result: any;
+  await database.connection.transaction(async (session) => {
+    const row = await Offer.findOne({ _id: offerId, sellerId: seller._id }).session(session);
+    if (!row) throw new OfferError("NOT_FOUND");
+    if (row.status === "withdrawn") { result = output(row.toObject()); return; }
+    if (row.version !== expectedVersion) throw new OfferError("CONFLICT");
+    const transition = offerTransition(row.status, "withdrawn", "seller", "SELLER_WITHDREW_OFFER");
+    const now = new Date(); row.status = transition.to; row.decidedAt = now; row.decisionByUserId = userId; row.version += 1;
+    await row.save({ session });
+    await OfferEvent.create([{ offerId: row._id, sellerId: row.sellerId, type: "withdrawn", version: row.version, occurredAt: now, actorUserId: userId }], { session });
+    result = output(row.toObject());
+  });
+  return result;
+}
 export async function respondToOffer(userId: string, offerId: string, expectedVersion: unknown, decision: unknown) {
   if (!mongoose.isValidObjectId(offerId) || !Number.isInteger(expectedVersion) || !["accepted", "declined"].includes(String(decision))) throw new OfferError("INVALID");
   const database = await connectDatabase();

@@ -18,5 +18,6 @@ test("provider-owned lifecycle outcomes are explicit and terminal", () => {
   assert.deepEqual(offerTransition("accepted", "redeemed", "system", "PROVIDER_ORDER_CONFIRMED").to, "redeemed");
   assert.deepEqual(offerTransition("accepted", "sold_out", "system", "PROVIDER_STOCK_EXHAUSTED").to, "sold_out");
   assert.deepEqual(offerTransition("pending", "withdrawn", "seller", "SELLER_WITHDREW_OFFER").to, "withdrawn");
+  assert.deepEqual(offerTransition("accepted", "withdrawn", "seller", "SELLER_WITHDREW_OFFER").to, "withdrawn");
   assert.throws(() => offerTransition("redeemed", "cancelled", "seller", "SELLER_CANCELLED"), /ILLEGAL_OFFER_TRANSITION/);
 });
