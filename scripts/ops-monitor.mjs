@@ -78,7 +78,10 @@ findings.push({ check: "delivery_cron_authorized", status: "ok", latencyMs: deli
 
 const journeyCron = await readJson("/api/cron/journeys?limit=1", { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } });
 assert.equal(journeyCron.response.status, 200, "journey cron must return HTTP 200 with token");
-assert.ok(Array.isArray(journeyCron.body.results), "journey cron response must include bounded results array");
+assert.ok(journeyCron.body.triggers, "journey cron response must include trigger results");
+assert.ok(Number.isInteger(journeyCron.body.triggers.birthday?.enrolled), "journey birthday trigger count must be present");
+assert.ok(Number.isInteger(journeyCron.body.triggers.productWatches?.enrolled), "journey product-watch trigger count must be present");
+assert.ok(Array.isArray(journeyCron.body.steps?.results ?? []), "journey step results must be bounded");
 findings.push({ check: "journey_cron_authorized", status: "ok", latencyMs: journeyCron.latencyMs, processed: journeyCron.body.processed });
 
 console.log(JSON.stringify({ service: "discountdirect", base, checkedAt: new Date().toISOString(), status: "ok", findings }, null, 2));
