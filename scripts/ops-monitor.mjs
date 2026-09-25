@@ -72,8 +72,9 @@ findings.push({ check: "cron_authorized", status: "ok", latencyMs: cron.latencyM
 
 const deliveryCron = await readJson("/api/cron/deliveries?limit=1", { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } });
 assert.equal(deliveryCron.response.status, 200, "delivery cron must return HTTP 200 with token");
-assert.ok(Array.isArray(deliveryCron.body.results), "delivery cron response must include bounded results array");
-findings.push({ check: "delivery_cron_authorized", status: "ok", latencyMs: deliveryCron.latencyMs, processed: deliveryCron.body.processed });
+assert.ok(Array.isArray(deliveryCron.body.deliveries?.results), "delivery cron response must include delivery results");
+assert.ok(Array.isArray(deliveryCron.body.postal?.results) || deliveryCron.body.postal?.reasonCode === "POSTAL_PROVIDER_NOT_CONFIGURED", "delivery cron response must include postal results or explicit provider absence");
+findings.push({ check: "delivery_cron_authorized", status: "ok", latencyMs: deliveryCron.latencyMs, processed: deliveryCron.body.deliveries.processed, postal: deliveryCron.body.postal?.reasonCode ?? "processed" });
 
 const journeyCron = await readJson("/api/cron/journeys?limit=1", { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } });
 assert.equal(journeyCron.response.status, 200, "journey cron must return HTTP 200 with token");
