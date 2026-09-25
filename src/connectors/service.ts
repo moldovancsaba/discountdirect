@@ -402,6 +402,15 @@ export async function syncConnector(
               quantity?: number;
               updatedAt?: Date | null;
             };
+            const previousObservation = await StockObservation.findOne(
+              {
+                sellerId: access.seller._id,
+                installationId: row._id,
+                sku: stock.sku,
+              },
+              { quantity: 1 },
+              { session },
+            ).lean();
             await StockObservation.updateOne(
               {
                 sellerId: access.seller._id,
@@ -413,6 +422,7 @@ export async function syncConnector(
                   provider,
                   providerProductId: stock.providerId,
                   sku: stock.sku,
+                  previousQuantity: previousObservation?.quantity ?? null,
                   quantity: stock.quantity,
                   observedAt: stock.updatedAt ?? new Date(),
                   checksum: item.checksum,

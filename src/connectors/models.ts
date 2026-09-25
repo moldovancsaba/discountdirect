@@ -186,6 +186,7 @@ const stockObservationSchema = new Schema(
     provider: { type: String, enum: ["shoprenter", "unas"], required: true },
     providerProductId: { type: String, required: true, maxlength: 160 },
     sku: { type: String, required: true, maxlength: 64 },
+    previousQuantity: { type: Number, default: null, min: 0, max: 1_000_000_000 },
     quantity: { type: Number, required: true, min: 0, max: 1_000_000_000 },
     observedAt: { type: Date, required: true },
     checksum: { type: String, required: true, maxlength: 64 },
