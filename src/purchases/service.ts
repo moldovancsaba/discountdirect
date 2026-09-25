@@ -154,24 +154,28 @@ export async function listCustomers(userId: string, sellerSlug: string) {
 export async function customerHistory(userId: string, sellerSlug: string, customerId: string, limit = 50) {
   if (!mongoose.isValidObjectId(customerId)) throw new PurchaseError("INVALID");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
-  const customer = await Customer.findOne({ _id: customerId, sellerId: seller._id }).lean();
-  if (!customer) throw new PurchaseError("NOT_FOUND");
-  const purchases = await Purchase.find({ sellerId: seller._id, customerId: customer._id }).sort({ purchasedAt: -1, _id: -1 }).limit(Math.min(Math.max(limit, 1), 100)).lean();
-  return { customer, purchases: purchases.map(purchaseOutput) };
+  return withSellerTenant(seller._id, async () => {
+    const customer = await Customer.findOne({ _id: customerId, sellerId: seller._id }).lean();
+    if (!customer) throw new PurchaseError("NOT_FOUND");
+    const purchases = await Purchase.find({ sellerId: seller._id, customerId: customer._id }).sort({ purchasedAt: -1, _id: -1 }).limit(Math.min(Math.max(limit, 1), 100)).lean();
+    return { customer, purchases: purchases.map(purchaseOutput) };
+  });
 }
 
 export async function updatePurchaseStatus(userId: string, sellerSlug: string, purchaseId: string, expectedVersion: unknown, status: unknown, reason: unknown) {
   if (!mongoose.isValidObjectId(purchaseId) || !Number.isInteger(expectedVersion) || !["refunded", "corrected"].includes(String(status)) || typeof reason !== "string" || !reason.trim() || reason.trim().length > 300) throw new PurchaseError("INVALID");
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
-  const purchase = await Purchase.findOneAndUpdate(
-    { _id: purchaseId, sellerId: seller._id, version: expectedVersion, status: "purchased" },
-    { $set: { status, correctionReason: reason.trim(), correctedAt: new Date(), correctedByUserId: userId }, $inc: { version: 1 } },
-    { new: true, runValidators: true },
-  );
+  return withSellerTenant(seller._id, async () => {
+    const purchase = await Purchase.findOneAndUpdate(
+      { _id: purchaseId, sellerId: seller._id, version: expectedVersion, status: "purchased" },
+      { $set: { status, correctionReason: reason.trim(), correctedAt: new Date(), correctedByUserId: userId }, $inc: { version: 1 } },
+      { new: true, runValidators: true },
+    );
     if (!purchase) throw new PurchaseError((await Purchase.exists({ _id: purchaseId, sellerId: seller._id })) ? "STALE" : "NOT_FOUND");
-  const customer = await Customer.findOne({ _id: purchase.customerId, sellerId: seller._id }).lean();
-  if (customer) await recalculateRelationship(seller._id, customer._id, customer.emailNormalized);
-  return purchaseOutput(purchase.toObject());
+    const customer = await Customer.findOne({ _id: purchase.customerId, sellerId: seller._id }).lean();
+    if (customer) await recalculateRelationship(seller._id, customer._id, customer.emailNormalized);
+    return purchaseOutput(purchase.toObject());
+  });
 }
 
 export async function updateCustomerPrivacy(userId: string, sellerSlug: string, customerId: string, status: unknown) {
