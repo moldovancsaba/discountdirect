@@ -14,13 +14,22 @@ export async function GET(request: Request) {
   if (!matchesToken(token, process.env.CRON_SECRET))
     return errorResponse("UNAUTHORIZED", "Cron hozzáférés szükséges.", 401);
   const limit = Number(new URL(request.url).searchParams.get("limit") ?? 20);
-  const result = await withRedisLock("cron", "journeys", async () => ({
-    triggers: {
-      birthday: await runBirthdayJourneyTriggers(50),
-      productWatches: await runProductWatchTriggers(50),
-    },
-    steps: await runDueJourneySteps(Number.isFinite(limit) ? limit : 20),
-  }));
+  let result;
+  try {
+    result = await withRedisLock("cron", "journeys", async () => ({
+      triggers: {
+        birthday: await runBirthdayJourneyTriggers(50),
+        productWatches: await runProductWatchTriggers(50),
+      },
+      steps: await runDueJourneySteps(Number.isFinite(limit) ? limit : 20),
+    }));
+  } catch (error) {
+    console.error("journey cron failed", {
+      code: error instanceof Error ? error.message : "UNKNOWN",
+      name: error instanceof Error ? error.name : typeof error,
+    });
+    return errorResponse("INTERNAL_ERROR", "Journey worker hiba.", 500);
+  }
   if (result.locked)
     return Response.json(
       { processed: 0, skipped: true, reasonCode: "REDIS_LOCK_BUSY" },
