@@ -1,4 +1,4 @@
-import { errorResponse } from "@/auth/http";
+import { errorResponse, requestId } from "@/auth/http";
 import { processDueDeliveries } from "@/delivery/service";
 import { matchesToken } from "@/lib/operator-session";
 import { processPostalSubmissions } from "@/postal/provider";
@@ -11,6 +11,15 @@ export async function GET(request: Request) {
   if (!matchesToken(token, process.env.CRON_SECRET)) return errorResponse("UNAUTHORIZED", "Cron hozzáférés szükséges.", 401);
   const limit = Number(new URL(request.url).searchParams.get("limit") ?? 20);
   const bounded=Number.isFinite(limit)?limit:20;
-  const [deliveries,postal]=await Promise.all([processDueDeliveries(bounded),processPostalSubmissions(Math.min(10,bounded))]);
-  return Response.json({deliveries,postal}, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const [deliveries,postal]=await Promise.all([processDueDeliveries(bounded),processPostalSubmissions(Math.min(10,bounded))]);
+    return Response.json({deliveries,postal}, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    const id = requestId();
+    console.error("cron_deliveries_failed", {
+      requestId: id,
+      code: error instanceof Error && "code" in error ? String((error as { code?: unknown }).code) : "UNKNOWN",
+    });
+    return errorResponse("CRON_RUN_FAILED", "A kézbesítések futtatása átmenetileg nem sikerült.", 503, id);
+  }
 }

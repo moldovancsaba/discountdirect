@@ -4,7 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
-import { withTenantBypass } from "@/lib/tenant";
+import { withSellerTenant, withTenantBypass } from "@/lib/tenant";
 import { recordInboundBuyerMessage } from "@/messaging/service";
 import { maySendMarketing, recordMarketingSend } from "@/consent/service";
 import {
@@ -96,14 +96,14 @@ function suppressionCode(reason: string) {
 }
 
 async function activeSuppression(sellerId: unknown, buyerUserId: unknown, channel: OutboundDeliveryChannel, session?: mongoose.ClientSession) {
-  return withTenantBypass("delivery-global-or-seller-suppression-check", () => {
+  return withTenantBypass("delivery-global-or-seller-suppression-check", async () => {
     const query = DeliverySuppression.findOne({
       buyerUserId,
       channel,
       $or: [{ scope: "global" }, { scope: "seller", sellerId }],
     });
     if (session) query.session(session);
-    return query.lean();
+    return await query.lean();
   });
 }
 
@@ -358,7 +358,7 @@ export async function processDueDeliveries(limitValue = 20, fetcher: FetchLike =
     const now = new Date();
     const row = await withTenantBypass(
       "delivery-cron-global-claim",
-      () => DeliveryOutbox.findOneAndUpdate(
+      async () => await DeliveryOutbox.findOneAndUpdate(
         {
           channel: "email",
           status: { $in: ["queued", "retryable_failed"] },
@@ -373,8 +373,10 @@ export async function processDueDeliveries(limitValue = 20, fetcher: FetchLike =
       ),
     );
     if (!row) break;
-    await recordEvent(null, { deliveryId: row._id, sellerId: row.sellerId, status: "processing", reasonCode: "DELIVERY_SEND_IN_PROGRESS", occurredAt: now });
-    results.push(await deliverLockedEmail(row, fetcher));
+    results.push(await withSellerTenant(row.sellerId, async () => {
+      await recordEvent(null, { deliveryId: row._id, sellerId: row.sellerId, status: "processing", reasonCode: "DELIVERY_SEND_IN_PROGRESS", occurredAt: now });
+      return deliverLockedEmail(row, fetcher);
+    }));
   }
   return { processed: results.length, results };
 }
