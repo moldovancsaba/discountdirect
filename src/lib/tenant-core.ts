@@ -78,6 +78,7 @@ export function hasSellerConstraint(filter: unknown): boolean {
 
 export function tenantScopedQueryFilter(filter: Record<string, unknown>, sellerId: TenantSellerId) {
   if (!plainObject(filter) || !Object.keys(filter).length) return { sellerId };
+  if (Object.prototype.hasOwnProperty.call(filter, "sellerId") && String(filter.sellerId) === String(sellerId)) return { ...filter, sellerId };
   return { $and: [filter, { sellerId }] };
 }
 

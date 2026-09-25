@@ -138,15 +138,17 @@ export async function applyPurchaseImport(userId: string, sellerSlug: string, ba
 
 export async function listCustomers(userId: string, sellerSlug: string) {
   const { seller } = await purchaseSellerAccess(userId, sellerSlug);
-  const rows = await Customer.aggregate([
-    { $match: { sellerId: seller._id } },
-    { $lookup: { from: "purchases", localField: "_id", foreignField: "customerId", as: "purchases" } },
-    { $set: { activePurchases: { $filter: { input: "$purchases", as: "purchase", cond: { $eq: ["$$purchase.status", "purchased"] } } } } },
-    { $project: { externalBuyerId: 1, displayName: 1, emailNormalized: 1, privacyStatus: 1, purchaseCount: { $size: "$activePurchases" }, totalHuf: { $sum: "$activePurchases.totalHuf" }, firstPurchaseAt: { $min: "$activePurchases.purchasedAt" }, lastPurchaseAt: { $max: "$activePurchases.purchasedAt" } } },
-    { $sort: { lastPurchaseAt: -1, _id: 1 } },
-    { $limit: 100 },
-  ]);
-  return { seller, customers: rows.map((row) => ({ ...row, id: row._id.toString(), _id: undefined, segment: deriveCustomerSegment(row.purchaseCount, row.firstPurchaseAt ?? null, row.lastPurchaseAt ?? null) })) };
+  return withSellerTenant(seller._id, async () => {
+    const rows = await Customer.aggregate([
+      { $match: { sellerId: seller._id } },
+      { $lookup: { from: "purchases", localField: "_id", foreignField: "customerId", as: "purchases" } },
+      { $set: { activePurchases: { $filter: { input: "$purchases", as: "purchase", cond: { $eq: ["$$purchase.status", "purchased"] } } } } },
+      { $project: { externalBuyerId: 1, displayName: 1, emailNormalized: 1, privacyStatus: 1, purchaseCount: { $size: "$activePurchases" }, totalHuf: { $sum: "$activePurchases.totalHuf" }, firstPurchaseAt: { $min: "$activePurchases.purchasedAt" }, lastPurchaseAt: { $max: "$activePurchases.purchasedAt" } } },
+      { $sort: { lastPurchaseAt: -1, _id: 1 } },
+      { $limit: 100 },
+    ]);
+    return { seller, customers: rows.map((row) => ({ ...row, id: row._id.toString(), _id: undefined, segment: deriveCustomerSegment(row.purchaseCount, row.firstPurchaseAt ?? null, row.lastPurchaseAt ?? null) })) };
+  });
 }
 
 export async function customerHistory(userId: string, sellerSlug: string, customerId: string, limit = 50) {

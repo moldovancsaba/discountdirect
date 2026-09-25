@@ -32,6 +32,7 @@ test("tenant query scoping preserves original filters and forces seller match", 
   assert.deepEqual(filter, {
     $and: [{ _id: "row_1", status: "active" }, { sellerId: "seller_1" }],
   });
+  assert.deepEqual(tenantScopedQueryFilter({ sellerId: "seller_1", status: "active" }, "seller_1"), { sellerId: "seller_1", status: "active" });
 });
 
 test("cross-tenant filters become impossible instead of widening access", () => {

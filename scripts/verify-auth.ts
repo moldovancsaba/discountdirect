@@ -352,7 +352,8 @@ try {
   assert.equal(purchasePreview.status, 201);
   const purchaseBatch = (await purchasePreview.json()).batch;
   assert.deepEqual(purchaseBatch.rows.map((row: { action: string }) => row.action), ["create", "create"]);
-  assert.equal((await post(purchaseImportPath, { action: "apply", batchId: purchaseBatch._id }, cookie)).status, 200);
+  const purchaseApply = await post(purchaseImportPath, { action: "apply", batchId: purchaseBatch._id }, cookie);
+  assert.equal(purchaseApply.status, 200);
   assert.equal((await post(purchaseImportPath, { action: "apply", batchId: purchaseBatch._id }, cookie)).status, 200);
   assert.equal(await withTenantBypass("auth-integration-purchase-count", async () => await Purchase.countDocuments({ sellerId: allowedSeller._id })), 2);
   assert.equal((await withTenantBypass("auth-integration-missing-product-purchase", async () => await Purchase.findOne({ sellerId: allowedSeller._id, productSku: "MISSING-001" }).lean()))?.productId, null);
