@@ -105,11 +105,12 @@ test("redis lua scripts are loadable through the Upstash script command", async 
   assert.deepEqual(Object.keys(loaded).sort(), [
     "acquireLock",
     "campaignAccept",
+    "campaignRecord",
     "frequencyCap",
     "rateLimit",
     "releaseLock",
   ]);
-  assert.equal(seen.length, 5);
+  assert.equal(seen.length, 6);
   assert.match(loaded.campaignAccept, /^sha:\d+$/);
 });
 
@@ -159,13 +160,13 @@ test("lock release is token-bound", async () => {
 test("campaign acceptance counter is expiring and Redis is non-authoritative", async () => {
   const calls: string[] = [];
   const client = {
-    async incr(key: string) {
-      calls.push(`incr:${key}`);
-      return 1;
-    },
-    async expire(key: string, seconds: number) {
-      calls.push(`expire:${key}:${seconds}`);
-      return 1;
+    async eval<T>(
+      script: string,
+      keys: string[],
+      args: Array<string | number>,
+    ) {
+      calls.push(`eval:${script}:${keys.join(",")}:${args.join(",")}`);
+      return [1, 1] as T;
     },
   } as never;
   const result = await recordCampaignAcceptance(
@@ -181,9 +182,12 @@ test("campaign acceptance counter is expiring and Redis is non-authoritative", a
     total: 1,
     buyer: 1,
   });
-  assert.equal(calls.length, 4);
-  assert.match(calls[1], /incr:camp:campaign%2F1:buyer:buyer%2F1:accepted/);
-  assert.match(calls[3], /expire:camp:campaign%2F1:buyer:buyer%2F1:accepted:/);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0], /INCR/);
+  assert.match(
+    calls[0],
+    /camp:campaign%2F1:accepted,camp:campaign%2F1:buyer:buyer%2F1:accepted/,
+  );
 });
 
 test("cron lock skips overlap and falls back when Redis is not configured", async () => {

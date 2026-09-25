@@ -170,6 +170,14 @@ if total == 1 then redis.call("EXPIRE", KEYS[1], ttl) end
 if buyer == 1 then redis.call("EXPIRE", KEYS[2], ttl) end
 return {1, "reserved", total, buyer}
 `.trim(),
+  campaignRecord: `
+local total = redis.call("INCR", KEYS[1])
+local buyer = redis.call("INCR", KEYS[2])
+local ttl = tonumber(ARGV[1])
+if total == 1 then redis.call("EXPIRE", KEYS[1], ttl) end
+if buyer == 1 then redis.call("EXPIRE", KEYS[2], ttl) end
+return {total, buyer}
+`.trim(),
   frequencyCap: `
 local count = tonumber(redis.call("GET", KEYS[1]) or "0")
 local limit = tonumber(ARGV[1])
@@ -250,14 +258,16 @@ export async function recordCampaignAcceptance(
   client: RedisPrimitiveClient = redisClient(),
 ): Promise<RedisPrimitiveResult> {
   try {
-    const totalKey = redisKeys.campaignAccepted(campaignId);
-    const buyerKey = redisKeys.campaignBuyerAccepted(campaignId, buyerUserId);
-    const total = await client.incr(totalKey);
-    const buyer = await client.incr(buyerKey);
-    if (total === 1)
-      await client.expire(totalKey, campaignCounterTtlSeconds(expiresAt));
-    if (buyer === 1)
-      await client.expire(buyerKey, campaignCounterTtlSeconds(expiresAt));
+    const result = await client.eval<[number, number]>(
+      redisLuaScripts.campaignRecord,
+      [
+        redisKeys.campaignAccepted(campaignId),
+        redisKeys.campaignBuyerAccepted(campaignId, buyerUserId),
+      ],
+      [campaignCounterTtlSeconds(expiresAt)],
+    );
+    const total = Number(result[0]);
+    const buyer = Number(result[1]);
     return {
       enabled: true,
       accepted: true,
