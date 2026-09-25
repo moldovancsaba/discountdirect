@@ -1,5 +1,6 @@
 import { databaseHealth } from "@/lib/database";
 import { matchesToken } from "@/lib/operator-session";
+import { blobHealth } from "@/lib/blob-core";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
@@ -17,11 +18,12 @@ export async function GET(request: Request) {
       },
       { status: 401, headers },
     );
-  const database = await databaseHealth();
+  const [database, artifacts] = await Promise.all([databaseHealth(), blobHealth()]);
   return Response.json(
     {
       status: database.connected ? "ready" : "unavailable",
       database,
+      artifacts,
       presence: { status: "not_instrumented", activeUsers: null },
     },
     { status: database.connected ? 200 : 503, headers },
