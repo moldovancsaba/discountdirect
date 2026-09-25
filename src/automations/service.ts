@@ -3,7 +3,7 @@ import "server-only";
 import mongoose from "mongoose";
 import { BuyerRelationship, Membership, Seller, User } from "@/auth/models";
 import { connectDatabase } from "@/lib/database";
-import { withTenantBypass } from "@/lib/tenant";
+import { withSellerTenant, withTenantBypass } from "@/lib/tenant";
 import { createDeliveryRecord } from "@/delivery/service";
 import { Customer } from "@/purchases/models";
 import { createRecommendationPreview } from "@/recommendations/service";
@@ -270,7 +270,7 @@ export async function runAutomationNow(userId: string, sellerSlug: string, autom
   const seller = await sellerAccess(userId, sellerSlug);
   const automation = await OfferAutomation.findOne({ _id: automationId, sellerId: seller._id }).lean();
   if (!automation) throw new AutomationError("NOT_FOUND");
-  return runAutomation(automation, userId, seller.slug);
+  return withSellerTenant(seller._id, () => runAutomation(automation, userId, seller.slug));
 }
 
 async function runAutomation(automation: any, actorUserId: string, sellerSlug?: string) {
@@ -318,7 +318,7 @@ export async function runDueAutomations(limit = 20) {
   );
   const results = [];
   for (const row of rows) {
-    try { results.push(await runAutomation(row, row.createdByUserId.toString())); }
+    try { results.push(await withSellerTenant(row.sellerId, () => runAutomation(row, row.createdByUserId.toString()))); }
     catch (error) { results.push({ error: error instanceof Error ? error.message : "UNKNOWN", automationId: row._id.toString() }); }
   }
   return { processed: results.length, results };
