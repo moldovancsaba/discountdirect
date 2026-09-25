@@ -170,6 +170,7 @@ test("campaign acceptance counter is expiring and Redis is non-authoritative", a
   } as never;
   const result = await recordCampaignAcceptance(
     "campaign/1",
+    "buyer/1",
     new Date(Date.now() + 60_000),
     client,
   );
@@ -178,9 +179,11 @@ test("campaign acceptance counter is expiring and Redis is non-authoritative", a
     accepted: true,
     reasonCode: "recorded",
     total: 1,
+    buyer: 1,
   });
-  assert.equal(calls.length, 2);
-  assert.match(calls[1], /expire:camp:campaign%2F1:accepted:/);
+  assert.equal(calls.length, 4);
+  assert.match(calls[1], /incr:camp:campaign%2F1:buyer:buyer%2F1:accepted/);
+  assert.match(calls[3], /expire:camp:campaign%2F1:buyer:buyer%2F1:accepted:/);
 });
 
 test("cron lock skips overlap and falls back when Redis is not configured", async () => {

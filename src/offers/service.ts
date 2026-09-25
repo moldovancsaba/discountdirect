@@ -621,6 +621,7 @@ export async function respondToOffer(
     if (decision === "accepted" && result?.campaignId && result?.expiresAt) {
       await recordCampaignAcceptance(
         result.campaignId,
+        userId,
         new Date(result.expiresAt),
       ).catch(() => undefined);
     }

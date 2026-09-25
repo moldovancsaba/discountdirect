@@ -245,17 +245,26 @@ export async function redisRateLimit(
 
 export async function recordCampaignAcceptance(
   campaignId: string,
+  buyerUserId: string,
   expiresAt: Date,
   client: RedisPrimitiveClient = redisClient(),
 ): Promise<RedisPrimitiveResult> {
   try {
-    const total = await client.incr(redisKeys.campaignAccepted(campaignId));
+    const totalKey = redisKeys.campaignAccepted(campaignId);
+    const buyerKey = redisKeys.campaignBuyerAccepted(campaignId, buyerUserId);
+    const total = await client.incr(totalKey);
+    const buyer = await client.incr(buyerKey);
     if (total === 1)
-      await client.expire(
-        redisKeys.campaignAccepted(campaignId),
-        campaignCounterTtlSeconds(expiresAt),
-      );
-    return { enabled: true, accepted: true, reasonCode: "recorded", total };
+      await client.expire(totalKey, campaignCounterTtlSeconds(expiresAt));
+    if (buyer === 1)
+      await client.expire(buyerKey, campaignCounterTtlSeconds(expiresAt));
+    return {
+      enabled: true,
+      accepted: true,
+      reasonCode: "recorded",
+      total,
+      buyer,
+    };
   } catch (error) {
     return primitiveFailure(error);
   }
