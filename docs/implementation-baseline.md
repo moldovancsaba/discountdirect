@@ -258,7 +258,7 @@ DD-040 adds immutable rule-template versions and seller override provenance whil
 
 DD-041 adds versioned multi-step customer journeys with manual and purchase-age trigger evidence. Seller owners preview, activate and pause definitions; each enrollment schedules ordered, idempotent step runs. A separately authorized bounded cron leases due work, rechecks current authorization, creates frozen delivery evidence and applies three bounded retry attempts. Buyers can read their enrollment evidence but cannot mutate orchestration state.
 
-Redis and Blob operational drills are credential-gated and synthetic: `pnpm redis:verify` validates Lua scripts, counters, rate limits and lock contention; `pnpm blob:verify` validates private write/read/signed-read and cleanup. A missing provider configuration is a release blocker, not a successful drill result.
+Redis and Blob operational drills are credential-gated and synthetic: `pnpm redis:verify` validates Lua scripts, counters, rate limits and lock contention; `pnpm blob:verify` validates private write/read/signed-read and cleanup. `pnpm release:readiness` provides the consolidated, secret-free prerequisite report for the release gate. A missing provider configuration is a release blocker, not a successful drill result.
 
 Every change that affects stack, deployment, routes, environment variables,
 domain models, provider contracts or durable business state must update this
