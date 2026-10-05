@@ -17,7 +17,6 @@ Node 24.x and pnpm 10.30.3 only (`package.json`); never use npm or yarn. The `np
 
 ## Branch, push, deploy
 - `main` is the release branch ([docs/architecture.md](docs/architecture.md)). Production deploys with `vercel deploy --prod --scope narimato` after the gate passes ([docs/operations.md](docs/operations.md)).
-- Agents commit locally on the current branch. Do not push, create branches or tags, or deploy unless the owner explicitly asks.
 - The repo's closure bar is: tested, documented, committed, pushed and verified on an exact-commit Vercel Preview; production verification only when the change is intentionally release-enabled ([IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)). The push step belongs to the owner unless they ask you to do it.
 
 ## Commit identity and attribution
