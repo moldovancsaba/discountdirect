@@ -1,6 +1,6 @@
 # DiscountDirect
 
-Personalized offers and seller–buyer relationships. Current implementation baseline **1.5.0** plus unreleased pricing-evidence and campaign-measurement work.
+Personalized offers and seller–buyer relationships. Current implementation baseline **1.5.0** plus the unreleased work recorded in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 - [Application](https://discountdirect.vercel.app)
 - [Original experience workspace](https://discountdirect.vercel.app/experience)
@@ -8,6 +8,7 @@ Personalized offers and seller–buyer relationships. Current implementation bas
 - [Repository project board](https://github.com/moldovancsaba/discountdirect/projects)
 - [Implementation plan](IMPLEMENTATION_PLAN.md)
 - [Release notes](RELEASE_NOTES.md)
+- [Handover](HANDOVER.md) · [Documentation index](docs/INDEX.md) · [Agent instructions](AGENTS.md)
 - [Architecture](docs/architecture.md) · [Implementation baseline](docs/implementation-baseline.md) · [Setup and operations](docs/operations.md)
 - [Authentication and provisioning](docs/authentication.md)
 - [Purchase ledger](docs/purchases.md)
